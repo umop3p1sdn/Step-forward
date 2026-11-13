@@ -12,20 +12,20 @@
 </style>
 </head>
 <body>
-<div id="info">Step Forward <span id="ver"></span> · klik / spatie = volgende plek</div>
+<div id="info">Step Forward <span id="ver"></span> · klik = schieten · spatie = volgende plek · VR: trigger = schieten, A/X = volgende plek</div>
 
 <a-scene renderer="colorManagement:true; antialias:true" background="color:#0b0d10"
-         xr-mode-ui="enabled:true" vr-mode-ui="enabled:true" stad>
+         xr-mode-ui="enabled:true" vr-mode-ui="enabled:true" stad zombies>
   <a-entity id="rig">
     <a-entity id="cam" camera position="0 1.6 0" look-controls wasd-controls="enabled:false"></a-entity>
-    <a-entity id="handL" meta-touch-controls="hand:left"></a-entity>
-    <a-entity id="handR" meta-touch-controls="hand:right"></a-entity>
+    <a-entity id="handL" laser-controls="hand:left" raycaster="objects:.raak; far:60; lineColor:#ff3a3a; lineOpacity:0.55"></a-entity>
+    <a-entity id="handR" laser-controls="hand:right" raycaster="objects:.raak; far:60; lineColor:#ff3a3a; lineOpacity:0.55"></a-entity>
   </a-entity>
 </a-scene>
 
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE  = 'v1';
+const VERSIE  = 'v2';
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -90,10 +90,9 @@ AFRAME.registerComponent('stad', {
     this.i = -1; this.doel = 0; this.fase = 'zwart'; this.dek = 1; this.naamT = 0;
 
     const volgende = () => { if (this.fase === 'open') { this.doel = (this.i+1) % PLEKKEN.length; this.fase = 'dicht'; } };
-    ['handL','handR'].forEach(id => document.getElementById(id).addEventListener('triggerdown', volgende));
-    window.addEventListener('keydown', e => { if (e.code === 'Space' || e.code === 'ArrowRight') volgende(); });
-    this.el.canvas ? this.el.canvas.addEventListener('click', volgende)
-                   : this.el.addEventListener('render-target-loaded', () => this.el.canvas.addEventListener('click', volgende));
+    ['handL','handR'].forEach(id => { const h = document.getElementById(id);
+      h.addEventListener('abuttondown', volgende); h.addEventListener('xbuttondown', volgende); });
+    window.addEventListener('keydown', e => { if (e.code === 'Space' || e.code === 'ArrowRight' || e.code === 'KeyN') volgende(); });
   },
 
   bouw(p){
@@ -161,6 +160,7 @@ AFRAME.registerComponent('stad', {
     c.lineWidth = 14; c.strokeStyle = 'rgba(0,0,0,.9)'; c.strokeText(p.naam, 512, 128);
     c.fillStyle = '#e8f2ea'; c.fillText(p.naam, 512, 128);
     this.naamTex.needsUpdate = true; this.naamT = NAAMTIJD;
+    this.el.emit('plekwissel', {plek:k});
   },
   tick(t, dt){
     const s = Math.min(dt/1000, 0.1);
@@ -177,5 +177,272 @@ AFRAME.registerComponent('stad', {
   }
 });
 </script>
+<script>
+/* ================= ZOMBIES — REGELKNOPPEN ================= */
+const ZOMBIE_SOORTEN = [1, 3, 4, 5];     // welke zN.json in art/zombies staan
+const ZLENGTE   = 1.72;   // hoe lang een zombie is (m)
+const ZTEGELIJK = 4;      // maximaal zoveel tegelijk in beeld
+const ZAFSTAND  = [15, 24];  // waar ze verschijnen (m vóór je)
+const ZHOEK     = 38;     // hoe ver links/rechts ze mogen verschijnen (graden)
+const ZSNEL     = [0.45, 0.9]; // loopsnelheid (m/s)
+const ZSTOP     = 1.3;    // hier blijven ze staan (m van je af)
+const ZPAUZE    = [0.6, 2.2];  // tijd tussen twee nieuwe zombies (s)
+const ROMPHP    = 5;      // treffers op borst/buik voor hij omvalt
+const ZWAARTE   = 9.8;
+const LIJK_TIJD = 6;      // zolang blijft een lijk/stuk liggen voor het wegzakt (s)
+const BLOED_N   = 600;    // bloeddruppels in de pool
+const PLAS_N    = 260;    // bloedvlekken op de grond
+/* ========================================================== */
+AFRAME.registerComponent('zombies', {
+  init(){
+    const T = THREE; this.T = T;
+    this.sc = this.el.object3D;
+    this.wortel = document.createElement('a-entity'); this.wortel.classList.add('raak');
+    this.el.appendChild(this.wortel);
+    this.soorten = {}; this.lijst = []; this.los = []; this.wacht = 2; this.klaar = false;
+    this.rc = new T.Raycaster(); this.rc.far = 80;
+    this.laad().then(() => { this.klaar = true; });
+    // bloed
+    const bg = new T.BufferGeometry();
+    this.bPos = new Float32Array(BLOED_N*3); this.bVel = new Float32Array(BLOED_N*3); this.bLeef = new Float32Array(BLOED_N);
+    for (let i=0;i<BLOED_N;i++) this.bPos[i*3+1] = -50;
+    bg.setAttribute('position', new T.BufferAttribute(this.bPos, 3));
+    this.bloed = new T.Points(bg, new T.PointsMaterial({color:0x8a0606, size:0.035, sizeAttenuation:true}));
+    this.bloed.frustumCulled = false; this.sc.add(this.bloed); this.bI = 0;
+    // bloedvlekken op de grond
+    const vc = document.createElement('canvas'); vc.width = vc.height = 128; const x = vc.getContext('2d');
+    for (let k=0;k<14;k++){ const r = 10+Math.random()*30, a = Math.random()*6.28, d = Math.random()*30;
+      x.fillStyle = `rgba(${90+Math.random()*40|0},0,0,${0.6+Math.random()*0.4})`;
+      x.beginPath(); x.arc(64+Math.cos(a)*d, 64+Math.sin(a)*d, r, 0, 6.28); x.fill(); }
+    const vt = new T.CanvasTexture(vc); vt.colorSpace = T.SRGBColorSpace;
+    this.plas = new T.InstancedMesh(new T.PlaneGeometry(1,1).rotateX(-Math.PI/2),
+      new T.MeshBasicMaterial({map:vt, color:0x7a2020, transparent:true, depthWrite:false}), PLAS_N);
+    this.plas.count = 0; this.plas.renderOrder = 2; this.plas.frustumCulled = false; this.sc.add(this.plas); this.pI = 0;
+    // stomp-textuur (rood rafelrondje)
+    const sc2 = document.createElement('canvas'); sc2.width = sc2.height = 64; const y = sc2.getContext('2d');
+    for (let k=0;k<9;k++){ y.fillStyle = k<5 ? '#5a0000' : '#a8121a';
+      y.beginPath(); y.arc(32+(Math.random()-0.5)*16, 32+(Math.random()-0.5)*16, 12-k*0.6+Math.random()*6, 0, 6.28); y.fill(); }
+    this.stompTex = new T.CanvasTexture(sc2); this.stompTex.colorSpace = T.SRGBColorSpace;
+    this.stompMat = new T.MeshBasicMaterial({map:this.stompTex, alphaTest:0.4});
+    // invoer
+    ['handL','handR'].forEach(id => document.getElementById(id).addEventListener('triggerdown', () => this.schiet(id)));
+    const muis = e => { if (e.button === 0) this.schiet('muis', e); };
+    this.el.canvas ? this.el.canvas.addEventListener('mousedown', muis)
+                   : this.el.addEventListener('render-target-loaded', () => this.el.canvas.addEventListener('mousedown', muis));
+    this.el.addEventListener('plekwissel', () => this.leeg());
+  },
+  async laad(){
+    const T = this.T, tl = new T.TextureLoader();
+    const plaat = src => new Promise(ok => {
+      const im = new Image(); im.onload = () => ok(im); im.onerror = () => ok(null); im.src = src; });
+    await Promise.all(ZOMBIE_SOORTEN.map(async n => {
+      const j = await (await fetch(`art/zombies/z${n}.json`)).json();
+      const s = ZLENGTE / j.maat[1], soort = {j, s, delen:{}};
+      await Promise.all(Object.entries(j.delen).map(async ([d, info]) => {
+        const im = await plaat(`art/zombies/z${n}_${d}.png`); if (!im) return;
+        const t = new T.Texture(im); t.colorSpace = T.SRGBColorSpace; t.needsUpdate = true;
+        // alfa bewaren (halve maat) voor de trefproef: alleen raak als je echt op de zombie mikt
+        const c = document.createElement('canvas'), w = Math.max(1, im.width>>1), h = Math.max(1, im.height>>1);
+        c.width = w; c.height = h; const x = c.getContext('2d'); x.drawImage(im, 0, 0, w, h);
+        const px = x.getImageData(0,0,w,h).data, al = new Uint8Array(w*h);
+        for (let i=0;i<w*h;i++) al[i] = px[i*4+3];
+        soort.delen[d] = {info, mat:new T.MeshBasicMaterial({map:t, alphaTest:0.5, side:T.DoubleSide}),
+                          geo:new T.PlaneGeometry(info.w*s, info.h*s), al, aw:w, ah:h};
+      }));
+      this.soorten[n] = soort;
+    }));
+  },
+  /* ---------- een zombie in elkaar zetten ---------- */
+  maak(n){
+    const T = this.T, so = this.soorten[n], j = so.j, s = so.s, W = j.maat[0], H = j.maat[1];
+    const loc = (px,py) => new T.Vector3((px - W/2)*s, (H - py)*s, 0);
+    const z = {n, grp:new T.Group(), knoop:{}, hp:ROMPHP, dood:false, val:0, t:Math.random()*10,
+               snel: ZSNEL[0] + Math.random()*(ZSNEL[1]-ZSNEL[0]), weg:0, benen:2};
+    const volgorde = []; const bezocht = new Set();
+    const zet = d => { if (bezocht.has(d) || !so.delen[d]) return; const o = so.delen[d].info.ouder; if (o) zet(o); bezocht.add(d); volgorde.push(d); };
+    Object.keys(so.delen).forEach(zet);
+    volgorde.forEach((d, k) => {
+      const D = so.delen[d], i = D.info;
+      const piv = i.scharnier ? loc(i.scharnier[0], i.scharnier[1]) : loc(i.x + i.w/2, i.y + i.h/2);
+      const kn = new T.Group(); kn.userData = {deel:d, piv};
+      const ou = i.ouder ? z.knoop[i.ouder] : null;
+      kn.position.copy(ou ? piv.clone().sub(ou.userData.piv) : piv);
+      (ou || z.grp).add(kn);
+      const m = new T.Mesh(D.geo, D.mat);
+      m.position.copy(loc(i.x + i.w/2, i.y + i.h/2).sub(piv)); m.position.z = k*0.0015;
+      m.userData = {z, deel:d, D};
+      kn.add(m); z.knoop[d] = kn;
+    });
+    return z;
+  },
+  nieuw(){
+    const ns = Object.keys(this.soorten); if (!ns.length) return;
+    const z = this.maak(+ns[Math.random()*ns.length|0]);
+    const a = (Math.random()*2-1)*ZHOEK*Math.PI/180, r = ZAFSTAND[0] + Math.random()*(ZAFSTAND[1]-ZAFSTAND[0]);
+    z.grp.position.set(Math.sin(a)*r, 0, -Math.cos(a)*r);
+    this.wortel.object3D.add(z.grp); this.lijst.push(z);
+  },
+  leeg(){
+    this.lijst.forEach(z => z.grp.removeFromParent()); this.lijst = [];
+    this.los.forEach(l => l.o.removeFromParent()); this.los = [];
+    this.plas.count = 0; this.wacht = 1.5;
+  },
+  /* ---------- schieten ---------- */
+  schiet(bron, e){
+    const T = this.T, cam = this.el.camera;
+    if (bron === 'muis'){
+      const r = this.el.canvas.getBoundingClientRect();
+      this.rc.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1, -((e.clientY-r.top)/r.height*2-1)), cam);
+    } else {
+      const h = document.getElementById(bron), rc = h.components.raycaster;
+      if (!rc) return; rc.updateOriginDirection && rc.updateOriginDirection();
+      this.rc.ray.copy(rc.raycaster.ray);
+      const g = h.components['tracked-controls'];
+      try { const gp = g && g.controller && g.controller.gamepad; gp && gp.hapticActuators && gp.hapticActuators[0] && gp.hapticActuators[0].pulse(0.6, 60); } catch(_){}
+    }
+    this.knal();
+    const hits = this.rc.intersectObject(this.wortel.object3D, true);
+    for (const h of hits){
+      const u = h.object.userData; if (!u.D || !h.uv) continue;
+      const D = u.D, px = Math.min(D.aw-1, h.uv.x*D.aw|0), py = Math.min(D.ah-1, (1-h.uv.y)*D.ah|0);
+      if (D.al[py*D.aw+px] < 128) continue;          // doorzichtig: kogel gaat erdoor
+      this.raak(u.z, u.deel, h.point, this.rc.ray.direction);
+      return;
+    }
+  },
+  raak(z, deel, p, dir){
+    this.spat(p, dir, 26);
+    if (z.dood && (deel === 'borst' || deel === 'buik')) return;
+    if (deel === 'borst' || deel === 'buik'){
+      z.hp--; this.spat(p, dir, 30);
+      if (z.hp <= 0) this.omver(z);
+      return;
+    }
+    if (deel.startsWith('hoofd')){
+      ['hoofd1','hoofd2','hoofd3','hoofd4'].forEach(d => z.knoop[d] && this.losMaak(z, d, dir, 1.6));
+      this.spat(p, dir, 90);
+      this.omver(z); return;
+    }
+    if (!z.knoop[deel] || !z.knoop[deel].parent) return;
+    // een been kwijt (welk stuk dan ook) → hij valt om
+    if (/been|voet/.test(deel) && !z.dood){ z.benen--; this.losMaak(z, deel, dir, 1); this.omver(z); return; }
+    this.losMaak(z, deel, dir, 1);
+  },
+  losMaak(z, deel, dir, kracht){
+    const T = this.T, kn = z.knoop[deel]; if (!kn || !kn.parent || kn.userData.los) return;
+    const ouder = kn.parent;
+    // stomp op het ouderdeel
+    if (ouder !== z.grp){
+      const st = new T.Mesh(new T.CircleGeometry(0.055, 12), this.stompMat);
+      st.position.copy(kn.position); st.position.z = 0.03; st.scale.set(1+Math.random()*0.5, 0.7+Math.random()*0.5, 1);
+      ouder.add(st);
+    }
+    const wp = new T.Vector3(); kn.getWorldPosition(wp);
+    this.sc.attach(kn); kn.userData.los = true;
+    const v = new T.Vector3(dir.x, 0, dir.z).normalize().multiplyScalar((1.5+Math.random()*2.5)*kracht);
+    v.x += (Math.random()-0.5)*2.5*kracht; v.y = (2.5+Math.random()*2.5)*kracht;
+    this.los.push({o:kn, v, w:new T.Vector3((Math.random()-0.5)*8, (Math.random()-0.5)*8, (Math.random()-0.5)*14), t:0, grond:false});
+    this.spat(wp, dir, 40);
+  },
+  omver(z){
+    if (z.dood) return; z.dood = true; z.val = 0;
+    z.valKant = Math.random() < 0.5 ? -1 : 1;
+  },
+  /* ---------- bloed ---------- */
+  spat(p, dir, n){
+    for (let k=0;k<n;k++){
+      const i = this.bI; this.bI = (this.bI+1) % BLOED_N;
+      this.bPos[i*3] = p.x; this.bPos[i*3+1] = p.y; this.bPos[i*3+2] = p.z;
+      const sp = 1 + Math.random()*3;
+      this.bVel[i*3]   = dir.x*sp*0.8 + (Math.random()-0.5)*2.2;
+      this.bVel[i*3+1] = Math.random()*2.8;
+      this.bVel[i*3+2] = dir.z*sp*0.8 + (Math.random()-0.5)*2.2;
+      this.bLeef[i] = 2.5;
+    }
+  },
+  vlek(x, z, maat){
+    const T = this.T, m = new T.Matrix4(), i = this.pI; this.pI = (this.pI+1) % PLAS_N;
+    m.compose(new T.Vector3(x, 0.004 + i*0.00002, z), new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0), Math.random()*6.28),
+              new T.Vector3(maat, 1, maat));
+    this.plas.setMatrixAt(i, m); this.plas.count = Math.max(this.plas.count, i+1); this.plas.instanceMatrix.needsUpdate = true;
+  },
+  /* ---------- geluid ---------- */
+  knal(){
+    try {
+      const A = this.ac || (this.ac = new (window.AudioContext||window.webkitAudioContext)());
+      const len = A.sampleRate*0.25, b = A.createBuffer(1, len, A.sampleRate), d = b.getChannelData(0);
+      for (let i=0;i<len;i++) d[i] = (Math.random()*2-1) * Math.pow(1-i/len, 4);
+      const s = A.createBufferSource(); s.buffer = b;
+      const f = A.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1800;
+      const g = A.createGain(); g.gain.value = 0.7;
+      s.connect(f).connect(g).connect(A.destination); s.start();
+    } catch(_){}
+  },
+  /* ---------- elke beurt ---------- */
+  tick(t, dt){
+    if (!this.klaar) return;
+    const s = Math.min(dt/1000, 0.05), T = this.T, cam = this.el.camera;
+    const ik = new T.Vector3(); cam.getWorldPosition(ik); ik.y = 0;
+    // nieuwe zombies
+    const levend = this.lijst.filter(z => !z.dood).length;
+    this.wacht -= s;
+    if (this.wacht <= 0 && levend < ZTEGELIJK){ this.nieuw(); this.wacht = ZPAUZE[0] + Math.random()*(ZPAUZE[1]-ZPAUZE[0]); }
+    // lopen / waggelen / omvallen
+    for (const z of this.lijst){
+      const g = z.grp; z.t += s;
+      const naar = ik.clone().sub(g.position); naar.y = 0; const afst = naar.length();
+      if (!z.dood){
+        g.rotation.y = Math.atan2(naar.x, naar.z);
+        if (afst > ZSTOP){ g.position.addScaledVector(naar.normalize(), z.snel*s); }
+        const f = z.t * (2.2 + z.snel*2);
+        g.rotation.z = Math.sin(f)*0.06;
+        g.position.y = Math.abs(Math.sin(f))*0.03;
+        const k = z.knoop;
+        if (k.bovenbeenL) k.bovenbeenL.rotation.z =  Math.sin(f)*0.08;
+        if (k.bovenbeenR) k.bovenbeenR.rotation.z =  Math.sin(f)*0.08;
+        if (k.bovenarmL && !k.bovenarmL.userData.los) k.bovenarmL.rotation.z = Math.sin(f*0.7)*0.10;
+        if (k.bovenarmR && !k.bovenarmR.userData.los) k.bovenarmR.rotation.z = -Math.sin(f*0.7+1)*0.10;
+        if (k.borst) k.borst.rotation.z = Math.sin(f+0.5)*0.04;
+      } else {
+        z.val += s;
+        const a = Math.min(1, z.val/0.7);
+        g.rotation.x = -a*a*Math.PI/2*0.96;                 // achterover
+        g.rotation.z += (z.valKant*0.25 - g.rotation.z)*s*3;
+        g.position.y = Math.max(0, g.position.y - s);
+        if (z.val > 0.7 && !z.plas){ z.plas = true; this.vlek(g.position.x, g.position.z, 1.2+Math.random()*0.8); }
+        if (z.val > LIJK_TIJD) g.position.y -= s*0.25;        // wegzakken
+      }
+    }
+    this.lijst = this.lijst.filter(z => { if (z.dood && z.val > LIJK_TIJD+3){ z.grp.removeFromParent(); return false; } return true; });
+    // losse stukken
+    for (const l of this.los){
+      l.t += s; const o = l.o;
+      if (!l.grond){
+        l.v.y -= ZWAARTE*s; o.position.addScaledVector(l.v, s);
+        o.rotation.x += l.w.x*s; o.rotation.y += l.w.y*s; o.rotation.z += l.w.z*s;
+        if (o.position.y < 0.05 && l.v.y < 0){
+          if (Math.abs(l.v.y) > 2.5){ l.v.y *= -0.3; l.v.x *= 0.5; l.v.z *= 0.5; l.w.multiplyScalar(0.5); }
+          else { l.grond = true; o.position.y = 0.05; o.rotation.x = -Math.PI/2; o.rotation.y = 0; this.vlek(o.position.x, o.position.z, 0.35+Math.random()*0.3); }
+        }
+      } else if (l.t > LIJK_TIJD) o.position.y -= s*0.06;
+    }
+    this.los = this.los.filter(l => { if (l.t > LIJK_TIJD+4){ l.o.removeFromParent(); return false; } return true; });
+    // bloed
+    for (let i=0;i<BLOED_N;i++){
+      if (this.bLeef[i] <= 0) continue;
+      this.bLeef[i] -= s; const j = i*3;
+      this.bVel[j+1] -= ZWAARTE*s;
+      this.bPos[j] += this.bVel[j]*s; this.bPos[j+1] += this.bVel[j+1]*s; this.bPos[j+2] += this.bVel[j+2]*s;
+      if (this.bPos[j+1] <= 0.01){
+        if (Math.random() < 0.08) this.vlek(this.bPos[j], this.bPos[j+2], 0.08+Math.random()*0.15);
+        this.bLeef[i] = 0; this.bPos[j+1] = -50;
+      }
+      if (this.bLeef[i] <= 0) this.bPos[j+1] = -50;
+    }
+    this.bloed.geometry.attributes.position.needsUpdate = true;
+  }
+});
+</script>
+
 </body>
 </html>
