@@ -5,61 +5,199 @@
   2222
  ],
  "delen": {
-  "hoofd": {
-   "x": 670,
-   "y": 9,
-   "w": 286,
-   "h": 367,
-   "scharnier": [
-    808,
-    367
-   ]
-  },
-  "romp": {
-   "x": 533,
-   "y": 353,
-   "w": 547,
-   "h": 908,
-   "scharnier": null
-  },
-  "armL": {
-   "x": 9,
+  "bovenarmL": {
+   "x": 356,
    "y": 445,
-   "w": 584,
-   "h": 692,
+   "w": 237,
+   "h": 405,
+   "ouder": "borst",
    "scharnier": [
     559,
     555
    ]
   },
-  "armR": {
-   "x": 1033,
-   "y": 443,
-   "w": 599,
-   "h": 666,
+  "onderarmL": {
+   "x": 178,
+   "y": 764,
+   "w": 271,
+   "h": 229,
+   "ouder": "bovenarmL",
    "scharnier": [
-    1059,
-    536
+    405,
+    806
    ]
   },
-  "beenL": {
+  "handL": {
+   "x": 9,
+   "y": 904,
+   "w": 243,
+   "h": 233,
+   "ouder": "onderarmL",
+   "scharnier": [
+    221,
+    950
+   ]
+  },
+  "bovenbeenL": {
    "x": 580,
    "y": 1261,
    "w": 221,
-   "h": 941,
+   "h": 356,
+   "ouder": "buik",
    "scharnier": [
     691,
     1264
    ]
   },
-  "beenR": {
+  "onderbeenL": {
+   "x": 612,
+   "y": 1614,
+   "w": 158,
+   "h": 439,
+   "ouder": "bovenbeenL",
+   "scharnier": [
+    689,
+    1613
+   ]
+  },
+  "voetL": {
+   "x": 600,
+   "y": 2039,
+   "w": 170,
+   "h": 163,
+   "ouder": "onderbeenL",
+   "scharnier": [
+    713,
+    2041
+   ]
+  },
+  "bovenarmR": {
+   "x": 1033,
+   "y": 443,
+   "w": 252,
+   "h": 384,
+   "ouder": "borst",
+   "scharnier": [
+    1059,
+    536
+   ]
+  },
+  "onderarmR": {
+   "x": 1176,
+   "y": 745,
+   "w": 273,
+   "h": 215,
+   "ouder": "bovenarmR",
+   "scharnier": [
+    1225,
+    784
+   ]
+  },
+  "handR": {
+   "x": 1372,
+   "y": 874,
+   "w": 260,
+   "h": 235,
+   "ouder": "onderarmR",
+   "scharnier": [
+    1408,
+    927
+   ]
+  },
+  "bovenbeenR": {
    "x": 799,
    "y": 1261,
    "w": 221,
-   "h": 952,
+   "h": 358,
+   "ouder": "buik",
    "scharnier": [
     908,
     1264
+   ]
+  },
+  "onderbeenR": {
+   "x": 838,
+   "y": 1591,
+   "w": 177,
+   "h": 459,
+   "ouder": "bovenbeenR",
+   "scharnier": [
+    913,
+    1602
+   ]
+  },
+  "voetR": {
+   "x": 857,
+   "y": 2047,
+   "w": 163,
+   "h": 166,
+   "ouder": "onderbeenR",
+   "scharnier": [
+    916,
+    2045
+   ]
+  },
+  "borst": {
+   "x": 533,
+   "y": 353,
+   "w": 547,
+   "h": 456,
+   "ouder": "buik",
+   "scharnier": [
+    808,
+    800
+   ]
+  },
+  "buik": {
+   "x": 580,
+   "y": 788,
+   "w": 437,
+   "h": 473,
+   "ouder": null,
+   "scharnier": null
+  },
+  "hoofd1": {
+   "x": 715,
+   "y": 9,
+   "w": 181,
+   "h": 144,
+   "ouder": "borst",
+   "scharnier": [
+    808,
+    367
+   ]
+  },
+  "hoofd2": {
+   "x": 670,
+   "y": 62,
+   "w": 147,
+   "h": 228,
+   "ouder": "borst",
+   "scharnier": [
+    808,
+    367
+   ]
+  },
+  "hoofd3": {
+   "x": 813,
+   "y": 36,
+   "w": 143,
+   "h": 248,
+   "ouder": "borst",
+   "scharnier": [
+    808,
+    367
+   ]
+  },
+  "hoofd4": {
+   "x": 704,
+   "y": 270,
+   "w": 209,
+   "h": 106,
+   "ouder": "borst",
+   "scharnier": [
+    808,
+    367
    ]
   }
  }
