@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Step Forward</title>
+<script src="https://aframe.io/releases/1.8.0/aframe.min.js"></script>
+<style>
+  body{margin:0;background:#000}
+  #info{position:fixed;left:12px;bottom:12px;z-index:9;color:#cfd;font:13px/1.4 sans-serif;
+        background:rgba(0,0,0,.55);padding:8px 10px;border-radius:6px;pointer-events:none}
+</style>
+</head>
+<body>
+<div id="info">Step Forward <span id="ver"></span> · klik / spatie = volgende plek</div>
+
+<a-scene renderer="colorManagement:true; antialias:true" background="color:#0b0d10"
+         xr-mode-ui="enabled:true" vr-mode-ui="enabled:true" stad>
+  <a-entity id="rig">
+    <a-entity id="cam" camera position="0 1.6 0" look-controls wasd-controls="enabled:false"></a-entity>
+    <a-entity id="handL" meta-touch-controls="hand:left"></a-entity>
+    <a-entity id="handR" meta-touch-controls="hand:right"></a-entity>
+  </a-entity>
+</a-scene>
+
+<script>
+/* ================= REGELKNOPPEN ================= */
+const VERSIE  = 'v1';
+const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
+const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
+const STRAAL  = 30;    // afstand van de gebogen wand (m)
+const DOOF    = 0.45;  // seconden naar zwart en weer terug
+const NAAMTIJD= 2.0;   // seconden dat de plaknaam in beeld staat
+// horizon = op welke hoogte (0 = boven, 1 = onder) de horizon in het plaatje ligt
+const PLEKKEN = [
+  {naam:'PLEK A', src:'art/plek_a.jpg', horizon:0.525},
+  {naam:'PLEK B', src:'art/plek_b.jpg', horizon:0.495},
+  {naam:'PLEK C', src:'art/plek_c.jpg', horizon:0.520},
+  {naam:'PLEK D', src:'art/plek_d.jpg', horizon:0.530},
+  {naam:'PLEK E', src:'art/plek_e.jpg', horizon:0.605},
+];
+/* ================================================ */
+document.getElementById('ver').textContent = VERSIE;
+
+AFRAME.registerComponent('stad', {
+  init(){
+    const T = THREE, sc = this.el.object3D, re = this.el.renderer;
+    this.T = T;
+    this.wereld = new T.Group(); sc.add(this.wereld);
+    this.tex = PLEKKEN.map(p => {
+      const t = new T.TextureLoader().load(p.src);
+      t.colorSpace = T.SRGBColorSpace;
+      t.anisotropy = re ? re.capabilities.getMaxAnisotropy() : 8;
+      t.wrapS = t.wrapT = T.ClampToEdgeWrapping;
+      return t;
+    });
+    this.mat = new T.MeshBasicMaterial({side:T.DoubleSide});
+    this.wand = new T.Mesh(new T.BufferGeometry(), this.mat);
+    this.vmat = new T.MeshBasicMaterial({side:T.DoubleSide, transparent:true, vertexColors:true, depthWrite:false});
+    this.vloer = new T.Mesh(new T.BufferGeometry(), this.vmat);
+    this.vloer.renderOrder = 1;
+    this.wereld.add(this.wand, this.vloer);
+
+    // donkere vloer achter je (daar is geen plaatje)
+    const achter = new T.Mesh(new T.CircleGeometry(STRAAL, 48, Math.PI, Math.PI),
+                     new T.MeshBasicMaterial({color:0x2a2b2e}));
+    achter.rotation.x = -Math.PI/2; achter.position.y = -0.02;
+    this.wereld.add(achter);
+    // vloer bij je voeten: daar heeft het plaatje geen pixels meer → effen wegkleur
+    this.voet = new T.Mesh(new T.CircleGeometry(1, 48), new T.MeshBasicMaterial({color:0x444444}));
+    this.voet.rotation.x = -Math.PI/2; this.voet.position.y = -0.01;
+    this.wereld.add(this.voet);
+
+    // zwart doek om de camera (overgangen) — schrijft geen diepte (Cosmic-les)
+    this.doek = new T.Mesh(new T.SphereGeometry(0.25, 16, 12),
+      new T.MeshBasicMaterial({color:0, side:T.BackSide, transparent:true, opacity:1,
+                               depthTest:false, depthWrite:false}));
+    this.doek.renderOrder = 999;
+    // plaknaam
+    this.cv = document.createElement('canvas'); this.cv.width = 1024; this.cv.height = 256;
+    this.naamTex = new T.CanvasTexture(this.cv); this.naamTex.colorSpace = T.SRGBColorSpace;
+    this.naam = new T.Mesh(new T.PlaneGeometry(0.8, 0.2),
+      new T.MeshBasicMaterial({map:this.naamTex, transparent:true, depthTest:false, depthWrite:false}));
+    this.naam.position.set(0, 0, -0.2); this.naam.renderOrder = 1000;
+    const cam = document.getElementById('cam');
+    const hang = () => { cam.object3D.add(this.doek); cam.object3D.add(this.naam); };
+    cam.hasLoaded ? hang() : cam.addEventListener('loaded', hang);
+
+    // toestand op de spelklok (geen setTimeout)
+    this.i = -1; this.doel = 0; this.fase = 'zwart'; this.dek = 1; this.naamT = 0;
+
+    const volgende = () => { if (this.fase === 'open') { this.doel = (this.i+1) % PLEKKEN.length; this.fase = 'dicht'; } };
+    ['handL','handR'].forEach(id => document.getElementById(id).addEventListener('triggerdown', volgende));
+    window.addEventListener('keydown', e => { if (e.code === 'Space' || e.code === 'ArrowRight') volgende(); });
+    this.el.canvas ? this.el.canvas.addEventListener('click', volgende)
+                   : this.el.addEventListener('render-target-loaded', () => this.el.canvas.addEventListener('click', volgende));
+  },
+
+  bouw(p){
+    const T = this.T, VFOV = BOOG * 1536/2720;          // verticale graden van het plaatje
+    const rad = Math.PI/180, hb = BOOG/2;
+    const vVan = e => { const v = p.horizon - e/VFOV; return 1 - Math.min(1, Math.max(0, v)); };
+    // --- gebogen wand: van vloerhoogte tot de bovenrand van het plaatje
+    const eOnder = Math.atan2(-OOG, STRAAL)/rad, eBoven = Math.min(p.horizon*VFOV, 80);
+    const NX = 128, NY = 64, pw = [], uw = [], iw = [];
+    for (let j=0;j<=NY;j++){
+      const e = eOnder + (eBoven-eOnder)*j/NY, y = OOG + STRAAL*Math.tan(e*rad);
+      for (let i=0;i<=NX;i++){
+        const f = -hb + BOOG*i/NX;
+        pw.push(STRAAL*Math.sin(f*rad), y, -STRAAL*Math.cos(f*rad));
+        uw.push(0.5 + f/BOOG, vVan(e));
+      }
+    }
+    for (let j=0;j<NY;j++) for (let i=0;i<NX;i++){
+      const a=j*(NX+1)+i, b=a+1, c=a+NX+1, d=c+1; iw.push(a,c,b, b,c,d);
+    }
+    this.zet(this.wand.geometry, pw, uw, iw);
+    // --- vloer: elke vloerpunt pakt de pixel die je vanaf je ooghoogte zou zien
+    // dichtstbij met beeld: onderrand van het plaatje
+    const rRand = OOG/Math.tan((1-p.horizon)*VFOV*rad);
+    const rMin = rRand*1.02, rVol = rRand*1.25;           // tussen rMin en rVol vervaagt de vloer
+    const NR = 60, pv = [], uv = [], cv = [], iv = [];
+    for (let j=0;j<=NR;j++){
+      const t = j/NR, r = rMin*Math.pow(STRAAL/rMin, t);  // dichter bij je fijner
+      const e = -Math.atan2(OOG, r)/rad, al = Math.min(1, Math.max(0, (r-rMin)/(rVol-rMin)));
+      for (let i=0;i<=NX;i++){
+        const f = -hb + BOOG*i/NX;
+        pv.push(r*Math.sin(f*rad), 0, -r*Math.cos(f*rad));
+        uv.push(0.5 + f/BOOG, vVan(e));
+        cv.push(1,1,1, al*al*(3-2*al));
+      }
+    }
+    this.voet.scale.setScalar(rVol*1.05);
+    for (let j=0;j<NR;j++) for (let i=0;i<NX;i++){
+      const a=j*(NX+1)+i, b=a+1, c=a+NX+1, d=c+1; iv.push(a,b,c, b,d,c);
+    }
+    this.zet(this.vloer.geometry, pv, uv, iv);
+    this.vloer.geometry.setAttribute('color', new T.Float32BufferAttribute(cv, 4));
+  },
+  wegKleur(img){     // gemiddelde kleur van de onderste strook van het plaatje
+    const c = document.createElement('canvas'); c.width = 64; c.height = 8;
+    const x = c.getContext('2d'); x.drawImage(img, 0, img.height*0.94, img.width, img.height*0.06, 0, 0, 64, 8);
+    const d = x.getImageData(0,0,64,8).data; let r=0,g=0,b=0;
+    for (let i=0;i<d.length;i+=4){ r+=d[i]; g+=d[i+1]; b+=d[i+2]; }
+    const n = d.length/4;
+    return new this.T.Color().setRGB(r/n/255, g/n/255, b/n/255, this.T.SRGBColorSpace);
+  },
+  zet(g, p, u, i){
+    g.setAttribute('position', new this.T.Float32BufferAttribute(p, 3));
+    g.setAttribute('uv', new this.T.Float32BufferAttribute(u, 2));
+    g.setIndex(i); g.computeBoundingSphere();
+  },
+  toon(k){
+    this.i = k; const p = PLEKKEN[k];
+    this.mat.map = this.tex[k]; this.mat.needsUpdate = true;
+    this.vmat.map = this.tex[k]; this.vmat.needsUpdate = true;
+    this.voet.material.color.copy(this.wegKleur(this.tex[k].image));
+    this.bouw(p);
+    const c = this.cv.getContext('2d'); c.clearRect(0,0,1024,256);
+    c.font = '700 120px Trebuchet MS, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.lineWidth = 14; c.strokeStyle = 'rgba(0,0,0,.9)'; c.strokeText(p.naam, 512, 128);
+    c.fillStyle = '#e8f2ea'; c.fillText(p.naam, 512, 128);
+    this.naamTex.needsUpdate = true; this.naamT = NAAMTIJD;
+  },
+  tick(t, dt){
+    const s = Math.min(dt/1000, 0.1);
+    if (this.fase === 'dicht'){ this.dek = Math.min(1, this.dek + s/DOOF); if (this.dek >= 1) this.fase = 'zwart'; }
+    else if (this.fase === 'zwart'){
+      const tx = this.tex[this.doel];
+      if (tx.image && tx.image.complete !== false && tx.image.width){ this.toon(this.doel); this.fase = 'op'; }
+    }
+    else if (this.fase === 'op'){ this.dek = Math.max(0, this.dek - s/DOOF); if (this.dek <= 0) this.fase = 'open'; }
+    this.doek.material.opacity = this.dek; this.doek.visible = this.dek > 0.001;
+    if (this.naamT > 0) this.naamT -= s;
+    this.naam.material.opacity = Math.max(0, Math.min(1, this.naamT/0.5));
+    this.naam.visible = this.naamT > 0;
+  }
+});
+</script>
+</body>
+</html>
