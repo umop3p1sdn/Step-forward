@@ -25,7 +25,7 @@
 
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE  = 'v2';
+const VERSIE  = 'v3';
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -367,15 +367,29 @@ AFRAME.registerComponent('zombies', {
     this.plas.setMatrixAt(i, m); this.plas.count = Math.max(this.plas.count, i+1); this.plas.instanceMatrix.needsUpdate = true;
   },
   /* ---------- geluid ---------- */
-  knal(){
+  knal(){   // harde klap: tik + scherpe knal + dreun + galm, door een compressor zodat het hard is zonder te kraken
     try {
       const A = this.ac || (this.ac = new (window.AudioContext||window.webkitAudioContext)());
-      const len = A.sampleRate*0.25, b = A.createBuffer(1, len, A.sampleRate), d = b.getChannelData(0);
-      for (let i=0;i<len;i++) d[i] = (Math.random()*2-1) * Math.pow(1-i/len, 4);
-      const s = A.createBufferSource(); s.buffer = b;
-      const f = A.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1800;
-      const g = A.createGain(); g.gain.value = 0.7;
-      s.connect(f).connect(g).connect(A.destination); s.start();
+      if (A.state === 'suspended') A.resume();
+      const nu = A.currentTime, sr = A.sampleRate;
+      if (!this.uit){
+        const c = A.createDynamicsCompressor(); c.threshold.value = -14; c.knee.value = 6; c.ratio.value = 8;
+        c.attack.value = 0.001; c.release.value = 0.12;
+        const g = A.createGain(); g.gain.value = 1.6; c.connect(g).connect(A.destination); this.uit = c;
+        const ruis = (dur, macht) => { const n = sr*dur|0, b = A.createBuffer(1, n, sr), d = b.getChannelData(0);
+          for (let i=0;i<n;i++) d[i] = (Math.random()*2-1) * Math.pow(1-i/n, macht); return b; };
+        this.bKnal = ruis(0.09, 6); this.bGalm = ruis(0.6, 3);
+      }
+      const bron = (buf, type, f, vol, t0=0) => { const s = A.createBufferSource(); s.buffer = buf;
+        const fl = A.createBiquadFilter(); fl.type = type; fl.frequency.value = f;
+        const g = A.createGain(); g.gain.value = vol; s.connect(fl).connect(g).connect(this.uit); s.start(nu+t0); };
+      bron(this.bKnal, 'highpass', 900, 1.4);          // de scherpe knal
+      bron(this.bKnal, 'lowpass', 2500, 1.2);          // het lijf van de knal
+      bron(this.bGalm, 'lowpass', 700, 0.45, 0.01);   // galm tussen de huizen
+      const o = A.createOscillator(), og = A.createGain();     // de dreun
+      o.type = 'sine'; o.frequency.setValueAtTime(140, nu); o.frequency.exponentialRampToValueAtTime(38, nu+0.16);
+      og.gain.setValueAtTime(1.3, nu); og.gain.exponentialRampToValueAtTime(0.001, nu+0.22);
+      o.connect(og).connect(this.uit); o.start(nu); o.stop(nu+0.25);
     } catch(_){}
   },
   /* ---------- elke beurt ---------- */
