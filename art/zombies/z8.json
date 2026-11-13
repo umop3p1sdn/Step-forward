@@ -1,0 +1,204 @@
+{
+ "bron": "zombie_8.png",
+ "maat": [
+  1433,
+  2305
+ ],
+ "delen": {
+  "bovenarmL": {
+   "x": 206,
+   "y": 410,
+   "w": 285,
+   "h": 394,
+   "ouder": "borst",
+   "scharnier": [
+    479,
+    542
+   ]
+  },
+  "onderarmL": {
+   "x": 77,
+   "y": 700,
+   "w": 257,
+   "h": 292,
+   "ouder": "bovenarmL",
+   "scharnier": [
+    269,
+    753
+   ]
+  },
+  "handL": {
+   "x": 8,
+   "y": 916,
+   "w": 159,
+   "h": 296,
+   "ouder": "onderarmL",
+   "scharnier": [
+    124,
+    945
+   ]
+  },
+  "bovenbeenL": {
+   "x": 425,
+   "y": 1221,
+   "w": 267,
+   "h": 378,
+   "ouder": "buik",
+   "scharnier": [
+    576,
+    1223
+   ]
+  },
+  "onderbeenL": {
+   "x": 393,
+   "y": 1594,
+   "w": 252,
+   "h": 553,
+   "ouder": "bovenbeenL",
+   "scharnier": [
+    548,
+    1593
+   ]
+  },
+  "voetL": {
+   "x": 327,
+   "y": 2134,
+   "w": 246,
+   "h": 156,
+   "ouder": "onderbeenL",
+   "scharnier": [
+    488,
+    2139
+   ]
+  },
+  "bovenarmR": {
+   "x": 924,
+   "y": 396,
+   "w": 294,
+   "h": 426,
+   "ouder": "borst",
+   "scharnier": [
+    940,
+    557
+   ]
+  },
+  "onderarmR": {
+   "x": 1084,
+   "y": 728,
+   "w": 270,
+   "h": 256,
+   "ouder": "bovenarmR",
+   "scharnier": [
+    1149,
+    772
+   ]
+  },
+  "handR": {
+   "x": 1263,
+   "y": 934,
+   "w": 163,
+   "h": 283,
+   "ouder": "onderarmR",
+   "scharnier": [
+    1309,
+    955
+   ]
+  },
+  "bovenbeenR": {
+   "x": 691,
+   "y": 1221,
+   "w": 317,
+   "h": 387,
+   "ouder": "buik",
+   "scharnier": [
+    825,
+    1223
+   ]
+  },
+  "onderbeenR": {
+   "x": 793,
+   "y": 1584,
+   "w": 281,
+   "h": 562,
+   "ouder": "bovenbeenR",
+   "scharnier": [
+    886,
+    1594
+   ]
+  },
+  "voetR": {
+   "x": 893,
+   "y": 2139,
+   "w": 209,
+   "h": 158,
+   "ouder": "onderbeenR",
+   "scharnier": [
+    963,
+    2140
+   ]
+  },
+  "borst": {
+   "x": 474,
+   "y": 281,
+   "w": 478,
+   "h": 448,
+   "ouder": "buik",
+   "scharnier": [
+    705,
+    720
+   ]
+  },
+  "buik": {
+   "x": 453,
+   "y": 708,
+   "w": 523,
+   "h": 513,
+   "ouder": null,
+   "scharnier": null
+  },
+  "hoofd1": {
+   "x": 613,
+   "y": 9,
+   "w": 149,
+   "h": 113,
+   "ouder": "borst",
+   "scharnier": [
+    696,
+    290
+   ]
+  },
+  "hoofd2": {
+   "x": 580,
+   "y": 47,
+   "w": 117,
+   "h": 186,
+   "ouder": "borst",
+   "scharnier": [
+    696,
+    290
+   ]
+  },
+  "hoofd3": {
+   "x": 693,
+   "y": 37,
+   "w": 115,
+   "h": 189,
+   "ouder": "borst",
+   "scharnier": [
+    696,
+    290
+   ]
+  },
+  "hoofd4": {
+   "x": 582,
+   "y": 213,
+   "w": 220,
+   "h": 83,
+   "ouder": "borst",
+   "scharnier": [
+    696,
+    290
+   ]
+  }
+ }
+}
