@@ -25,7 +25,7 @@
 
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE  = 'v5';
+const VERSIE  = 'v6';
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -189,7 +189,8 @@ const ZSTOP     = 1.3;    // hier blijven ze staan (m van je af)
 const ZPAUZE    = [0.6, 2.2];  // tijd tussen twee nieuwe zombies (s)
 const ROMPHP    = 5;      // treffers op borst/buik voor hij omvalt
 const DEELHP    = {hand:1, voet:1, onderarm:2, onderbeen:2, bovenarm:3, bovenbeen:3}; // treffers voor het eraf gaat
-const SCHEDEL_LOOP = [2.5, 4.5]; // zonder schedeldak loopt hij nog zo lang door (s)
+const HOOFD_DEEL  = 0.20;        // kans dat een hoofdtreffer maar één kwart wegschiet (anders: hele hoofd eraf)
+const SCHEDEL_LOOP = [2.5, 4.5]; // met een kwart minder loopt hij nog zo lang door (s)
 const SCHEDEL_SNEL = 1.0;        // ...op deze fractie van zijn snelheid
 const SCHEDEL_DWAAL = 55;        // ...en hij dwaalt zoveel graden links/rechts van je af (doelloos)
 const KRUIP_SNEL = 0.22;  // kruipsnelheid zonder (heel) been (m/s)
@@ -371,12 +372,19 @@ AFRAME.registerComponent('zombies', {
       return;
     }
     if (deel.startsWith('hoofd')){
-      this.losMaak(z, deel, dir, 1.4); this.spat(p, dir, 70);
-      if (deel === 'hoofd1' && !z.dood && !z.halfdood){
-        // schedeldak eraf: hij strompelt nog even door met een bloedfontein
+      const over = ['hoofd1','hoofd2','hoofd3','hoofd4'].filter(d => z.knoop[d] && !z.knoop[d].userData.los);
+      if (!z.dood && !z.halfdood && over.length === 4 && Math.random() < HOOFD_DEEL){
+        // 20%: één willekeurig kwart weg (een gat in zijn kop) — hij zwalkt nog even door met een fontein
+        const d = over[Math.random()*4|0], b = z.knoop.borst, m = z.knoop[d].children.find(c => c.isMesh);
+        if (b && m){ const w = new THREE.Vector3(); m.getWorldPosition(w); z.fonteinLok = b.worldToLocal(w); }
+        this.losMaak(z, d, dir, 1.4); this.spat(p, dir, 60);
         z.halfdood = SCHEDEL_LOOP[0] + Math.random()*(SCHEDEL_LOOP[1]-SCHEDEL_LOOP[0]);
         z.snel *= SCHEDEL_SNEL;
-      } else this.omver(z);
+      } else {
+        // 80% (en elke volgende treffer): het hele hoofd spat uiteen
+        over.forEach(d => this.losMaak(z, d, dir, 1.6)); this.spat(p, dir, 90);
+        z.halfdood = 0; this.omver(z);
+      }
       return;
     }
     const kn = z.knoop[deel]; if (!kn || kn.userData.los) return;
@@ -502,10 +510,9 @@ AFRAME.registerComponent('zombies', {
         if (k.borst) k.borst.rotation.z = Math.sin(f+0.5)*0.04;
         if (z.halfdood){
           z.halfdood -= s;
-          const kn = z.knoop.hoofd1, b = z.knoop.borst;
-          if (kn && b){   // fontein uit de plek waar het schedeldak zat
-            const w = new T.Vector3(0, ZLENGTE*0.04, 0.03).add(kn.userData.piv.clone().sub(b.userData.piv));
-            w.y += ZLENGTE*0.09; b.localToWorld(w);
+          const b = z.knoop.borst;
+          if (b && z.fonteinLok){   // fontein uit het gat in zijn kop
+            const w = z.fonteinLok.clone(); w.z += 0.03; b.localToWorld(w);
             this.fontein(w, 5);
           }
           g.rotation.z += Math.sin(z.t*5.3)*0.05;     // strompelen
