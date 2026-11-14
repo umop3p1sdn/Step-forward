@@ -25,7 +25,7 @@
 
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v25";
+const VERSIE = "v26";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -267,7 +267,9 @@ const STRUIKEL_KANS = {kanon:0.45, pistool:0.06};           // kans dat een romp
 const STRUIKEL_VAL  = 0.4;                                  // ...en dat hij dan ook echt valt (en weer opstaat)
 const VEST_SOORTEN = [6, 7, 8];                             // zombies met kogelvest: borst en buik houden kogels tegen (laser niet)
 const RING = [0.25, 0.5, 0.75];                             // explosie: grenzen van ring 1/2/3 als deel van de straal (daarbuiten tot de straal: ring 4, drukgolf)
-const VONK_N = 160;                                         // vonken in de pool
+const VONK_N = 160;
+const STRALEN = ['dun', 'normaal', 'puls', 'sproei', 'boog'];   // 5 soorten bloedstraal uit hoofd en nek
+const RUG_BREED = 0.05;                                     // zo dicht bij de middenlijn (m) zit de ruggengraat                                         // vonken in de pool
 const RAG_DEMP = 2.6, RAG_TRAAG = 0.7;                      // ragdoll: demping en hoe hard ledematen achterblijven bij een klap
 const RAG_GRENS = {bovenbeen:[-1.7,0.5], onderbeen:[0,2.3], voet:[-0.6,0.7], bovenarm:[-2.8,1.2], onderarm:[-2.4,0.15],
                    hand:[-0.9,0.9], buik:[-0.45,0.6], borst:[-0.45,0.6], nek:[-0.9,0.9]};
@@ -1483,9 +1485,8 @@ AFRAME.registerComponent('zombies', {
       if (romp || o.userData.naadMesh) this.knip(o, p, rM*0.95, vorm, false); });
     z.happen = (z.happen || 0) + 1;
     // groot gat = ruggengraat kapot: midden in de romp met het kanon, of een tweede hap vlak naast een eerdere
-    const pw0 = p.clone(), midden = Math.abs(bin.worldToLocal(p.clone()).x - m.position.x) < 0.045;
-    const naast = (z.hapPunt || []).some(a => a.parent && a.getWorldPosition(new T.Vector3()).distanceTo(pw0) < 0.14);
-    if (!z.dood && !z.rugT && ((midden && wapen === 'kanon') || naast)){ z.rugT = 1.0; this.struikel(z, dir, 0, {dur:1.0, rug:true}); }
+    const pw0 = p.clone(), naast = (z.hapPunt || []).some(a => a.parent && a.getWorldPosition(new T.Vector3()).distanceTo(pw0) < 0.14);
+    this.gatGevolg(z, deel, p, dir, wapen === 'kanon' || naast);
     // wonddecals die nu boven het gat zouden zweven: weg
     const lb = bin.worldToLocal(p.clone());
     z.wonden = (z.wonden || []).filter(o => { if (o.w.parent === bin && o.w.isMesh && Math.hypot(o.w.position.x - lb.x, o.w.position.y - lb.y) < rM*1.4){ o.w.removeFromParent(); return false; } return true; });
@@ -1669,7 +1670,7 @@ AFRAME.registerComponent('zombies', {
     if (z.halsNaad && !z.halsNaad.userData.rood){ z.halsNaad.userData.rood = true; z.halsNaad.material = this.vleesMat(z.halsNaad.material.map); }
     (z.hoofdVul || []).forEach(v => v.removeFromParent());
     if (nek){ const st = new T.Mesh(new T.PlaneGeometry(0.085, 0.065), this.nekStompMat()); st.position.set(0, 0.0, 0.01); st.rotation.x = -1.2; nek.add(st);
-      if (b) this.spuiters.push({b:b.userData.bin, lok:b.userData.bin.worldToLocal(nek.getWorldPosition(new T.Vector3())), uit:new T.Vector3(0, 1, 0.25).normalize(), t:2.2}); }
+      if (b) this.spuiters.push({b:b.userData.bin, lok:b.userData.bin.worldToLocal(nek.getWorldPosition(new T.Vector3())), uit:new T.Vector3(0, 1, 0.25).normalize(), t:2.6, S:this.kiesStraal(z, new T.Vector3(0, 1, 0.25))}); }
   },
   /* ---------- welke zone? ---------- */
   hoofdZone(z, deel, p){
@@ -1837,7 +1838,7 @@ AFRAME.registerComponent('zombies', {
         this.spat(p, dir, 60); this.achterSpat(p, dir, 30); return 'rug'; }
       case 19: case 20: {            // nek kapot: hoofd knakt opzij (19) of bungelt half los (20)
         z.nekHang = {doel:(Math.random() < 0.5 ? -1 : 1)*(v === 19 ? 1.1 : 2.1), x:v === 20 ? 0.5 : 0.2, a:0, va:0};
-        const b = z.knoop.borst; if (b && v === 20){ const bin = b.userData.bin; this.spuiters.push({b:bin, lok:bin.worldToLocal(z.nek.getWorldPosition(new T.Vector3())), uit:new T.Vector3(0, 1, 0.4).normalize(), t:2.5}); }
+        const b = z.knoop.borst; if (b && v === 20){ const bin = b.userData.bin; this.spuiters.push({b:bin, lok:bin.worldToLocal(z.nek.getWorldPosition(new T.Vector3())), uit:new T.Vector3(0, 1, 0.4).normalize(), t:2.5, S:this.kiesStraal(z, new T.Vector3(0, 1, 0.4))}); }
         this.spat(p, dir, 50); return 'rug'; }
       case 21: {                     // hoofd eraf, gerafeld met een stuk wervel
         if (I){ const y = G.kin[1] + 0.02*H, pol = [[-20, I.H + 20], ...this.kartel(-20, y, I.W + 20, y, 0.05*H, 10), [I.W + 20, I.H + 20]];
@@ -1915,7 +1916,8 @@ AFRAME.registerComponent('zombies', {
     if (z.helft) for (const h of z.helft){ h.v += (20*(h.doel - h.a) - 2*h.v)*s; h.a += h.v*s; h.g.rotation.z = h.a; }
     if (z.nekHang && z.nek){ const n = z.nekHang; n.va += (25*(n.doel - n.a) - 3*n.va)*s; n.a += n.va*s;
       z.nek.rotation.z = n.a + Math.sin(z.t*5)*0.05; z.nek.rotation.x = Math.max(z.nek.rotation.x, n.x); }
-    if (z.fonteinObj && z.halfdood){ const w = z.fonteinObj.getWorldPosition(new this.T.Vector3()); w.z += 0.02; this.fontein(w, 4); }
+    if (z.fonteinObj && z.halfdood){ const w = z.fonteinObj.getWorldPosition(new this.T.Vector3()); w.z += 0.02;
+      if (!z.fStraal) z.fStraal = this.kiesStraal(z); this.straal(w, z.fStraal, s); }
   },
   /* ---------- laser: gloeiend gat met rookpluim ---------- */
   gloedTex(){
@@ -1947,8 +1949,21 @@ AFRAME.registerComponent('zombies', {
       if ((o.userData.D && /borst|buik|bekken/.test(o.userData.deel)) || o.userData.naadMesh) this.knip(o, p, rM*0.95, vorm, 'brand'); });
     z.lasergaten = (z.lasergaten || 0) + 1;
     this.gloed(bin, m, p, rM);
+    this.gatGevolg(z, deel, p, new this.T.Vector3(0, 0, -1), true);
     const w = new this.T.Object3D(); const l = bin.worldToLocal(p.clone()); w.position.set(l.x, l.y - rM*0.6, m.position.z + 0.003); bin.add(w);
     return w;
+  },
+  /* gat in de ruggengraat of de heup: hij gaat neer */
+  gatGevolg(z, deel, p, dir, groot){
+    if (z.dood || z.rugT) return;
+    const kn = z.knoop[deel]; if (!kn) return; const lx = kn.userData.bin.worldToLocal(p.clone()).x;
+    if (deel === 'bekken'){                                  // heup kapot: dat been draagt niet meer
+      const bl = z.knoop.bovenbeenL, links = bl ? Math.sign(lx) === Math.sign(bl.position.x || 1) : lx < 0;
+      if (Math.abs(lx) < RUG_BREED*0.8) this.omver(z, dir, {wapen:'rug'});
+      else this.omver(z, dir, {zij: links ? 1 : -1});
+      return;
+    }
+    if (groot && Math.abs(lx) < RUG_BREED){ z.rugT = 1.0; this.struikel(z, dir, 0, {dur:1.0, rug:true}); }   // ruggengraat: 1 s strompelen, dan neer
   },
   /* ---------- reactie per zone: knie knikt, nek klapt terug, buik klapt dubbel ---------- */
   reageer(z, soort, kr, kant){ if (z.dood) return; (z.rk = z.rk || {})[soort] = {t:0, kr, kant}; },
@@ -2216,6 +2231,26 @@ AFRAME.registerComponent('zombies', {
     const g = z.grp; this.vlek(g.position.x, g.position.z, 1.2 + Math.random()*0.8);
     this.geluid((A,n) => { this.speel(A, this.ruisBuf(A, 0.35, 3), 'lowpass', 260, 0.9); });
   },
+  /* ---------- bloedstralen: 5 soorten ---------- */
+  kiesStraal(z, r){   // per zombie één soort; boog = schuin opzij
+    const soort = STRALEN[Math.random()*STRALEN.length|0], T = this.T, d = (r || new T.Vector3(0, 1, 0)).clone().normalize();
+    if (soort === 'boog'){ d.x += (Math.random() < 0.5 ? -1 : 1)*(0.7 + Math.random()*0.4); d.z += 0.3; d.normalize(); }
+    if (soort === 'dun'){ d.x += (Math.random()-0.5)*0.4; d.normalize(); }
+    return {soort, r:d, t:0};
+  },
+  straal(p, S, s){
+    S.t += s; const r = S.r;
+    const druppel = (snel, sp) => { const i = this.bI; this.bI = (this.bI+1) % BLOED_N, v = snel*(0.88 + Math.random()*0.24);
+      this.bPos[i*3] = p.x; this.bPos[i*3+1] = p.y; this.bPos[i*3+2] = p.z;
+      this.bVel[i*3] = r.x*v + (Math.random()-0.5)*sp; this.bVel[i*3+1] = r.y*v + (Math.random()-0.5)*sp*0.5; this.bVel[i*3+2] = r.z*v + (Math.random()-0.5)*sp; this.bLeef[i] = 2; };
+    switch (S.soort){
+      case 'dun':     druppel(3.9, 0.06); break;                                            // één dunne, strakke straal
+      case 'normaal': for (let k=0;k<4;k++) druppel(3, 0.9); break;
+      case 'puls':    if (Math.sin(S.t*10) > 0.2) for (let k=0;k<5;k++) druppel(3.7, 0.3); break;   // hartslag
+      case 'sproei':  for (let k=0;k<6;k++) druppel(1.6, 1.5); break;                     // brede nevel
+      case 'boog':    for (let k=0;k<2;k++) druppel(4.2, 0.12); break;                    // schuin opzij, boogt naar beneden
+    }
+  },
   /* ---------- bloed ---------- */
   fontein(p, n){
     for (let k=0;k<n;k++){
@@ -2410,6 +2445,7 @@ AFRAME.registerComponent('zombies', {
       sp.t -= s; if (sp.t <= 0 || !sp.b.parent) continue;
       const p = sp.lok.clone(); sp.b.localToWorld(p);
       const r = sp.uit.clone().transformDirection(sp.b.matrixWorld);
+      if (sp.S){ const S = sp.S, o = S.r; S.r = r.clone().add(o).normalize(); this.straal(p, S, s); S.r = o; continue; }   // hoofd/nek: één van de 5 stralen, meedraaiend met het lijf
       const puls = sp.puls ? (Math.sin(sp.t*11) > 0.1 ? 1.6 : 0) : 1;     // ader: pulserende straal
       for (let k=0;k<(puls ? 3 : 0);k++){
         const i = this.bI; this.bI = (this.bI+1) % BLOED_N; const kr = (1.2 + Math.random()*1.6) * Math.min(1, sp.t*1.2) * puls;
