@@ -25,7 +25,7 @@
 
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE  = 'v14';
+const VERSIE  = 'v15';
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -41,8 +41,9 @@ const PLEKKEN = [
      {naam:'straat R',    start:[7,25]},
      {naam:'deur villa L',start:[-44,21], via:[-44,16]},
      {naam:'deur villa R',start:[43,21],  via:[43,16]},
-     {naam:'hoek villa L',start:[-68,24], via:[-86,16]},
-     {naam:'hoek villa R',start:[68,24],  via:[86,16]},
+     {naam:'front',start:[-15,24]}, {naam:'front',start:[15,24]},
+     
+     
    ],
    // onzichtbare muren voor de gevels: wat erachter staat zie je niet (gat = deur)
    muren:[ {van:-80, tot:-48, r:19, h:12}, {van:-41, tot:-30, r:19, h:12},
@@ -50,25 +51,25 @@ const PLEKKEN = [
   {naam:'PLEK B', src:'art/plek_b.jpg', horizon:0.495,
    uitgangen:[ {naam:'straat',start:[0,26]}, {naam:'straat L',start:[-6,25]}, {naam:'straat R',start:[6,25]},
      {naam:'deur huis L',start:[-51.5,20],via:[-51.5,14]}, {naam:'deur huis R',start:[48.5,20],via:[48.5,14]},
-     {naam:'hoek huis L',start:[-70,24],via:[-87,15]}, {naam:'hoek huis R',start:[70,24],via:[87,15]} ],
+     {naam:'front',start:[-14,24]}, {naam:'front',start:[14,24]} ],
    muren:[ {van:-82,tot:-54,r:17,h:12}, {van:-49,tot:-32,r:17,h:12}, {van:31,tot:46,r:17,h:12}, {van:51,tot:80,r:17,h:12} ]},
   {naam:'PLEK C', src:'art/plek_c.jpg', horizon:0.520,
    uitgangen:[ {naam:'straat',start:[0,26]}, {naam:'straat L',start:[-5,25]}, {naam:'straat R',start:[5,25]},
      {naam:'deur 1 L',start:[-45,20],via:[-45,14]}, {naam:'deur 2 L',start:[-38.5,20],via:[-38.5,14]},
      {naam:'deur R',start:[34.5,20],via:[34.5,14]},
-     {naam:'poort L',start:[-80,24],via:[-80,14]}, {naam:'poort R',start:[59,24],via:[59,14]} ],
+     {naam:'poort R',start:[59,24],via:[59,14]} ],
    muren:[ {van:-74,tot:-48,r:17,h:12}, {van:-42.5,tot:-41,r:17,h:12}, {van:-36,tot:-25,r:17,h:12},
            {van:18,tot:32.5,r:17,h:12}, {van:36,tot:50,r:17,h:12} ]},
   {naam:'PLEK D', src:'art/plek_d.jpg', horizon:0.530,
    uitgangen:[ {naam:'straat L',start:[-56,26]}, {naam:'steeg midden',start:[4,26]}, {naam:'straat R',start:[57,26]},
      {naam:'rolluik hoekpand',start:[-27,21],via:[-27,14]}, {naam:'deur hoekpand R',start:[22.5,21],via:[22.5,14]},
-     {naam:'rolluik rij L',start:[-85,12],via:[-85,6]}, {naam:'deur rij R',start:[84,12],via:[84,6]} ],
+     {naam:'front',start:[-15,24]}, {naam:'front',start:[18,24]} ],
    muren:[ {van:-90,tot:-87.5,r:9,h:9}, {van:-82.5,tot:-63,r:9,h:9}, {van:-50,tot:-30,r:17,h:14}, {van:-23,tot:-1,r:17,h:14},
            {van:10,tot:20.5,r:17,h:14}, {van:24.5,tot:55,r:17,h:14}, {van:62,tot:81,r:9,h:9}, {van:87,tot:90,r:9,h:9} ]},
   {naam:'PLEK E', src:'art/plek_e.jpg', horizon:0.605,
-   uitgangen:[ {naam:'straat L',start:[-62,26]}, {naam:'straat R',start:[60,26]},
+   uitgangen:[ {naam:'straat L',start:[-59,26]}, {naam:'straat R',start:[60,26]},
      {naam:'rolluik links',start:[-26,20],via:[-26,13]}, {naam:'rolluik voor',start:[6,20],via:[6,13]},
-     {naam:'rolluik rij L',start:[-86,11],via:[-86,6]}, {naam:'rolluik rij R',start:[86,11],via:[86,6]} ],
+     {naam:'front',start:[-12,24]}, {naam:'front',start:[25,24]} ],
    muren:[ {van:-90,tot:-89,r:8,h:9}, {van:-83,tot:-66,r:8,h:9}, {van:-40,tot:-29,r:16,h:12}, {van:-23,tot:2,r:16,h:12},
            {van:9.5,tot:23,r:16,h:12}, {van:66,tot:82.5,r:8,h:9}, {van:89,tot:90,r:8,h:9} ]},
 ];
@@ -232,6 +233,7 @@ const ZLENGTE   = 1.72;   // hoe lang een zombie is (m)
 const ZTEGELIJK = 9;      // maximaal zoveel tegelijk in beeld
 const ZAFSTAND  = [15, 24];  // waar ze verschijnen (m vóór je)
 const ZHOEK     = 38;     // hoe ver links/rechts ze mogen verschijnen (graden)
+const VOORHOEK  = 60;     // ALLES komt van voren: uitgangen buiten ±60° worden niet gebruikt (120° voor je)
 const ZSNEL     = [0.45, 0.9]; // loopsnelheid (m/s)
 const RENNERS   = 0.25;   // kans dat een zombie een renner is
 const RENSNEL   = [1.5, 2.2];  // snelheid van een renner (m/s)
@@ -426,9 +428,10 @@ AFRAME.registerComponent('zombies', {
     const z = this.maak(+ns[Math.random()*ns.length|0]);
     const st = this.el.components.stad, plek = st && PLEKKEN[st.i];
     const pol = (h, r) => new this.T.Vector3(Math.sin(h*Math.PI/180)*r, 0, -Math.cos(h*Math.PI/180)*r);
-    if (plek && plek.uitgangen && plek.uitgangen.length){
-      const u = plek.uitgangen[Math.random()*plek.uitgangen.length|0];
-      z.grp.position.copy(pol(u.start[0] + (Math.random()-0.5)*2, u.start[1]));
+    const voor = plek && plek.uitgangen ? plek.uitgangen.filter(u => Math.abs(u.start[0]) <= VOORHOEK && (!u.via || Math.abs(u.via[0]) <= VOORHOEK)) : [];
+    if (voor.length){
+      const u = voor[Math.random()*voor.length|0];
+      z.grp.position.copy(pol(Math.max(-VOORHOEK, Math.min(VOORHOEK, u.start[0] + (Math.random()-0.5)*2)), u.start[1]));
       if (u.via) z.via = pol(u.via[0], u.via[1]);
       z.uitgang = u.naam;
     } else {
