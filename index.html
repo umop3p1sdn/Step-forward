@@ -25,7 +25,7 @@
 
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE  = 'v23';
+const VERSIE = "v24";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -259,7 +259,18 @@ const FLAP_KANS  = 0.55;                                  // kans dat een stuk v
 const INSLAG_STOP = 0.06;                                 // zo lang bevriest een geraakte zombie (s)
 const WANKEL_TIJD = 0.35, WANKEL_DUW = 0.3;               // wankelen: hoe lang (s), hoe ver terug (m)
 const VAL_ZWAARTE = 9;
-const ZIJ_SPARTEL = 5;                                    // been eraf: zolang spartelt hij op straat voor hij stil ligt (s)
+const ZIJ_SPARTEL = 5;
+const HAP_KANS   = {kanon:0.4, auto:0.12};                 // kans op meteen een hap uit de romp; anders vleeswond (2e treffer op die plek = hap)
+const HAP_MAAT   = {kanon:0.075, auto:0.05};                // straal van de hap (m)
+const HAP_MAX    = 6;                                       // hooguit zoveel happen per zombie
+const STRUIKEL_KANS = {kanon:0.45, pistool:0.06};           // kans dat een romptreffer hem laat struikelen
+const STRUIKEL_VAL  = 0.4;                                  // ...en dat hij dan ook echt valt (en weer opstaat)
+const STRUIKEL_RING = 1.9;                                  // explosie: tot zoveel × de straal struikelen ze nog
+const RAG_DEMP = 2.6, RAG_TRAAG = 0.7;                      // ragdoll: demping en hoe hard ledematen achterblijven bij een klap
+const RAG_GRENS = {bovenbeen:[-1.7,0.5], onderbeen:[0,2.3], voet:[-0.6,0.7], bovenarm:[-2.8,1.2], onderarm:[-2.4,0.15],
+                   hand:[-0.9,0.9], buik:[-0.45,0.6], borst:[-0.45,0.6], nek:[-0.9,0.9]};
+const RAG_DELEN = ['buik','borst','nek','bovenbeenL','bovenbeenR','onderbeenL','onderbeenR','voetL','voetR',
+                   'bovenarmL','bovenarmR','onderarmL','onderarmR','handL','handR'];                                    // been eraf: zolang spartelt hij op straat voor hij stil ligt (s)
 const HALF_KANS  = 0.35;                                  // explosie: kans dat het halve lijf wegvliegt (met darmen)                                    // hoe hard een dode omvalt
 const LOOP_SCHAAL = 1.0;  // alle loopsnelheden ×
 const LOOPSOORTEN = [['schuifel',30], ['loop',25], ['mank',17], ['sleep',8], ['ren',20]];   // soort, kans
@@ -467,6 +478,7 @@ AFRAME.registerComponent('zombies', {
       if (k === 'hoofd') z.halsNaad = m; else if (z.knoop[k]) z.knoop[k].userData.naad = m;
     });
     z.grp.rotation.order = 'YXZ';
+    if (z.nek) z.nek.userData.uit = new T.Vector3(0, 0.12, 0);
     z.rust = {L:0, R:0};
     ['L','R'].forEach(k => {
       const sch = so.delen['bovenarm'+k], hd = so.delen['hand'+k];
@@ -705,11 +717,16 @@ AFRAME.registerComponent('zombies', {
     for (let k=0;k<6;k++) this.rookPluim(p.clone().add(new T.Vector3((Math.random()-0.5)*straal, Math.random()*1.5, (Math.random()-0.5)*straal)), 1.6, 2.5);
     this.vlek(p.x, p.z, straal*0.9, true);
     for (const z of this.lijst){
-      if (z.dood && z.val > 1.5) continue;
       const d = z.grp.position.clone().setY(0).distanceTo(p.clone().setY(0));
-      if (d > straal) continue;
       const weg = p.clone().sub(z.grp.position).setY(0).normalize().negate(), dir = weg.clone().setY(0.4).normalize();
+      if (d > straal){ if (!z.dood && d < straal*STRUIKEL_RING) this.struikel(z, weg, 0.6); continue; }   // net buiten de straal: struikelen
       const dicht = 1 - d/straal;
+      if (z.dood){   // lijk: stukken eraf en het hele lijf wordt opgetild
+        const los = Object.keys(z.knoop).filter(k => !/borst|buik|bekken/.test(k) && !z.knoop[k].userData.los).sort(() => Math.random()-0.5);
+        for (const k of los.slice(0, Math.ceil(los.length*(0.15 + dicht*0.45)))) this.losMaak(z, k, dir, 1.2 + dicht);
+        this.lijkDuw(z, dir, 1, new T.Vector3(dir.x*(1 + 3*dicht), 2 + 3*dicht, dir.z*(1 + 3*dicht)));
+        continue;
+      }
       // hoe dichterbij, hoe meer stukken eraf
       const half = dicht > 0.12 && z.knoop.borst && !z.knoop.borst.userData.los && Math.random() < HALF_KANS;
       const delen = Object.keys(z.knoop).filter(k => !/borst|buik|bekken/.test(k) && !z.knoop[k].userData.los && !(half && /been|voet/.test(k)));
@@ -726,7 +743,7 @@ AFRAME.registerComponent('zombies', {
         } else ['borst','buik','bekken'].forEach(k => { const n = z.knoop[k]; if (n && !n.userData.los) this.losMaak(z, k, dir, 1.2 + dicht*1.5); });
       }
       this.spat(z.grp.position.clone().setY(1), dir, 60);
-      this.omver(z);
+      this.omver(z, dir, {wapen:'explosie', dicht});
     }
   },
   /* ---------- molotov: vuurplas, zombies vatten vlam ---------- */
@@ -906,11 +923,18 @@ AFRAME.registerComponent('zombies', {
     this.inslag(z, deel, p, dir, wapen);
     this.spat(p, dir, 26);
     if (deel === 'borst' || deel === 'buik' || deel === 'bekken'){
-      const w = this.wond(z, deel, p, wapen);
+      let w = null;
+      if (wapen === 'kanon' || wapen === 'auto'){       // zwaar of snel: soms meteen een hap eruit, een tweede treffer op een wond altijd
+        const oud = this.wondBij(z, deel, p);
+        if (oud || Math.random() < HAP_KANS[wapen]) w = this.hap(z, deel, p, dir, wapen);
+      }
+      if (!w) w = this.wond(z, deel, p, wapen);
       this.brokken(z, deel, p, dir, opt.uv, wapen);
-      if (z.dood) return;
+      if (z.dood){ this.lijkDuw(z, dir, wapen === 'kanon' ? 1.4 : wapen === 'auto' ? 0.5 : 0.9); return; }
       this.schok(z.knoop[deel], 0.45);
-      if (wapen !== 'auto' || Math.random() < 0.35) this.wankel(z, dir, wapen === 'kanon' ? 1.7 : wapen === 'pistool' ? 1 : 0.6);
+      if (deel !== 'borst') this.reageer(z, 'buk', wapen === 'auto' ? 0.5 : 1);          // buik: dubbelklappen
+      if (Math.random() < (STRUIKEL_KANS[wapen] || 0)) this.struikel(z, dir, STRUIKEL_VAL);
+      else if (wapen !== 'auto' || Math.random() < 0.35) this.wankel(z, dir, wapen === 'kanon' ? 1.7 : wapen === 'pistool' ? 1 : 0.6);
       if (wapen === 'kanon') z.hp--;                                     // handkanon: dubbele schade op de romp
       if (deel !== 'borst' && w && wapen !== 'laser'){
         // buik: soms darmen naar buiten, soms valt er een stuk darm of buik uit — aan de kant waar je raakt
@@ -920,7 +944,7 @@ AFRAME.registerComponent('zombies', {
         else if (r < DARM_KANS + 0.36) this.brokken(z, deel, p, dir.clone().multiplyScalar(0.2), opt.uv, 'auto');
       }
       z.hp--; this.spat(p, dir, 30);
-      if (z.hp <= 0) this.omver(z, dir);
+      if (z.hp <= 0) this.omver(z, dir, {wapen});
       return;
     }
     if (deel.startsWith('hoofd')){
@@ -929,13 +953,13 @@ AFRAME.registerComponent('zombies', {
         // 20%: één willekeurig kwart weg (een gat in zijn kop) — hij zwalkt nog even door met een fontein
         const d = over[Math.random()*4|0], b = z.knoop.borst, m = z.knoop[d].children.find(c => c.isMesh);
         if (b && m){ const w = new THREE.Vector3(); m.getWorldPosition(w); z.fonteinLok = b.worldToLocal(w); }
-        this.losMaak(z, d, dir, 1.4); this.spat(p, dir, 60);
+        this.losMaak(z, d, dir, 1.4); this.spat(p, dir, 60); this.reageer(z, 'nek', 1);
         z.halfdood = SCHEDEL_LOOP[0] + Math.random()*(SCHEDEL_LOOP[1]-SCHEDEL_LOOP[0]);
         z.snel *= SCHEDEL_SNEL;
       } else {
         // 80% (en elke volgende treffer): het hele hoofd spat uiteen
         over.forEach(d => this.losMaak(z, d, dir, 1.6)); this.spat(p, dir, 90);
-        z.halfdood = 0; this.omver(z, dir);
+        z.halfdood = 0; if (z.dood) this.lijkDuw(z, dir, 0.6); else this.omver(z, dir, {wapen});
       }
       return;
     }
@@ -947,12 +971,14 @@ AFRAME.registerComponent('zombies', {
     if (opt && opt.ledemaat1) z.deelHp[deel] = 1;                 // automatic / laser: in één keer eraf
     if (--z.deelHp[deel] > 0){
       this.spat(p, dir, 20); this.schok(kn, 1); this.wond(z, deel, p, wapen);
-      if (/been|voet/.test(deel)) this.maakMank(z, deel.slice(-1));
+      if (/been|voet/.test(deel)){ this.maakMank(z, deel.slice(-1)); this.reageer(z, 'knik', deel.startsWith('voet') ? 0.5 : 1, deel.slice(-1)); }
+      if (z.dood) this.lijkDuw(z, dir, 0.6);
       if (deel.startsWith('bovenarm')) this.wankel(z, dir, 0.5, deel.slice(-1));     // schouder: hij draait weg
       return;
     }
     if (/arm/.test(deel) && Math.random() < HANG_KANS){ this.hangAan(z, deel, dir); return; }
     this.losMaak(z, deel, dir, 1);
+    if (z.dood) this.lijkDuw(z, dir, 0.7);
     if (/been|voet/.test(deel)){
       if (!z.dood) this.omver(z, dir, {zij: deel.slice(-1) === 'L' ? 1 : -1});     // valt naar de kant waar zijn been mist
       else if (z.valSoort === 'zij' && !z.ligt) z.zijSnel = 2.4;                    // tweede been eraf: hij klapt sneller om
@@ -1328,49 +1354,274 @@ AFRAME.registerComponent('zombies', {
     }
     return this.bTex;
   },
+  /* ---------- happen: kanon/automaat knipt echt een stuk uit het plaatje (ook de trefkaart: daar schiet je nu doorheen) ---------- */
+  wondBij(z, deel, p){
+    const kn = z.knoop[deel]; if (!kn || kn.userData.los) return null; const bin = kn.userData.bin, l = bin.worldToLocal(p.clone());
+    const o = (z.wonden || []).find(o => o.w.parent === bin && Math.hypot(o.w.position.x - l.x, o.w.position.y - l.y) < 0.065);
+    return o ? o.w : null;
+  },
+  knip(m, p, rM, vorm, rand){   // knipt een gat in één plaatje van deze zombie (eigen kopie van plaatje en trefkaart)
+    const T = this.T;
+    if (!m.userData.eigen){
+      const im = m.material.map && m.material.map.image; if (!im || !im.width) return null;
+      const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; c.getContext('2d').drawImage(im, 0, 0);
+      const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace;
+      const mat = m.material.clone(); mat.map = t; const orig = m.material.map; m.material = mat;
+      if (m.userData.D) m.userData.D = Object.assign({}, m.userData.D, {al:m.userData.D.al.slice(), mat});
+      m.userData.eigen = {c, t, orig};
+    }
+    const E = m.userData.eigen, c = E.c, x = c.getContext('2d');
+    const gw = m.geometry.parameters.width, gh = m.geometry.parameters.height, ppm = c.width/gw;
+    const l = m.worldToLocal(p.clone()), u0 = l.x/gw + 0.5, v0 = l.y/gh + 0.5;
+    if (u0 < -0.2 || u0 > 1.2 || v0 < -0.2 || v0 > 1.2) return null;
+    const px = u0*c.width, py = (1 - v0)*c.height, r = rM*ppm, N = vorm.length;
+    const pad = f => { x.beginPath(); for (let i=0;i<N;i++){ const a = i/N*Math.PI*2, rr = r*f*vorm[i];
+      i ? x.lineTo(px + Math.cos(a)*rr, py + Math.sin(a)*rr) : x.moveTo(px + Math.cos(a)*rr, py + Math.sin(a)*rr); } x.closePath(); };
+    x.save(); x.globalCompositeOperation = 'source-atop';           // rauwe rand: alleen op het lijf, niet in de lucht
+    x.fillStyle = 'rgba(55,2,4,0.85)'; pad(rand ? 1.55 : 1.25); x.fill();
+    if (rand){ x.fillStyle = 'rgba(125,14,18,1)'; pad(1.25); x.fill();
+      for (let i=0;i<12;i++){ const a = Math.random()*6.283, d = r*(1 + Math.random()*0.6); x.fillStyle = `rgba(${150+Math.random()*60|0},${20+Math.random()*30|0},30,0.9)`;
+        x.beginPath(); x.arc(px + Math.cos(a)*d, py + Math.sin(a)*d, 1 + Math.random()*r*0.12, 0, 6.283); x.fill(); } }
+    x.globalCompositeOperation = 'destination-out'; pad(1); x.fill(); x.restore();
+    E.t.needsUpdate = true;
+    const D = m.userData.D;
+    if (D){ const h = document.createElement('canvas'); h.width = D.aw; h.height = D.ah; const hx = h.getContext('2d'); hx.drawImage(c, 0, 0, D.aw, D.ah);
+      const al = hx.getImageData(0, 0, D.aw, D.ah).data; for (let i=0;i<D.aw*D.ah;i++) D.al[i] = al[i*4+3]; }
+    return {u0, v0, gw, gh, orig:E.orig};
+  },
+  hap(z, deel, p, dir, wapen){
+    const T = this.T, kn = z.knoop[deel]; if (!kn || kn.userData.los || (z.happen || 0) >= HAP_MAX) return null;
+    const bin = kn.userData.bin, m = bin.children.find(c => c.isMesh && c.userData.D); if (!m) return null;
+    const rM = (HAP_MAAT[wapen] || 0.06)*(0.8 + Math.random()*0.5), N = 14, vorm = [];
+    for (let i=0;i<N;i++) vorm.push(0.65 + Math.random()*0.6);
+    const k0 = this.knip(m, p, rM, vorm, true); if (!k0) return null;
+    const {u0, v0, gw, gh} = k0;
+    // alles van de romp dat erachter zit (andere rompstukken, opvulling van de gewrichten) ook: dan kijk je er echt doorheen
+    z.grp.traverse(o => { if (!o.isMesh || o === m || !o.geometry.parameters || !o.geometry.parameters.width) return;
+      const romp = o.userData.D && /borst|buik|bekken/.test(o.userData.deel);
+      if (romp || o.userData.naadMesh) this.knip(o, p, rM*0.95, vorm, false); });
+    z.happen = (z.happen || 0) + 1;
+    // wonddecals die nu boven het gat zouden zweven: weg
+    const lb = bin.worldToLocal(p.clone());
+    z.wonden = (z.wonden || []).filter(o => { if (o.w.parent === bin && o.w.isMesh && Math.hypot(o.w.position.x - lb.x, o.w.position.y - lb.y) < rM*1.4){ o.w.removeFromParent(); return false; } return true; });
+    // het stuk dat eruit is: met dezelfde vorm, het vliegt weg
+    const sh = new T.Shape(); for (let i=0;i<N;i++){ const a = -i/N*Math.PI*2, rr = rM*vorm[i];
+      i ? sh.lineTo(Math.cos(a)*rr, Math.sin(a)*rr) : sh.moveTo(Math.cos(a)*rr, Math.sin(a)*rr); }
+    const geo = new T.ShapeGeometry(sh), pos = geo.attributes.position, uvA = geo.attributes.uv;
+    for (let k=0;k<pos.count;k++) uvA.setXY(k, u0 + pos.getX(k)/gw, v0 + pos.getY(k)/gh);
+    uvA.needsUpdate = true;
+    const b = new T.Mesh(geo, this.vleesMat(k0.orig, 0xd88a8a)); b.position.copy(p); b.quaternion.copy(m.getWorldQuaternion(new T.Quaternion()));
+    this.sc.add(b);
+    const v = new T.Vector3(dir.x, 0, dir.z).normalize().multiplyScalar(2 + Math.random()*2.5); v.x += (Math.random()-0.5)*1.6; v.y = 1.5 + Math.random()*2;
+    this.los.push({o:b, v, w:new T.Vector3((Math.random()-0.5)*12, (Math.random()-0.5)*12, (Math.random()-0.5)*12), t:0, grond:false});
+    this.spat(p, dir, 50); this.nevel(p, 0.45);
+    this.geluid(A => this.speel(A, this.ruisBuf(A, 0.2, 2), 'lowpass', 500, 1));
+    // anker onder het gat: bloed loopt eruit, darmen kunnen eruit hangen
+    const w = new T.Object3D(); w.position.set(lb.x, lb.y - rM*0.55, m.position.z + 0.003); w.userData.zij = Math.sign(lb.x - m.position.x) || 1;
+    bin.add(w); z.wonden.push({w, t:0});
+    return w;
+  },
+  /* ---------- reactie per zone: knie knikt, nek klapt terug, buik klapt dubbel ---------- */
+  reageer(z, soort, kr, kant){ if (z.dood) return; (z.rk = z.rk || {})[soort] = {t:0, kr, kant}; },
+  reactie(z, s){
+    const rk = z.rk; if (!rk) return 0;
+    const k = z.knoop, DUUR = {knik:0.5, nek:0.35, buk:0.55}; let dy = 0;
+    const plus = (n, v) => { if (n && !n.userData.los && !n.userData.hangt) n.rotation.x += v; };
+    for (const so in rk){
+      const r = rk[so]; r.t += s; if (r.t >= DUUR[so]){ delete rk[so]; continue; }
+      const e = Math.pow(Math.sin(Math.PI*r.t/DUUR[so]), 0.7)*r.kr;
+      if (so === 'knik'){       // kogel in het been: hij zakt door die knie en helt die kant op
+        plus(k['onderbeen'+r.kant], 0.9*e); plus(k['bovenbeen'+r.kant], -0.45*e);
+        dy -= 0.11*e; z.grp.rotation.z += (r.kant === 'L' ? 1 : -1)*0.1*e;
+      } else if (so === 'nek'){ if (z.nek) z.nek.rotation.x -= 0.7*e; }
+      else if (so === 'buk'){   // niet te ver: een plat plaatje wordt anders een streep
+        const ruimte = Math.max(0.3, Math.min(1, (50 - ((z.loop && z.loop.leun) || 0))/30));
+        plus(k.buik, 0.25*e*ruimte); plus(k.borst, 0.2*e*ruimte); plus(k.onderbeenL, 0.3*e); plus(k.onderbeenR, 0.3*e); dy -= 0.05*e;
+      }
+    }
+    return dy;
+  },
+  /* ---------- struikelen: paar wankele passen achteruit, soms valt hij, ligt even en krabbelt weer op ---------- */
+  struikel(z, dir, valKans){
+    if (z.dood || z.brand || z.kruip || z.strk) return;
+    z.strk = {t:0, fase:'wankel', dur:0.55 + Math.random()*0.35, dir:new this.T.Vector3(dir.x, 0, dir.z).normalize(),
+              val:Math.random() < valKans, kant:Math.random() < 0.5 ? -1 : 1};
+    z.wankel = 0;
+  },
+  struikelTick(z, s){
+    const st = z.strk, g = z.grp, k = z.knoop, grens = Math.PI/2*0.97, rad = Math.PI/180; st.t += s;
+    if (st.fase === 'wankel'){
+      const a = Math.min(1, st.t/st.dur);
+      g.position.addScaledVector(st.dir, 1.6*(1 - a)*s);
+      if (z.loop) z.loop.fase += s*z.loop.tempo*1.2;                     // snelle, korte passen
+      g.position.y = this.loopTick(z, s);
+      g.rotation.x = -0.3*Math.sin(Math.min(1, a*2)*Math.PI/2);
+      g.rotation.z = st.kant*0.16*Math.sin(st.t*8);
+      ['L','R'].forEach((kant, i) => { const n = k['bovenarm'+kant]; if (!n || n.userData.los || n.userData.hangt) return;   // maaien om evenwicht
+        n.rotation.set(-(45 + 35*Math.sin(st.t*11 + i*2))*rad, 0, z.rust[kant] + (kant === 'L' ? 1 : -1)*0.5*Math.abs(Math.sin(st.t*7 + i))); });
+      if (st.t >= st.dur){
+        if (st.val){ st.fase = 'val'; st.t = 0; z.hoek = g.rotation.x; z.hoekV = -1; z.rdHoekV = -1; z.rd = {}; z.rdRust = 0; z.stoot = 0; }
+        else { z.strk = null; g.rotation.x = 0; g.rotation.z = 0; }
+      }
+    } else if (st.fase === 'val'){
+      z.hoekV -= VAL_ZWAARTE*Math.sin(Math.abs(z.hoek) + 0.05)*s; z.hoek += z.hoekV*s;
+      g.rotation.z *= Math.exp(-6*s);
+      if (z.hoek <= -grens){ z.hoek = -grens; z.hoekV = 0; this.plof(z); this.slapZet(z, 0, 12); st.fase = 'lig'; st.t = 0; st.lig = 0.8 + Math.random()*1.2; }
+      g.rotation.x = z.hoek; g.position.y = Math.max(0, g.position.y - s*0.6);
+      this.slapZet(z, s, 0);
+    } else if (st.fase === 'lig'){
+      g.rotation.x = -grens; g.position.y = 0;
+      st.sp = (st.sp || 0) - s; if (st.sp <= 0){ st.sp = 0.3 + Math.random()*0.3; this.slapZet(z, 0, 5); }
+      this.slapZet(z, s, 0);
+      if (st.t >= st.lig){ st.fase = 'op'; st.t = 0; st.van = {};
+        for (const d in k) st.van[d] = [k[d].rotation.x, k[d].rotation.z]; if (z.nek) st.van.nek = [z.nek.rotation.x, z.nek.rotation.z]; }
+    } else {   // opkrabbelen: lijf omhoog, gewrichten mengen terug naar het loopje
+      const b = Math.min(1, st.t/0.9), e = b*b*(3 - 2*b);
+      g.rotation.x = -grens*(1 - e); g.rotation.z = 0; g.position.y = 0;
+      this.loopTick(z, 0);
+      for (const d in st.van){ const n = d === 'nek' ? z.nek : k[d]; if (!n || (n.userData && (n.userData.los || n.userData.hangt))) continue;
+        n.rotation.x = st.van[d][0] + (n.rotation.x - st.van[d][0])*e; n.rotation.z = st.van[d][1] + (n.rotation.z - st.van[d][1])*e; }
+      if (b >= 1){ z.strk = null; z.rd = null; z.hoek = 0; z.hoekV = 0; }
+    }
+  },
   /* ---------- wankelen: zware treffer duwt hem terug; schoudertreffer draait hem weg ---------- */
   wankel(z, dir, kracht, kant){
-    if (z.dood || z.brand || z.kruip) return;                // brandend: geen wankel (zoals L4D2)
+    if (z.dood || z.brand || z.kruip || z.strk) return;      // brandend: geen wankel (zoals L4D2)
     z.wankel = Math.max(z.wankel || 0, WANKEL_TIJD*kracht);
     z.wankelDir = new this.T.Vector3(dir.x, 0, dir.z).normalize().multiplyScalar(WANKEL_DUW*kracht/WANKEL_TIJD);
     if (kant) z.schouder = (kant === 'L' ? 1 : -1)*0.55*kracht;
   },
   /* ---------- doodgaan: eerst nog doorlopen, dan inzakken (ragdoll-achtig) ---------- */
   omver(z, dir, opt){
-    if (z.dood) return; z.dood = true; z.val = 0;
+    if (z.dood) return; z.dood = true; z.val = 0; opt = opt || {};
     z.valKant = Math.random() < 0.5 ? -1 : 1;
-    const ren = z.loop && z.loop.soort === 'ren';
-    if (opt && opt.zij){   // been eraf: opzij omklappen, 5 s spartelen op straat, dan stil
-      z.valSoort = 'zij'; z.zijKant = opt.zij; z.knieval = false; z.doorloop = 0; z.hoek = 0; z.hoekV = opt.zij*0.9; z.zijSnel = 1; z.rd = {}; return;
+    z.rd = {}; z.rdRust = 0; z.rdHoekV = 0; z.stoot = 0;
+    const st = z.strk; z.strk = null;
+    if (st && st.fase !== 'wankel'){   // lag al (of viel / stond op na struikelen): daar blijft hij
+      z.valSoort = 'achter'; z.knieval = false; z.doorloop = 0; z.hoek = z.grp.rotation.x; z.grp.rotation.z = 0;
+      z.hoekV = st.fase === 'val' ? (z.hoekV || 0) : 0; z.rdHoekV = z.hoekV;
+      if (st.fase === 'lig'){ z.ligt = true; z.botsen = 1; }
+      return;
     }
+    if (st) z.grp.rotation.z = 0;
+    const ren = z.loop && z.loop.soort === 'ren', w = opt.wapen;
+    if (opt.zij){   // been eraf: opzij omklappen, 5 s spartelen op straat, dan stil
+      z.valSoort = 'zij'; z.zijKant = opt.zij; z.knieval = false; z.doorloop = 0; z.hoek = 0; z.hoekV = opt.zij*0.9; z.zijSnel = 1; z.rdHoekV = z.hoekV; return;
+    }
+    // het wapen bepaalt hoe hij gaat: kanon smijt hem achterover, automaat laat hem in elkaar zakken, explosie gooit hem weg
     if (z.kruip) z.valSoort = 'kruip';
     else if (z.brand) z.valSoort = 'zak';
+    else if (w === 'explosie'){ const ik = this.el.camera.getWorldPosition(new this.T.Vector3()), terug = z.grp.position.clone().sub(ik).setY(0);
+      z.valSoort = dir && (dir.x*terug.x + dir.z*terug.z) < 0 ? 'voor' : 'achter'; }
+    else if (w === 'kanon') z.valSoort = 'achter';
+    else if (w === 'auto' || w === 'laser'){ const r = Math.random(); z.valSoort = r < 0.45 ? 'zak' : r < 0.75 ? 'knie' : (ren ? 'voor' : 'achter'); }
     else if (ren) z.valSoort = 'voor';
     else { const r = Math.random(); z.valSoort = r < 0.42 ? 'achter' : r < 0.70 ? 'knie' : 'voor'; }
     z.knieval = z.valSoort === 'knie' || z.valSoort === 'zak';
-    // hoe lang hij nog doorloopt op zijn eigen vaart (rennende zombies het langst)
-    z.doorloop = z.valSoort === 'kruip' || z.valSoort === 'zak' ? 0 : (ren ? 0.45 + Math.random()*0.4 : 0.12 + Math.random()*0.35);
+    // hoe lang hij nog doorloopt op zijn eigen vaart (rennende zombies het langst; kanon/explosie: meteen)
+    z.doorloop = z.valSoort === 'kruip' || z.valSoort === 'zak' || w === 'kanon' || w === 'explosie' ? 0
+               : (ren ? 0.45 + Math.random()*0.4 : 0.12 + Math.random()*0.35) * (w === 'auto' ? 0.5 : 1);
     z.doorSnel = z.snel;
-    z.hoek = 0; z.hoekV = (z.valSoort === 'voor' ? 1 : -1) * (ren ? 1.4 : 0.6);
-    z.rd = {};   // slappe gewrichten
+    const voor = z.valSoort === 'voor';
+    z.hoek = 0; z.hoekV = (voor ? 1 : -1) * (ren ? 1.4 : 0.6);
+    const V = this.T.Vector3;
+    if (w === 'kanon' && dir){       // klap tegen de borst: van zijn voeten, glijdt nog een eind achteruit
+      z.hoekV = -(2.2 + Math.random()*1.2); z.glij = new V(dir.x, 0, dir.z).normalize().multiplyScalar(1.4 + Math.random());
+      z.lv = new V(0, 1.2, 0); z.stoot = -4;
+    } else if (w === 'explosie' && dir){
+      const d = opt.dicht || 0.5; z.hoekV = (voor ? 1 : -1)*(2.5 + 4*d);
+      z.lv = new V(dir.x*(1.5 + 3.5*d), 2 + 3.5*d, dir.z*(1.5 + 3.5*d)); z.stoot = (voor ? 1 : -1)*5;
+    } else if (w === 'pistool') z.stoot = -1.5;
+    z.rdHoekV = 0;
   },
+  /* ---------- ragdoll-light: elk gewricht valt onder zijn eigen gewicht, blijft achter bij een klap,
+     raakt de straat en blijft binnen zijn grenzen (knie buigt maar één kant op) ---------- */
   slapZet(z, s, schud){
-    // elk gewricht veert slap naar een "dood" doel; een klap op de grond schudt alles nog even door
-    const k = z.knoop, voor = z.valSoort === 'voor';
-    const doel = {bovenbeenL:-0.2, bovenbeenR:0.1, onderbeenL:0.9, onderbeenR:0.6, voetL:0.3, voetR:-0.2,
-                  bovenarmL: voor ? -1.1 : 0.6, bovenarmR: voor ? -0.9 : 0.9, onderarmL:-0.6, onderarmR:-0.3, handL:0.3, handR:-0.2,
-                  buik: voor ? 0.25 : -0.15, borst: voor ? 0.2 : -0.25};
-    for (const d in doel){
-      const n = k[d]; if (!n || n.userData.los) continue;
-      const r = z.rd[d] || (z.rd[d] = {x:n.rotation.x, v:(Math.random()-0.5)*4});
-      if (schud) r.v += (Math.random()-0.5)*schud;
-      r.v += (22*(doel[d] - r.x) - 5*r.v)*s; r.x += r.v*s;
-      n.rotation.x = r.x;
+    const T = this.T, k = z.knoop; if (!z.rd) z.rd = {};
+    const rd = z.rd, groot = schud >= 10;
+    const pak = d => d === 'nek' ? z.nek : k[d];
+    const vlak = d => /^(bovenarm|onderarm|bovenbeen|onderbeen)/.test(d);
+    const maak = (d, n) => { const r = {x:n.rotation.x, v:(Math.random()-0.5)*2, z:n.rotation.z, z0:n.rotation.z, zv:0};
+      if (/^(borst|buik|nek)/.test(d)) r.v += z.stoot || 0;
+      if (d.startsWith('bovenarm')) r.v -= (z.stoot || 0)*0.6;
+      return (rd[d] = r); };
+    if (schud){
+      z.rdRust = 0;
+      for (const d of RAG_DELEN){ const n = pak(d); if (!n || (n.userData && (n.userData.los || n.userData.hangt))) continue;
+        const r = rd[d] || maak(d, n); r.v += (Math.random()-0.5)*schud;
+        if (vlak(d)){ r.zv += (Math.random()-0.5)*schud*0.5;
+          if (groot){ const sg = d.endsWith('L') ? 1 : -1;      // bij de klap op straat: armen en benen spreiden in het vlak
+            r.z0 = (d.startsWith('bovenarm') ? (z.rust[d.slice(-1)] || 0) + sg*(0.2 + Math.random()*1.0)
+                  : d.startsWith('bovenbeen') ? sg*(Math.random()*0.35) : (Math.random()-0.5)*0.5); } } }
     }
-    if (z.nek){ const r = z.rd.nek || (z.rd.nek = {x:z.nek.rotation.x, v:0}); if (schud) r.v += (Math.random()-0.5)*schud*1.5;
-      r.v += (22*((voor ? 0.5 : -0.6) - r.x) - 4*r.v)*s; r.x += r.v*s; z.nek.rotation.x = r.x; }
+    if (!s || (z.rdRust || 0) > 1.2) return;                    // ligt stil: slapen tot iets hem raakt
+    z.grp.updateMatrixWorld(true);
+    const hv = z.hoekV || 0, dH = Math.max(-6, Math.min(6, hv - (z.rdHoekV || 0))); z.rdHoekV = hv;
+    const zijw = z.valSoort === 'zij', grondOk = Math.abs(z.grp.rotation.x) > 0.5 || Math.abs(z.grp.rotation.z) > 0.5;
+    const neer = new T.Vector3(0, -1, 0), as = new T.Vector3(), pw = new T.Vector3(), c = new T.Vector3(), tip = new T.Vector3();
+    let maxv = 0;
+    for (const d of RAG_DELEN){
+      const n = pak(d); if (!n || !n.parent || (n.userData && (n.userData.los || n.userData.hangt))) continue;
+      const uit = n.userData.uit; if (!uit || uit.lengthSq() < 1e-6) continue;
+      const r = rd[d] || maak(d, n), soort = d.replace(/[LR]$/, ''), gr = RAG_GRENS[soort];
+      as.set(1, 0, 0).transformDirection(n.parent.matrixWorld);
+      pw.setFromMatrixPosition(n.matrixWorld);
+      c.copy(uit); n.localToWorld(c); c.sub(pw);
+      const L = Math.max(0.06, c.length()), x0 = r.x, z0 = r.z;
+      // benen dragen hem tot hij ligt (hij valt om zijn voeten): pas daarna zwaartekracht en doorschieten
+      const been = /been|voet/.test(soort), draagt = been && !(z.ligt || z.ploft || z.ligT !== undefined);
+      const tq = as.dot(c.clone().cross(neer));                     // L·sin(hoek met de zwaartekracht)
+      if (!draagt){
+        r.v += 0.75*ZWAARTE*tq/(L*L)*s;                             // staaf die om zijn uiteinde valt
+        if (zijw) r.zv -= dH*RAG_TRAAG; else r.v -= dH*RAG_TRAAG;   // lichaam remt/klapt: ledematen schieten door
+      }
+      r.v -= (been ? 8 : /arm|hand/.test(soort) ? 2.5 : 4)*r.x*s;  // restje spierspanning: niet helemaal dubbelvouwen
+      r.v -= RAG_DEMP*r.v*s;
+      if (gr){ if (r.x < gr[0]) r.v += (gr[0] - r.x)*120*s - r.v*8*s; else if (r.x > gr[1]) r.v += (gr[1] - r.x)*120*s - r.v*8*s; }
+      let dx = r.v*s;
+      if (grondOk){                                                 // uiteinde niet door de straat
+        tip.copy(uit).multiplyScalar(2); n.localToWorld(tip);
+        const dy = as.clone().cross(tip.clone().sub(pw)).y, y1 = tip.y + dy*dx, vloer = Math.min(0.015, pw.y - 0.01);
+        if (y1 < vloer && Math.abs(dy) > 1e-3){
+          dx += Math.max(-0.3, Math.min(0.3, (vloer - y1)/dy));
+          if (r.v*dy < 0) r.v = -r.v*0.25;
+        }
+      }
+      r.x += dx;
+      if (gr){ const lo = gr[0] - 0.12, hi = gr[1] + 0.12;          // harde grens: nooit doorslaan
+        if (r.x < lo){ r.x = lo; if (r.v < 0) r.v = 0; } else if (r.x > hi){ r.x = hi; if (r.v > 0) r.v = 0; } }
+      r.v = Math.max(-14, Math.min(14, r.v));
+      n.rotation.x = r.x;
+      if (vlak(d)){ r.zv += (60*(r.z0 - r.z) - 6*r.zv)*s; r.z += r.zv*s; n.rotation.z = r.z; }
+      maxv = Math.max(maxv, Math.abs(r.x - x0)/s, Math.abs(r.z - z0)/s);
+    }
+    z.rdRust = maxv < 0.15 && (z.ligt || z.ploft || z.ligT !== undefined) ? (z.rdRust || 0) + s : 0;
+  },
+  /* een lijk krijgt een klap: schudt door, wipt even op en schuift een stukje (explosie: echt de lucht in) */
+  lijkDuw(z, dir, kracht, lancering){
+    if (!z.dood) return;
+    this.slapZet(z, 0, (lancering ? 20 : 9)*kracht);
+    if (lancering){ z.lv = lancering; z.rdRust = 0; return; }
+    if (z.val > (z.doorloop || 0) + 0.3){
+      z.lv = new this.T.Vector3(dir.x*0.5*kracht, 0.9*kracht, dir.z*0.5*kracht);
+      z.glij = new this.T.Vector3(dir.x, 0, dir.z).normalize().multiplyScalar(0.4*kracht);
+    }
   },
   valTick(z, s, naarMij){
+    const g = z.grp;
+    if (z.lv){                       // in de lucht (explosie, kanon, een klap op een lijk)
+      z.lv.y -= ZWAARTE*s; g.position.x += z.lv.x*s; g.position.z += z.lv.z*s; z.hop = (z.hop || 0) + z.lv.y*s;
+      if (z.hop <= 0 && z.lv.y < 0){ z.hop = 0;
+        if (z.plofLater){ z.plofLater = false; this.plof(z); this.slapZet(z, 0, 14); }
+        if (z.lv.y < -2.2){ z.lv.y *= -0.25; z.lv.x *= 0.5; z.lv.z *= 0.5; this.plof(z); this.slapZet(z, 0, 12); }
+        else z.lv = null; }
+    }
+    if (z.glij){ g.position.addScaledVector(z.glij, s); z.glij.multiplyScalar(Math.exp(-3.5*s)); if (z.glij.lengthSq() < 1e-4) z.glij = null; }
+    this.valPose(z, s, naarMij);
+    if (z.val > LIJK_TIJD) z.zak = (z.zak || 0) + s*0.25;           // wegzakken
+    if (z.valSoort !== 'kruip') g.position.y += (z.hop || 0) - (z.zak || 0);
+  },
+  valPose(z, s, naarMij){
     const g = z.grp;
     if (z.val < z.doorloop){
       // nog doorlopen, steeds slapper: knieën knikken, snelheid valt weg
@@ -1409,7 +1660,8 @@ AFRAME.registerComponent('zombies', {
           if (z.botsen >= 2 || Math.abs(z.hoekV) < 0.4) z.ligt = true; }
       }
       g.rotation.x = z.hoek;
-      g.position.y = Math.max(-0.02, g.position.y - s*0.5);
+      z.basis = Math.max(-0.02, (z.basis === undefined ? g.position.y - (z.hop || 0) : z.basis) - s*0.5);
+      g.position.y = z.basis;
       this.slapZet(z, s, 0);
     } else if (z.valSoort === 'knie' || z.valSoort === 'zak'){
       // door de knieën, even wankelen, dan achterover (bij vuur: in elkaar zakken)
@@ -1425,7 +1677,8 @@ AFRAME.registerComponent('zombies', {
     }
     g.rotation.z += (z.valKant*0.18 - g.rotation.z)*s*3;
   },
-  plof(z){   // lichaam klapt op straat: plas bloed en een dreun
+  plof(z){   // lichaam klapt op straat: plas bloed en een dreun (nog in de lucht: pas bij het neerkomen)
+    if ((z.hop || 0) > 0.15){ z.plofLater = true; return; }
     const g = z.grp; this.vlek(g.position.x, g.position.z, 1.2 + Math.random()*0.8);
     this.geluid((A,n) => { this.speel(A, this.ruisBuf(A, 0.35, 3), 'lowpass', 260, 0.9); });
   },
@@ -1509,12 +1762,13 @@ AFRAME.registerComponent('zombies', {
       if (!z.dood){
         g.rotation.y = Math.atan2(naar.x, naar.z);
         const v = z.kruip ? ((z.kruipT || 0) < KRUIP_VAL ? 0 : KRUIP_SNEL) : z.snel;
-        if (z.via){   // eerst de deur uit / om de hoek
+        if (z.via && !z.strk){   // eerst de deur uit / om de hoek
           const nv = z.via.clone().sub(g.position); nv.y = 0;
           if (nv.length() < 0.6) z.via = null;
           else { g.position.addScaledVector(nv.normalize(), v*s); naar.set(0,0,0); }
         }
-        if (z.wankel > 0){   // achteruit gewankeld door een zware treffer
+        if (z.strk){ }       // struikelen regelt zijn eigen beweging
+        else if (z.wankel > 0){   // achteruit gewankeld door een zware treffer
           z.wankel -= s; g.position.addScaledVector(z.wankelDir, s);
         } else if (!z.via && afst > ZSTOP){
           naar.normalize();
@@ -1545,9 +1799,11 @@ AFRAME.registerComponent('zombies', {
           ['L','R'].forEach((kant, i) => { const n = k['bovenarm'+kant]; if (!n || n.userData.los || n.userData.hangt) return;
             const p = Math.sin(f*0.8 + i*Math.PI); n.rotation.set(-(55 + 35*p)*Math.PI/180, 0, z.rust[kant]);
             const o = k['onderarm'+kant]; if (o && !o.userData.los) o.rotation.set(-(20 - 20*p)*Math.PI/180, 0, 0); });
+        } else if (z.strk){
+          this.struikelTick(z, s);
         } else {
           g.rotation.z = 0;
-          g.position.y = this.loopTick(z, s);
+          g.position.y = this.loopTick(z, s) + this.reactie(z, s);
           g.rotation.x = (z.wankel > 0 ? -0.22*Math.min(1, z.wankel/WANKEL_TIJD) : 0) - 0.12*(z.flinch || 0);   // achterover bij een klap
           if (z.flinch) z.flinch = Math.max(0, z.flinch - s*7);
           if (z.schouder){ const b = k.borst; if (b) b.rotation.y += z.schouder; z.schouder *= Math.exp(-6*s); if (Math.abs(z.schouder) < 0.01) z.schouder = 0; }
@@ -1579,7 +1835,6 @@ AFRAME.registerComponent('zombies', {
         z.val += s;
         this.valTick(z, s, naar.clone().normalize());
         if (z.valSoort === 'kruip' && z.val > 0.7 && !z.plas){ z.plas = true; this.vlek(g.position.x, g.position.z, 1.2+Math.random()*0.8); }
-        if (z.val > LIJK_TIJD) g.position.y -= s*0.25;        // wegzakken
       }
     }
     for (const z of this.lijst){ this.wondTick(z, s); this.darmTick(z, s); this.hangTick(z, s); this.flapTick(z, s); }
