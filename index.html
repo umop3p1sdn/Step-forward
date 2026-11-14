@@ -25,7 +25,7 @@
 
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE  = 'v12';
+const VERSIE  = 'v13';
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -244,7 +244,7 @@ const HOOFD_DEEL  = 0.20;        // kans dat een hoofdtreffer maar één kwart w
 const SCHEDEL_LOOP = [2.5, 4.5]; // met een kwart minder loopt hij nog zo lang door (s)
 const SCHEDEL_SNEL = 1.0;        // ...op deze fractie van zijn snelheid
 const KNIEVAL    = 0.5;   // kans dat hij eerst door zijn knieën zakt voor hij achterover valt
-const RICHT_OMLAAG = 45;  // richtstraal (en dus de kogel) zoveel graden lager dan de standaard van de controller
+const RICHT_OMLAAG = 45;  // richtstraal (en dus de kogel) zoveel graden onder de lengteas van de controller — precies zoals in Cosmic
 const SCHOK      = 0.75;  // hoe hard een geraakt lichaamsdeel terugklapt (radialen)
 const SCHEDEL_DWAAL = 55;        // ...en hij dwaalt zoveel graden links/rechts van je af (doelloos)
 const KRUIP_SNEL = 0.22;  // kruipsnelheid zonder (heel) been (m/s)
@@ -313,19 +313,15 @@ AFRAME.registerComponent('zombies', {
     const n = this.nevels[this.nI]; this.nI = (this.nI+1) % this.nevels.length;
     n.position.copy(p); n.userData.t = 0.4; n.userData.maat = maat; n.visible = true;
   },
-  wapenTick(s){   // geen wapenmodel: alleen de richtstraal RICHT_OMLAAG graden lager zetten
-    const T = this.T;
+  wapenTick(s){   // richtstraal vast op RICHT_OMLAAG graden onder de controller (Cosmic: 0, -0.7071, -0.7071)
+    const h0 = RICHT_OMLAAG*Math.PI/180, dy = -Math.sin(h0), dz = -Math.cos(h0);
     ['handL','handR'].forEach(id => {
       const h = document.getElementById(id), rc = h && h.components.raycaster;
       if (!rc) return;
-      const d = rc.data.direction, k = this.richt || (this.richt = {});
-      const nu = `${d.x.toFixed(4)},${d.y.toFixed(4)},${d.z.toFixed(4)}`;
-      if (k[id] === nu) return;                       // staat al goed
-      const v = new T.Vector3(d.x, d.y, d.z).normalize()
-        .applyAxisAngle(new T.Vector3(1,0,0), -RICHT_OMLAAG*Math.PI/180);
-      const o = rc.data.origin;
-      h.setAttribute('raycaster', {direction:{x:v.x, y:v.y, z:v.z}, origin:{x:o.x, y:o.y, z:o.z}});
-      k[id] = `${v.x.toFixed(4)},${v.y.toFixed(4)},${v.z.toFixed(4)}`;
+      const d = rc.data.direction, o = rc.data.origin;
+      if (Math.abs(d.x) < 1e-4 && Math.abs(d.y-dy) < 1e-4 && Math.abs(d.z-dz) < 1e-4 && o.x === 0 && o.y === 0 && o.z === 0) return;
+      // laser-controls zet bij het verbinden zijn eigen (schuine) straal; die overschrijven we steeds weer
+      h.setAttribute('raycaster', {direction:{x:0, y:dy, z:dz}, origin:{x:0, y:0, z:0}});
     });
   },
   async laad(){
