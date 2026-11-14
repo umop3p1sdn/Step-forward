@@ -25,7 +25,7 @@
 
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE  = 'v11';
+const VERSIE  = 'v12';
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -47,10 +47,30 @@ const PLEKKEN = [
    // onzichtbare muren voor de gevels: wat erachter staat zie je niet (gat = deur)
    muren:[ {van:-80, tot:-48, r:19, h:12}, {van:-41, tot:-30, r:19, h:12},
            {van:30,  tot:39,  r:19, h:12}, {van:46.5, tot:78, r:19, h:12} ]},
-  {naam:'PLEK B', src:'art/plek_b.jpg', horizon:0.495},
-  {naam:'PLEK C', src:'art/plek_c.jpg', horizon:0.520},
-  {naam:'PLEK D', src:'art/plek_d.jpg', horizon:0.530},
-  {naam:'PLEK E', src:'art/plek_e.jpg', horizon:0.605},
+  {naam:'PLEK B', src:'art/plek_b.jpg', horizon:0.495,
+   uitgangen:[ {naam:'straat',start:[0,26]}, {naam:'straat L',start:[-6,25]}, {naam:'straat R',start:[6,25]},
+     {naam:'deur huis L',start:[-51.5,20],via:[-51.5,14]}, {naam:'deur huis R',start:[48.5,20],via:[48.5,14]},
+     {naam:'hoek huis L',start:[-70,24],via:[-87,15]}, {naam:'hoek huis R',start:[70,24],via:[87,15]} ],
+   muren:[ {van:-82,tot:-54,r:17,h:12}, {van:-49,tot:-32,r:17,h:12}, {van:31,tot:46,r:17,h:12}, {van:51,tot:80,r:17,h:12} ]},
+  {naam:'PLEK C', src:'art/plek_c.jpg', horizon:0.520,
+   uitgangen:[ {naam:'straat',start:[0,26]}, {naam:'straat L',start:[-5,25]}, {naam:'straat R',start:[5,25]},
+     {naam:'deur 1 L',start:[-45,20],via:[-45,14]}, {naam:'deur 2 L',start:[-38.5,20],via:[-38.5,14]},
+     {naam:'deur R',start:[34.5,20],via:[34.5,14]},
+     {naam:'poort L',start:[-80,24],via:[-80,14]}, {naam:'poort R',start:[59,24],via:[59,14]} ],
+   muren:[ {van:-74,tot:-48,r:17,h:12}, {van:-42.5,tot:-41,r:17,h:12}, {van:-36,tot:-25,r:17,h:12},
+           {van:18,tot:32.5,r:17,h:12}, {van:36,tot:50,r:17,h:12} ]},
+  {naam:'PLEK D', src:'art/plek_d.jpg', horizon:0.530,
+   uitgangen:[ {naam:'straat L',start:[-56,26]}, {naam:'steeg midden',start:[4,26]}, {naam:'straat R',start:[57,26]},
+     {naam:'rolluik hoekpand',start:[-27,21],via:[-27,14]}, {naam:'deur hoekpand R',start:[22.5,21],via:[22.5,14]},
+     {naam:'rolluik rij L',start:[-85,12],via:[-85,6]}, {naam:'deur rij R',start:[84,12],via:[84,6]} ],
+   muren:[ {van:-90,tot:-87.5,r:9,h:9}, {van:-82.5,tot:-63,r:9,h:9}, {van:-50,tot:-30,r:17,h:14}, {van:-23,tot:-1,r:17,h:14},
+           {van:10,tot:20.5,r:17,h:14}, {van:24.5,tot:55,r:17,h:14}, {van:62,tot:81,r:9,h:9}, {van:87,tot:90,r:9,h:9} ]},
+  {naam:'PLEK E', src:'art/plek_e.jpg', horizon:0.605,
+   uitgangen:[ {naam:'straat L',start:[-62,26]}, {naam:'straat R',start:[60,26]},
+     {naam:'rolluik links',start:[-26,20],via:[-26,13]}, {naam:'rolluik voor',start:[6,20],via:[6,13]},
+     {naam:'rolluik rij L',start:[-86,11],via:[-86,6]}, {naam:'rolluik rij R',start:[86,11],via:[86,6]} ],
+   muren:[ {van:-90,tot:-89,r:8,h:9}, {van:-83,tot:-66,r:8,h:9}, {van:-40,tot:-29,r:16,h:12}, {van:-23,tot:2,r:16,h:12},
+           {van:9.5,tot:23,r:16,h:12}, {van:66,tot:82.5,r:8,h:9}, {van:89,tot:90,r:8,h:9} ]},
 ];
 /* ================================================ */
 document.getElementById('ver').textContent = VERSIE;
@@ -209,12 +229,15 @@ AFRAME.registerComponent('stad', {
 /* ================= ZOMBIES — REGELKNOPPEN ================= */
 const ZOMBIE_SOORTEN = [1, 3, 4, 5, 6, 7, 8];     // welke zN.json in art/zombies staan
 const ZLENGTE   = 1.72;   // hoe lang een zombie is (m)
-const ZTEGELIJK = 4;      // maximaal zoveel tegelijk in beeld
+const ZTEGELIJK = 9;      // maximaal zoveel tegelijk in beeld
 const ZAFSTAND  = [15, 24];  // waar ze verschijnen (m vóór je)
 const ZHOEK     = 38;     // hoe ver links/rechts ze mogen verschijnen (graden)
 const ZSNEL     = [0.45, 0.9]; // loopsnelheid (m/s)
+const RENNERS   = 0.25;   // kans dat een zombie een renner is
+const RENSNEL   = [1.5, 2.2];  // snelheid van een renner (m/s)
+const ARM_HOEK  = 14;     // armen hangen zoveel graden van het lijf af (plaatjes met wijde armen worden bijgedraaid)
 const ZSTOP     = 1.3;    // hier blijven ze staan (m van je af)
-const ZPAUZE    = [0.6, 2.2];  // tijd tussen twee nieuwe zombies (s)
+const ZPAUZE    = [0.3, 1.3];  // tijd tussen twee nieuwe zombies (s)
 const ROMPHP    = 5;      // treffers op borst/buik voor hij omvalt
 const DEELHP    = {hand:1, voet:1, onderarm:2, onderbeen:2, bovenarm:3, bovenbeen:3}; // treffers voor het eraf gaat
 const HOOFD_DEEL  = 0.20;        // kans dat een hoofdtreffer maar één kwart wegschiet (anders: hele hoofd eraf)
@@ -331,7 +354,8 @@ AFRAME.registerComponent('zombies', {
     const T = this.T, so = this.soorten[n], j = so.j, s = so.s, W = j.maat[0], H = j.maat[1];
     const loc = (px,py) => new T.Vector3((px - W/2)*s, (H - py)*s, 0);
     const z = {n, grp:new T.Group(), knoop:{}, hp:ROMPHP, dood:false, val:0, t:Math.random()*10,
-               snel: ZSNEL[0] + Math.random()*(ZSNEL[1]-ZSNEL[0]), weg:0, benen:2};
+               snel: Math.random() < RENNERS ? RENSNEL[0] + Math.random()*(RENSNEL[1]-RENSNEL[0])
+                                             : ZSNEL[0] + Math.random()*(ZSNEL[1]-ZSNEL[0]), weg:0, benen:2};
     const volgorde = []; const bezocht = new Set();
     const zet = d => { if (bezocht.has(d) || !so.delen[d]) return; const o = so.delen[d].info.ouder; if (o) zet(o); bezocht.add(d); volgorde.push(d); };
     Object.keys(so.delen).forEach(zet);
@@ -344,12 +368,21 @@ AFRAME.registerComponent('zombies', {
       (ou ? ou.userData.bin : z.grp).add(kn);
       const bin = new T.Group(); kn.add(bin); kn.userData.bin = bin; kn.userData.schok = 0;
       const m = new T.Mesh(D.geo, D.mat);
-      m.position.copy(loc(i.x + i.w/2, i.y + i.h/2).sub(piv)); m.position.z = k*0.0015;
+      m.position.copy(loc(i.x + i.w/2, i.y + i.h/2).sub(piv)); m.position.z = k*0.0015 + (/arm|hand/.test(d) ? 0.03 : 0);   // armen vóór lijf en benen
       m.userData = {z, deel:d, D};
       bin.add(m); z.knoop[d] = kn;
       kn.userData.uit = m.position.clone(); kn.userData.uit.z = 0;   // richting van scharnier naar het deel
     });
     z.grp.rotation.order = 'YXZ';
+    z.rust = {L:0, R:0};
+    ['L','R'].forEach(k => {
+      const sch = so.delen['bovenarm'+k], hd = so.delen['hand'+k];
+      if (!sch || !hd || !sch.info.scharnier) return;
+      const dx = hd.info.x + hd.info.w/2 - sch.info.scharnier[0], dy = -(hd.info.y + hd.info.h/2 - sch.info.scharnier[1]);
+      const a = Math.atan2(k === 'L' ? -dx : dx, -dy);                      // hoek van de arm t.o.v. recht omlaag
+      const doel = (ARM_HOEK + (Math.random()-0.5)*10)*Math.PI/180;
+      z.rust[k] = (k === 'L' ? 1 : -1) * Math.max(0, a - doel);
+    });
     const bb = so.delen.bovenbeenL || so.delen.bovenbeenR;          // heuphoogte, voor het kruipen
     z.heup = bb && bb.info.scharnier ? (H - bb.info.scharnier[1])*s : ZLENGTE*0.5;
     const ob = so.delen.onderbeenL || so.delen.onderbeenR;          // kniehoogte, voor de knieval
@@ -552,8 +585,8 @@ AFRAME.registerComponent('zombies', {
         if (k.bovenbeenL) k.bovenbeenL.rotation.z =  Math.sin(f)*0.08;
         if (k.bovenbeenR) k.bovenbeenR.rotation.z =  Math.sin(f)*0.08;
         const ak = z.kruip ? 0.45 : 0.10;    // kruipend trekt hij zich op zijn armen vooruit
-        if (k.bovenarmL && !k.bovenarmL.userData.los) k.bovenarmL.rotation.z = Math.sin(f*0.7)*ak;
-        if (k.bovenarmR && !k.bovenarmR.userData.los) k.bovenarmR.rotation.z = -Math.sin(f*0.7+1)*ak;
+        if (k.bovenarmL && !k.bovenarmL.userData.los) k.bovenarmL.rotation.z = z.rust.L + Math.sin(f*0.7)*ak;
+        if (k.bovenarmR && !k.bovenarmR.userData.los) k.bovenarmR.rotation.z = z.rust.R - Math.sin(f*0.7+1)*ak;
         if (k.borst) k.borst.rotation.z = Math.sin(f+0.5)*0.04;
         for (const d in k){   // terugslag: het geraakte deel klapt van je af en veert terug
           const u = k[d].userData, bin = u.bin; if (!bin || u.los) continue;
