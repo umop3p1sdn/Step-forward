@@ -5,6 +5,17 @@
   2086
  ],
  "delen": {
+  "bekken": {
+   "x": 529,
+   "y": 969,
+   "w": 524,
+   "h": 450,
+   "ouder": null,
+   "scharnier": [
+    790,
+    1105
+   ]
+  },
   "bovenarmL": {
    "x": 283,
    "y": 547,
@@ -43,10 +54,10 @@
    "y": 1412,
    "w": 221,
    "h": 164,
-   "ouder": "buik",
+   "ouder": "bekken",
    "scharnier": [
     641,
-    1418
+    1105
    ]
   },
   "onderbeenL": {
@@ -109,10 +120,10 @@
    "y": 1400,
    "w": 246,
    "h": 167,
-   "ouder": "buik",
+   "ouder": "bekken",
    "scharnier": [
     939,
-    1407
+    1105
    ]
   },
   "onderbeenR": {
@@ -149,12 +160,15 @@
    ]
   },
   "buik": {
-   "x": 529,
+   "x": 562,
    "y": 810,
-   "w": 524,
-   "h": 609,
-   "ouder": null,
-   "scharnier": null
+   "w": 443,
+   "h": 174,
+   "ouder": "bekken",
+   "scharnier": [
+    790,
+    980
+   ]
   },
   "hoofd1": {
    "x": 780,
@@ -224,11 +238,11 @@
    "ouder": "onderarmL"
   },
   "bovenbeenL": {
-   "x": 555,
-   "y": 1332,
-   "w": 172,
-   "h": 172,
-   "ouder": "buik"
+   "x": 531,
+   "y": 995,
+   "w": 221,
+   "h": 221,
+   "ouder": "bekken"
   },
   "onderbeenL": {
    "x": 591,
@@ -266,11 +280,11 @@
    "ouder": "onderarmR"
   },
   "bovenbeenR": {
-   "x": 829,
-   "y": 1297,
-   "w": 220,
-   "h": 220,
-   "ouder": "buik"
+   "x": 841,
+   "y": 1007,
+   "w": 196,
+   "h": 196,
+   "ouder": "bekken"
   },
   "onderbeenR": {
    "x": 874,
@@ -292,6 +306,13 @@
    "w": 221,
    "h": 221,
    "ouder": "buik"
+  },
+  "buik": {
+   "x": 680,
+   "y": 870,
+   "w": 221,
+   "h": 221,
+   "ouder": "bekken"
   },
   "hoofd": {
    "x": 756,
