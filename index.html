@@ -25,7 +25,7 @@
 
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE  = 'v17';
+const VERSIE  = 'v18';
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -245,6 +245,12 @@ const ZAFSTAND  = [15, 24];  // waar ze verschijnen (m vóór je)
 const ZHOEK     = 38;     // hoe ver links/rechts ze mogen verschijnen (graden)
 const VOORHOEK  = 60;     // ALLES komt van voren: uitgangen buiten ±60° worden niet gebruikt (120° voor je)
 const ZSNEL     = [0.45, 0.9]; // loopsnelheid (m/s)
+const WOND_MAX   = 12;                                    // zoveel wonden per zombie
+const WOND_MAAT  = {pistool:0.065, auto:0.045, laser:0.04};
+const DARM_KANS  = 0.35;                                  // kans op ingewanden bij een buiktreffer
+const DARM_N = 14, DARM_LID = 0.06, DARM_DIK = 0.036;    // ingewanden: aantal stukjes, lengte per stukje, dikte (m)
+const WANKEL_TIJD = 0.35, WANKEL_DUW = 0.3;               // wankelen: hoe lang (s), hoe ver terug (m)
+const VAL_ZWAARTE = 9;                                    // hoe hard een dode omvalt
 const LOOP_SCHAAL = 1.0;  // alle loopsnelheden ×
 const LOOPSOORTEN = [['schuifel',30], ['loop',25], ['mank',17], ['sleep',8], ['ren',20]];   // soort, kans
 const LOOPJES = {   // tempo = cycli/s (2 stappen), hoeken in graden, bob in m — gebaseerd op menselijke looprcyclus
@@ -479,7 +485,7 @@ AFRAME.registerComponent('zombies', {
     this.wortel.object3D.add(z.grp); this.lijst.push(z);
   },
   leeg(){
-    this.lijst.forEach(z => z.grp.removeFromParent()); this.lijst = [];
+    this.lijst.forEach(z => { z.grp.removeFromParent(); this.darmWeg(z); }); this.lijst = [];
     this.los.forEach(l => l.o.removeFromParent()); this.los = []; this.spuiters = []; this.vuren = [];
     (this.vliegt || []).forEach(p => p.g.removeFromParent()); this.vliegt = [];
     this.plas.count = 0; this.schroei.count = 0; this.wacht = 1.5;
@@ -529,11 +535,11 @@ AFRAME.registerComponent('zombies', {
     if (w === 'pistool' || w === 'auto'){
       this.knal(w === 'auto' ? 0.75 : 1); this.tril(bron, w === 'auto' ? 0.35 : 0.6, 50);
       const t = this.treffers(true)[0];
-      if (t) this.raak(t.z, t.deel, t.p, d, {ledemaat1: w === 'auto'});
+      if (t) this.raak(t.z, t.deel, t.p, d, {ledemaat1: w === 'auto', wapen:w});
     } else if (w === 'laser'){
       this.zap(); this.tril(bron, 0.5, 90);
       const hits = this.treffers(false).filter(t => t.d < LASER_VER);
-      hits.forEach(t => this.raak(t.z, t.deel, t.p, d, {ledemaat1:true}));
+      hits.forEach(t => this.raak(t.z, t.deel, t.p, d, {ledemaat1:true, wapen:'laser'}));
       this.straalFlits(o, o.clone().addScaledVector(d, LASER_VER));
     } else if (w === 'raket'){
       this.woesj(); this.tril(bron, 0.8, 120);
@@ -766,12 +772,16 @@ AFRAME.registerComponent('zombies', {
     g.gain.setValueAtTime(0.001, n); g.gain.linearRampToValueAtTime(0.5, n+1.4); g.gain.linearRampToValueAtTime(0.001, n+4.5);
     o.connect(f); o2.connect(f); f.connect(g).connect(this.uit); o.start(n); o2.start(n); o.stop(n+4.6); o2.stop(n+4.6); }); },
   raak(z, deel, p, dir, opt){
+    opt = opt || {}; const wapen = opt.wapen || 'pistool';
     this.spat(p, dir, 26);
     if (deel === 'borst' || deel === 'buik' || deel === 'bekken'){
+      const w = this.wond(z, deel, p, wapen);
       if (z.dood) return;
       this.schok(z.knoop[deel], 0.45);
+      if (wapen !== 'auto' || Math.random() < 0.35) this.wankel(z, dir, wapen === 'pistool' ? 1 : 0.6);
+      if (deel !== 'borst' && w && !z.darm && (Math.random() < DARM_KANS || z.hp <= 2)) this.darmen(z, w);
       z.hp--; this.spat(p, dir, 30);
-      if (z.hp <= 0) this.omver(z);
+      if (z.hp <= 0) this.omver(z, dir);
       return;
     }
     if (deel.startsWith('hoofd')){
@@ -786,7 +796,7 @@ AFRAME.registerComponent('zombies', {
       } else {
         // 80% (en elke volgende treffer): het hele hoofd spat uiteen
         over.forEach(d => this.losMaak(z, d, dir, 1.6)); this.spat(p, dir, 90);
-        z.halfdood = 0; this.omver(z);
+        z.halfdood = 0; this.omver(z, dir);
       }
       return;
     }
@@ -795,7 +805,12 @@ AFRAME.registerComponent('zombies', {
     z.deelHp = z.deelHp || {};
     if (z.deelHp[deel] === undefined) z.deelHp[deel] = DEELHP[soort] || 1;
     if (opt && opt.ledemaat1) z.deelHp[deel] = 1;                 // automatic / laser: in één keer eraf
-    if (--z.deelHp[deel] > 0){ this.spat(p, dir, 20); this.schok(kn, 1); if (/been|voet/.test(deel)) this.maakMank(z, deel.slice(-1)); return; }
+    if (--z.deelHp[deel] > 0){
+      this.spat(p, dir, 20); this.schok(kn, 1); this.wond(z, deel, p, wapen);
+      if (/been|voet/.test(deel)) this.maakMank(z, deel.slice(-1));
+      if (deel.startsWith('bovenarm')) this.wankel(z, dir, 0.5, deel.slice(-1));     // schouder: hij draait weg
+      return;
+    }
     this.losMaak(z, deel, dir, 1);
     if (/been|voet/.test(deel) && !z.dood) z.kruip = true;   // been kwijt → voorover en kruipen
   },
@@ -909,6 +924,7 @@ AFRAME.registerComponent('zombies', {
         case 'slap':  sx = -3*zw;                 ex = -4;                         hx = 4 + 6*Math.abs(zw); sz = sg*ruis(4, 1.2); break;
         case 'maai':  sx = -(16 + 26*f*(0.5 + 0.5*Math.sin(z.t*3.1 + i*2))); ex = -(10 + 25*Math.abs(Math.sin(z.t*2.4 + i))); sz = sg*ruis(14, 2.7); ez = sg*ruis(18, 2.2); break;
         case 'pomp':  sx = -(8 + 30*f*zw);        ex = -(30 + 8*zw);  ez = sg*(48 + 12*zw); hx = -6; break;
+        case 'buik':  sx = -18 + ruis(3, 1.4);    ex = -25;           ez = sg*72;            hx = 10; break;   // hand voor de buikwond
       }
       const ru = z.rust[kant] || 0;
       zet('bovenarm'+kant, sx*rad, 0, ru + sz*rad);
@@ -924,10 +940,163 @@ AFRAME.registerComponent('zombies', {
     if (!this.vlees.has(k)) this.vlees.set(k, new THREE.MeshBasicMaterial({map, color:kleur, alphaTest:0.35, side:THREE.DoubleSide, clippingPlanes:this.klip}));
     return this.vlees.get(k);
   },
-  omver(z){
+  /* ================= L4D2-FEEL: wonden, ingewanden, wankelen, doodgaan zonder haast =================
+     Naar Valve's wondsysteem: wonden precies waar je raakt en passend bij het wapen; arm/been-treffers laten
+     schrikken, zware treffers laten wankelen; brandende zombies wankelen niet; een dode zombie loopt op zijn
+     eigen vaart nog even door en zakt dan pas in (animatie → natuurkunde). */
+  wondTex(){
+    if (this.wTex) return this.wTex; const T = this.T; this.wTex = [];
+    for (let v=0; v<4; v++){
+      const c = document.createElement('canvas'); c.width = c.height = 96; const x = c.getContext('2d');
+      const blob = (cx, cy, r, kl) => { x.fillStyle = kl; x.beginPath(); const n = 12;
+        for (let i=0;i<=n;i++){ const a = i/n*6.283, rr = r*(0.7 + Math.random()*0.5); i ? x.lineTo(cx+Math.cos(a)*rr, cy+Math.sin(a)*rr) : x.moveTo(cx+Math.cos(a)*rr, cy+Math.sin(a)*rr); }
+        x.fill(); };
+      // druipspoor naar beneden
+      x.fillStyle = 'rgba(95,4,8,0.85)'; for (let d=0; d<1+v%3; d++){ const dx = 48 + (Math.random()-0.5)*18; x.fillRect(dx-2, 48, 4 + Math.random()*2, 22 + Math.random()*24); }
+      blob(48, 48, 30, 'rgba(110,8,12,0.9)');            // gescheurd vlees
+      blob(48, 48, 20, 'rgba(70,2,6,1)');
+      blob(48, 48, 11, 'rgba(20,0,2,1)');                // het gat zelf
+      for (let i=0;i<10;i++) blob(48 + (Math.random()-0.5)*70, 48 + (Math.random()-0.5)*70, 2 + Math.random()*4, 'rgba(120,6,10,0.9)');
+      const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace;
+      this.wTex.push(new T.MeshBasicMaterial({map:t, transparent:true, alphaTest:0.25, depthWrite:false, clippingPlanes:this.klip}));
+    }
+    this.wGeo = new T.PlaneGeometry(1, 1); return this.wTex;
+  },
+  wond(z, deel, p, wapen){
+    const kn = z.knoop[deel]; if (!kn || kn.userData.los) return null;
+    z.wonden = z.wonden || []; if (z.wonden.length >= WOND_MAX) return null;
+    const T = this.T, bin = kn.userData.bin, m = bin.children.find(c => c.isMesh && c.userData.D); if (!m) return null;
+    const mats = this.wondTex(), w = new T.Mesh(this.wGeo, mats[Math.random()*mats.length|0]);
+    const lok = bin.worldToLocal(p.clone()); w.position.set(lok.x, lok.y, m.position.z + 0.003);
+    const maat = (WOND_MAAT[wapen] || 0.06) * (/borst|buik|bekken/.test(deel) ? 1.25 : 1) * (0.8 + Math.random()*0.4);
+    w.scale.set(maat, maat, 1); w.rotation.z = (Math.random()-0.5)*0.6; w.renderOrder = 3;
+    bin.add(w); z.wonden.push({w, t:Math.random()*0.3});
+    return w;
+  },
+  wondTick(z, s){   // wonden blijven nadruppelen
+    for (const o of z.wonden || []){
+      if (!o.w.parent) continue; o.t -= s; if (o.t > 0) continue; o.t = 0.25 + Math.random()*0.35;
+      const p = new this.T.Vector3(); o.w.getWorldPosition(p);
+      const i = this.bI; this.bI = (this.bI+1) % BLOED_N;
+      this.bPos[i*3] = p.x; this.bPos[i*3+1] = p.y; this.bPos[i*3+2] = p.z + 0.02;
+      this.bVel[i*3] = (Math.random()-0.5)*0.15; this.bVel[i*3+1] = -0.2; this.bVel[i*3+2] = 0.05; this.bLeef[i] = 2;
+    }
+  },
+  /* ---------- ingewanden: een slap koord van darmen uit de buikwond ---------- */
+  darmen(z, wond){
+    if (z.darm || !wond) return; const T = this.T;
+    const N = DARM_N, ankers = [], ballen = [];
+    const p0 = new T.Vector3(); wond.getWorldPosition(p0);
+    const mats = [new T.MeshBasicMaterial({color:0x9a4048, clippingPlanes:this.klip}), new T.MeshBasicMaterial({color:0x7a2a32, clippingPlanes:this.klip})];
+    const geo = new T.SphereGeometry(DARM_DIK, 8, 6);
+    for (let i=0;i<N;i++){
+      const p = p0.clone().add(new T.Vector3((Math.random()-0.5)*0.02, -i*DARM_LID*0.6, 0.04 + i*0.01));
+      ankers.push({p, o:p.clone()});
+      const b = new T.Mesh(geo, mats[i%2]); b.scale.set(1, 1.25, 1); b.position.copy(p); this.sc.add(b); ballen.push(b);
+    }
+    z.darm = {wond, ankers, ballen};
+    // hij klapt voorover en houdt een hand voor zijn buik
+    z.krom = 1; if (z.loop){ z.loop.leun += 28; z.loop.nek += 12; const k = Math.random() < 0.5 ? 'L' : 'R'; z.loop.armen[k] = 'buik'; }
+    z.snel *= 0.6;
+  },
+  darmTick(z, s){
+    const D = z.darm; if (!D) return;
+    const T = this.T, a = D.ankers, g = new T.Vector3(0, -ZWAARTE*s*s, 0);
+    if (D.wond.parent){ D.wond.getWorldPosition(a[0].p); a[0].p.z += 0.03; a[0].o.copy(a[0].p); }
+    for (let i=1;i<a.length;i++){ const v = a[i].p.clone().sub(a[i].o).multiplyScalar(0.985); a[i].o.copy(a[i].p); a[i].p.add(v).add(g); }
+    for (let it=0; it<4; it++){
+      for (let i=1;i<a.length;i++){
+        const d = a[i].p.clone().sub(a[i-1].p), l = d.length() || 1e-4, f = (l - DARM_LID)/l;
+        if (i === 1) a[i].p.addScaledVector(d, -f); else { a[i].p.addScaledVector(d, -f*0.5); a[i-1].p.addScaledVector(d, f*0.5); }
+      }
+      for (let i=1;i<a.length;i++) if (a[i].p.y < DARM_DIK){ a[i].p.y = DARM_DIK; a[i].o.y = a[i].p.y; }
+    }
+    a.forEach((x, i) => D.ballen[i].position.copy(x.p));
+    if (Math.random() < 0.15){ const p = a[a.length-1].p, i = this.bI; this.bI = (this.bI+1) % BLOED_N;
+      this.bPos[i*3] = p.x; this.bPos[i*3+1] = p.y; this.bPos[i*3+2] = p.z; this.bVel[i*3] = 0; this.bVel[i*3+1] = -0.3; this.bVel[i*3+2] = 0; this.bLeef[i] = 2; }
+  },
+  darmWeg(z){ if (z.darm){ z.darm.ballen.forEach(b => b.removeFromParent()); z.darm = null; } },
+  /* ---------- wankelen: zware treffer duwt hem terug; schoudertreffer draait hem weg ---------- */
+  wankel(z, dir, kracht, kant){
+    if (z.dood || z.brand || z.kruip) return;                // brandend: geen wankel (zoals L4D2)
+    z.wankel = Math.max(z.wankel || 0, WANKEL_TIJD*kracht);
+    z.wankelDir = new this.T.Vector3(dir.x, 0, dir.z).normalize().multiplyScalar(WANKEL_DUW*kracht/WANKEL_TIJD);
+    if (kant) z.schouder = (kant === 'L' ? 1 : -1)*0.55*kracht;
+  },
+  /* ---------- doodgaan: eerst nog doorlopen, dan inzakken (ragdoll-achtig) ---------- */
+  omver(z, dir){
     if (z.dood) return; z.dood = true; z.val = 0;
     z.valKant = Math.random() < 0.5 ? -1 : 1;
-    z.knieval = !z.kruip && Math.random() < KNIEVAL;
+    const ren = z.loop && z.loop.soort === 'ren';
+    if (z.kruip) z.valSoort = 'kruip';
+    else if (z.brand) z.valSoort = 'zak';
+    else if (ren) z.valSoort = 'voor';
+    else { const r = Math.random(); z.valSoort = r < 0.42 ? 'achter' : r < 0.70 ? 'knie' : 'voor'; }
+    z.knieval = z.valSoort === 'knie' || z.valSoort === 'zak';
+    // hoe lang hij nog doorloopt op zijn eigen vaart (rennende zombies het langst)
+    z.doorloop = z.valSoort === 'kruip' || z.valSoort === 'zak' ? 0 : (ren ? 0.45 + Math.random()*0.4 : 0.12 + Math.random()*0.35);
+    z.doorSnel = z.snel;
+    z.hoek = 0; z.hoekV = (z.valSoort === 'voor' ? 1 : -1) * (ren ? 1.4 : 0.6);
+    z.rd = {};   // slappe gewrichten
+  },
+  slapZet(z, s, schud){
+    // elk gewricht veert slap naar een "dood" doel; een klap op de grond schudt alles nog even door
+    const k = z.knoop, voor = z.valSoort === 'voor';
+    const doel = {bovenbeenL:-0.2, bovenbeenR:0.1, onderbeenL:0.9, onderbeenR:0.6, voetL:0.3, voetR:-0.2,
+                  bovenarmL: voor ? -1.1 : 0.6, bovenarmR: voor ? -0.9 : 0.9, onderarmL:-0.6, onderarmR:-0.3, handL:0.3, handR:-0.2,
+                  buik: voor ? 0.25 : -0.15, borst: voor ? 0.2 : -0.25};
+    for (const d in doel){
+      const n = k[d]; if (!n || n.userData.los) continue;
+      const r = z.rd[d] || (z.rd[d] = {x:n.rotation.x, v:(Math.random()-0.5)*4});
+      if (schud) r.v += (Math.random()-0.5)*schud;
+      r.v += (22*(doel[d] - r.x) - 5*r.v)*s; r.x += r.v*s;
+      n.rotation.x = r.x;
+    }
+    if (z.nek){ const r = z.rd.nek || (z.rd.nek = {x:z.nek.rotation.x, v:0}); if (schud) r.v += (Math.random()-0.5)*schud*1.5;
+      r.v += (22*((voor ? 0.5 : -0.6) - r.x) - 4*r.v)*s; r.x += r.v*s; z.nek.rotation.x = r.x; }
+  },
+  valTick(z, s, naarMij){
+    const g = z.grp;
+    if (z.val < z.doorloop){
+      // nog doorlopen, steeds slapper: knieën knikken, snelheid valt weg
+      const a = z.val/z.doorloop;
+      g.position.addScaledVector(naarMij, z.doorSnel*(1-a)*s);
+      g.position.y = this.loopTick(z, s);
+      const k = z.knoop; ['L','R'].forEach(kt => { const n = k['onderbeen'+kt]; if (n && !n.userData.los) n.rotation.x += a*0.8; });
+      g.rotation.x = (z.valSoort === 'voor' ? 1 : -1)*a*0.15;
+      return;
+    }
+    const t = z.val - z.doorloop;
+    if (z.valSoort === 'achter' || z.valSoort === 'voor'){
+      // omvallen als een slappe stok om de voeten: steeds sneller, klap, kleine stuiter, liggen
+      const teken = z.valSoort === 'voor' ? 1 : -1, grens = Math.PI/2*0.97;
+      if (!z.ligt){
+        z.hoekV += teken*VAL_ZWAARTE*Math.sin(Math.abs(z.hoek) + 0.05)*s;
+        z.hoek += z.hoekV*s;
+        if (Math.abs(z.hoek) >= grens){ z.hoek = teken*grens; z.hoekV = -z.hoekV*0.22; z.botsen = (z.botsen||0) + 1;
+          this.slapZet(z, 0, 14); if (z.botsen === 1) this.plof(z);
+          if (z.botsen >= 2 || Math.abs(z.hoekV) < 0.4) z.ligt = true; }
+      }
+      g.rotation.x = z.hoek;
+      g.position.y = Math.max(-0.02, g.position.y - s*0.5);
+      this.slapZet(z, s, 0);
+    } else if (z.valSoort === 'knie' || z.valSoort === 'zak'){
+      // door de knieën, even wankelen, dan achterover (bij vuur: in elkaar zakken)
+      const ZAK = 0.28, WACHT = z.valSoort === 'zak' ? 0.25 : 0.55, OM = 0.75, g2 = z.grp;
+      if (t < ZAK){ const b = t/ZAK; g2.position.y = -z.knie*b*b; g2.rotation.x = 0.12*b; }
+      else if (t < ZAK+WACHT){ g2.position.y = -z.knie; g2.rotation.x = 0.12 + Math.sin((t-ZAK)*9)*0.04; }
+      else { const b = Math.min(1, (t-ZAK-WACHT)/OM);
+             g2.rotation.x = 0.12 - b*b*(Math.PI/2*0.96 + 0.12); g2.position.y = -z.knie*(1-b);
+             if (b >= 1 && !z.ploft){ z.ploft = true; this.slapZet(z, 0, 12); this.plof(z); } }
+      this.slapZet(z, s, 0);
+    } else if (z.valSoort === 'kruip'){
+      g.rotation.x += (0.9 - g.rotation.x)*Math.min(1, s*5);
+    }
+    g.rotation.z += (z.valKant*0.18 - g.rotation.z)*s*3;
+  },
+  plof(z){   // lichaam klapt op straat: plas bloed en een dreun
+    const g = z.grp; this.vlek(g.position.x, g.position.z, 1.2 + Math.random()*0.8);
+    this.geluid((A,n) => { this.speel(A, this.ruisBuf(A, 0.35, 3), 'lowpass', 260, 0.9); });
   },
   /* ---------- bloed ---------- */
   fontein(p, n){
@@ -1013,7 +1182,9 @@ AFRAME.registerComponent('zombies', {
           if (nv.length() < 0.6) z.via = null;
           else { g.position.addScaledVector(nv.normalize(), v*s); naar.set(0,0,0); }
         }
-        if (!z.via && afst > ZSTOP){
+        if (z.wankel > 0){   // achteruit gewankeld door een zware treffer
+          z.wankel -= s; g.position.addScaledVector(z.wankelDir, s);
+        } else if (!z.via && afst > ZSTOP){
           naar.normalize();
           if (z.halfdood){   // zonder schedeldak: zelfde tempo, maar zwalkt doelloos heen en weer
             const zw = (Math.sin(z.t*0.7 + z.n*1.3)*0.75 + Math.sin(z.t*1.9)*0.25) * SCHEDEL_DWAAL*Math.PI/180;
@@ -1033,6 +1204,8 @@ AFRAME.registerComponent('zombies', {
         } else {
           g.rotation.z = 0;
           g.position.y = this.loopTick(z, s);
+          g.rotation.x = z.wankel > 0 ? -0.22*Math.min(1, z.wankel/WANKEL_TIJD) : 0;   // achterover bij een klap
+          if (z.schouder){ const b = k.borst; if (b) b.rotation.y += z.schouder; z.schouder *= Math.exp(-6*s); if (Math.abs(z.schouder) < 0.01) z.schouder = 0; }
         }
         for (const d in k){   // terugslag: het geraakte deel klapt van je af en veert terug
           const u = k[d].userData, bin = u.bin; if (!bin || u.los) continue;
@@ -1059,23 +1232,13 @@ AFRAME.registerComponent('zombies', {
         }
       } else {
         z.val += s;
-        const a = Math.min(1, z.val/0.7);
-        if (z.kruip) g.rotation.x += (0.9 - g.rotation.x)*Math.min(1, s*5);   // kruiper zakt voorover in elkaar
-        else if (z.knieval){
-          // 1) door de knieën zakken  2) even op de knieën wankelen  3) achterover
-          const ZAK = 0.28, WACHT = 0.55, OM = 0.75;
-          if (z.val < ZAK){ const b = z.val/ZAK; g.position.y = -z.knie*b*b; g.rotation.x = 0.12*b; }
-          else if (z.val < ZAK+WACHT){ g.position.y = -z.knie; g.rotation.x = 0.12 + Math.sin((z.val-ZAK)*9)*0.04; }
-          else { const b = Math.min(1, (z.val-ZAK-WACHT)/OM);
-                 g.rotation.x = 0.12 - b*b*(Math.PI/2*0.96 + 0.12); g.position.y = -z.knie*(1-b); }
-        }
-        else { g.rotation.x = -a*a*Math.PI/2*0.96; g.position.y = Math.max(0, g.position.y - s); }   // achterover
-        g.rotation.z += (z.valKant*0.25 - g.rotation.z)*s*3;
-        if (z.val > (z.knieval ? 1.6 : 0.7) && !z.plas){ z.plas = true; this.vlek(g.position.x, g.position.z, 1.2+Math.random()*0.8); }
+        this.valTick(z, s, naar.clone().normalize());
+        if (z.valSoort === 'kruip' && z.val > 0.7 && !z.plas){ z.plas = true; this.vlek(g.position.x, g.position.z, 1.2+Math.random()*0.8); }
         if (z.val > LIJK_TIJD) g.position.y -= s*0.25;        // wegzakken
       }
     }
-    this.lijst = this.lijst.filter(z => { if (z.dood && z.val > LIJK_TIJD+3){ z.grp.removeFromParent(); return false; } return true; });
+    for (const z of this.lijst){ this.wondTick(z, s); this.darmTick(z, s); }
+    this.lijst = this.lijst.filter(z => { if (z.dood && z.val > LIJK_TIJD+3){ z.grp.removeFromParent(); this.darmWeg(z); return false; } return true; });
     // losse stukken
     for (const l of this.los){
       l.t += s; const o = l.o;
