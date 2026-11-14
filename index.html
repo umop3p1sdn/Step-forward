@@ -25,7 +25,7 @@
 
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE  = 'v15';
+const VERSIE  = 'v16';
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -380,6 +380,13 @@ AFRAME.registerComponent('zombies', {
         soort.delen[d] = {info, mat:new T.MeshBasicMaterial({map:t, alphaTest:0.5, side:T.DoubleSide, clippingPlanes:this.klip}),
                           geo:new T.PlaneGeometry(info.w*s, info.h*s), al, aw:w, ah:h};
       }));
+      soort.naden = {};
+      await Promise.all(Object.entries(j.naden || {}).map(async ([k, info]) => {
+        const im = await plaat(`art/zombies/z${n}_naad_${k}.png`); if (!im) return;
+        const t = new T.Texture(im); t.colorSpace = T.SRGBColorSpace; t.needsUpdate = true;
+        soort.naden[k] = {info, mat:new T.MeshBasicMaterial({map:t, alphaTest:0.35, side:T.DoubleSide, clippingPlanes:this.klip}),
+                          geo:new T.PlaneGeometry(info.w*s, info.h*s)};
+      }));
       this.soorten[n] = soort;
     }));
   },
@@ -406,6 +413,14 @@ AFRAME.registerComponent('zombies', {
       m.userData = {z, deel:d, D};
       bin.add(m); z.knoop[d] = kn;
       kn.userData.uit = m.position.clone(); kn.userData.uit.z = 0;   // richting van scharnier naar het deel
+    });
+    // opvulling achter elk gewricht: echte huid/kleding, zichtbaar zodra er een spleet valt
+    Object.entries(so.naden || {}).forEach(([k, N]) => {
+      const ou = z.knoop[N.info.ouder]; if (!ou) return;
+      const m = new T.Mesh(N.geo, N.mat); m.userData.naadMesh = true;
+      m.position.copy(loc(N.info.x + N.info.w/2, N.info.y + N.info.h/2).sub(ou.userData.piv)); m.position.z = -0.006;
+      ou.userData.bin.add(m);
+      if (k === 'hoofd') z.halsNaad = m; else if (z.knoop[k]) z.knoop[k].userData.naad = m;
     });
     z.grp.rotation.order = 'YXZ';
     z.rust = {L:0, R:0};
@@ -607,7 +622,7 @@ AFRAME.registerComponent('zombies', {
     z.brand = BRAND_TIJD; z.snel *= 1.4; this.fwoesj();
     // eigen materialen, zodat alleen deze zombie zwart wordt
     z.mats = [];
-    z.grp.traverse(o => { if (o.isMesh && o.userData.D){ o.material = o.material.clone(); z.mats.push(o.material); } });
+    z.grp.traverse(o => { if (o.isMesh && (o.userData.D || o.userData.naadMesh)){ o.material = o.material.clone(); z.mats.push(o.material); } });
   },
   /* ---------- ULT: bommenwerper ---------- */
   ult(){
@@ -765,10 +780,23 @@ AFRAME.registerComponent('zombies', {
     const T = this.T, kn = z.knoop[deel]; if (!kn || !kn.parent || kn.userData.los) return;
     const ouder = kn.parent;
     // stomp op het ouderdeel
-    if (ouder !== z.grp){
+    if (ouder !== z.grp && !deel.startsWith('hoofd')){
       const st = new T.Mesh(new T.CircleGeometry(0.055, 12), this.stompMat);
       st.position.copy(kn.position); st.position.z = 0.03; st.scale.set(1+Math.random()*0.5, 0.7+Math.random()*0.5, 1);
       ouder.add(st);
+    }
+    // waar het deel zat: donkerrood vlees in plaats van een gat
+    const rood = m0 => { if (!m0 || m0.userData.rood) return; m0.userData.rood = true;
+      m0.material = this.vleesMat(m0.material.map); m0.scale.multiplyScalar(1.08); };
+    rood(kn.userData.naad);
+    if (deel.startsWith('hoofd')){
+      rood(z.halsNaad);
+      const m = kn.userData.bin.children.find(c => c.isMesh && c.userData.D);
+      if (m && ouder !== z.grp){
+        const g = new T.Mesh(m.geometry, this.vleesMat(m.material.map, 0x3c0404));
+        g.position.copy(kn.position).add(m.position); g.position.z = -0.003; g.scale.setScalar(0.86);
+        g.userData.naadMesh = true; ouder.add(g);
+      }
     }
     const wp = new T.Vector3(); kn.getWorldPosition(wp);
     this.sc.attach(kn); kn.userData.los = true;
@@ -779,6 +807,11 @@ AFRAME.registerComponent('zombies', {
     this.nevel(wp, deel.startsWith('hoofd') ? 0.9 : 0.6);
     if (ouder !== z.grp && !deel.startsWith('hoofd'))
       this.spuiters.push({b:ouder, lok:kn.position.clone(), uit:kn.userData.uit.clone().normalize(), t:1.3});
+  },
+  vleesMat(map, kleur=0x6a0a0a){
+    this.vlees = this.vlees || new Map(); const k = (map && map.uuid) + kleur;
+    if (!this.vlees.has(k)) this.vlees.set(k, new THREE.MeshBasicMaterial({map, color:kleur, alphaTest:0.35, side:THREE.DoubleSide, clippingPlanes:this.klip}));
+    return this.vlees.get(k);
   },
   omver(z){
     if (z.dood) return; z.dood = true; z.val = 0;

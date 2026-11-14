@@ -200,5 +200,105 @@
     345
    ]
   }
+ },
+ "naden": {
+  "bovenarmL": {
+   "x": 454,
+   "y": 463,
+   "w": 221,
+   "h": 221,
+   "ouder": "borst"
+  },
+  "onderarmL": {
+   "x": 296,
+   "y": 770,
+   "w": 172,
+   "h": 172,
+   "ouder": "bovenarmL"
+  },
+  "handL": {
+   "x": 169,
+   "y": 993,
+   "w": 102,
+   "h": 102,
+   "ouder": "onderarmL"
+  },
+  "bovenbeenL": {
+   "x": 540,
+   "y": 1144,
+   "w": 221,
+   "h": 221,
+   "ouder": "buik"
+  },
+  "onderbeenL": {
+   "x": 495,
+   "y": 1609,
+   "w": 184,
+   "h": 184,
+   "ouder": "bovenbeenL"
+  },
+  "voetL": {
+   "x": 428,
+   "y": 2125,
+   "w": 170,
+   "h": 170,
+   "ouder": "onderbeenL"
+  },
+  "bovenarmR": {
+   "x": 908,
+   "y": 450,
+   "w": 221,
+   "h": 221,
+   "ouder": "borst"
+  },
+  "onderarmR": {
+   "x": 1117,
+   "y": 761,
+   "w": 158,
+   "h": 158,
+   "ouder": "bovenarmR"
+  },
+  "handR": {
+   "x": 1282,
+   "y": 979,
+   "w": 116,
+   "h": 116,
+   "ouder": "onderarmR"
+  },
+  "bovenbeenR": {
+   "x": 807,
+   "y": 1143,
+   "w": 221,
+   "h": 221,
+   "ouder": "buik"
+  },
+  "onderbeenR": {
+   "x": 898,
+   "y": 1598,
+   "w": 196,
+   "h": 196,
+   "ouder": "bovenbeenR"
+  },
+  "voetR": {
+   "x": 984,
+   "y": 2138,
+   "w": 144,
+   "h": 144,
+   "ouder": "onderbeenR"
+  },
+  "borst": {
+   "x": 674,
+   "y": 710,
+   "w": 221,
+   "h": 221,
+   "ouder": "buik"
+  },
+  "hoofd": {
+   "x": 683,
+   "y": 242,
+   "w": 206,
+   "h": 206,
+   "ouder": "borst"
+  }
  }
 }
