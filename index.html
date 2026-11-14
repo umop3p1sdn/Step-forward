@@ -12,7 +12,7 @@
 </style>
 </head>
 <body>
-<div id="info">Step Forward <span id="ver"></span> · klik = schieten · spatie = volgende plek · VR: trigger = schieten, A/X = volgende plek</div>
+<div id="info">Step Forward <span id="ver"></span> · klik = schieten · 1-5 = wapen · G = bommenwerper · spatie = volgende plek · VR: joystick = wapen, A/B/X/Y = pistool, grip = bommenwerper, joystick indrukken = volgende plek</div>
 
 <a-scene renderer="colorManagement:true; antialias:true" background="color:#0b0d10"
          xr-mode-ui="enabled:true" vr-mode-ui="enabled:true" stad zombies>
@@ -25,7 +25,7 @@
 
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE  = 'v13';
+const VERSIE  = 'v14';
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -127,7 +127,7 @@ AFRAME.registerComponent('stad', {
 
     const volgende = () => { if (this.fase === 'open') { this.doel = (this.i+1) % PLEKKEN.length; this.fase = 'dicht'; } };
     ['handL','handR'].forEach(id => { const h = document.getElementById(id);
-      h.addEventListener('abuttondown', volgende); h.addEventListener('xbuttondown', volgende); });
+      h.addEventListener('thumbstickdown', volgende); });
     window.addEventListener('keydown', e => { if (e.code === 'Space' || e.code === 'ArrowRight' || e.code === 'KeyN') volgende(); });
   },
 
@@ -245,7 +245,20 @@ const SCHEDEL_LOOP = [2.5, 4.5]; // met een kwart minder loopt hij nog zo lang d
 const SCHEDEL_SNEL = 1.0;        // ...op deze fractie van zijn snelheid
 const KNIEVAL    = 0.5;   // kans dat hij eerst door zijn knieën zakt voor hij achterover valt
 const RICHT_OMLAAG = 45;  // richtstraal (en dus de kogel) zoveel graden onder de lengteas van de controller — precies zoals in Cosmic
-const SCHOK      = 0.75;  // hoe hard een geraakt lichaamsdeel terugklapt (radialen)
+const SCHOK      = 0.75;
+const WAPENS = {   // kleur = kleur van de richtlijn
+  pistool:{naam:'PISTOL',          kleur:'#ff3a3a', wacht:0.0},
+  raket:  {naam:'ROCKET LAUNCHER', kleur:'#ff9a2a', wacht:0.9},
+  laser:  {naam:'LASER',           kleur:'#3ad8ff', wacht:0.30},
+  molotov:{naam:'MOLOTOV',         kleur:'#ffd24a', wacht:0.8},
+  auto:   {naam:'AUTOMATIC',       kleur:'#ffffff', wacht:0.09},
+};
+const RAKET_SNEL = 28, RAKET_STRAAL = 3.2;     // m/s, ontploffingsstraal (m)
+const LASER_VER  = 70;                          // laser gaat door alles heen tot zo ver
+const MOLO_SNEL  = 11, MOLO_STRAAL = 2.6, MOLO_TIJD = 7;   // gooisnelheid, vuurplas (m), hoe lang hij brandt (s)
+const BRAND_TIJD = 3.2;                         // zo lang loopt een brandende zombie nog
+const ULT_WACHT  = 25;                          // seconden tussen twee bommenwerpers
+const VLIEG_HOOG = 42, VLIEG_SNEL = 48;         // bommenwerper: hoogte (m) en snelheid (m/s)  // hoe hard een geraakt lichaamsdeel terugklapt (radialen)
 const SCHEDEL_DWAAL = 55;        // ...en hij dwaalt zoveel graden links/rechts van je af (doelloos)
 const KRUIP_SNEL = 0.22;  // kruipsnelheid zonder (heel) been (m/s)
 const KRUIP_HOEK = 28;    // hoe ver hij voorover helt bij het kruipen (graden)
@@ -282,6 +295,9 @@ AFRAME.registerComponent('zombies', {
     this.plas = new T.InstancedMesh(new T.PlaneGeometry(1,1).rotateX(-Math.PI/2),
       new T.MeshBasicMaterial({map:vt, color:0x7a2020, transparent:true, depthWrite:false}), PLAS_N);
     this.plas.count = 0; this.plas.renderOrder = 2; this.plas.frustumCulled = false; this.sc.add(this.plas); this.pI = 0;
+    // brandvlekken (explosie, molotov): zelfde vorm, zwartbruin
+    this.schroei = new T.InstancedMesh(this.plas.geometry, new T.MeshBasicMaterial({map:vt, color:0x241a14, transparent:true, opacity:0.7, depthWrite:false}), 60);
+    this.schroei.count = 0; this.schroei.renderOrder = 2; this.schroei.frustumCulled = false; this.sc.add(this.schroei); this.sI = 0;
     // stomp-textuur (rood rafelrondje)
     const sc2 = document.createElement('canvas'); sc2.width = sc2.height = 64; const y = sc2.getContext('2d');
     for (let k=0;k<9;k++){ y.fillStyle = k<5 ? '#5a0000' : '#a8121a';
@@ -289,8 +305,28 @@ AFRAME.registerComponent('zombies', {
     this.stompTex = new T.CanvasTexture(sc2); this.stompTex.colorSpace = T.SRGBColorSpace;
     this.stompMat = new T.MeshBasicMaterial({map:this.stompTex, alphaTest:0.4, clippingPlanes:this.klip});
     // invoer
-    ['handL','handR'].forEach(id => document.getElementById(id).addEventListener('triggerdown', () => this.schiet(id)));
-    const muis = e => { if (e.button === 0) this.schiet('muis', e); };
+    this.wapen = {handL:'pistool', handR:'pistool'}; this.vuurt = {}; this.klaarOm = {handL:0, handR:0}; this.stik = {};
+    this.ultKlaar = 0; this.nu = 0;
+    ['handL','handR'].forEach(id => { const h = document.getElementById(id);
+      h.addEventListener('triggerdown', () => { this.vuurt[id] = true; this.vuur(id); });
+      h.addEventListener('triggerup',   () => { this.vuurt[id] = false; });
+      ['abuttondown','bbuttondown','xbuttondown','ybuttondown'].forEach(k => h.addEventListener(k, () => this.kies(id, 'pistool')));
+      h.addEventListener('gripdown', () => this.ult());
+      h.addEventListener('thumbstickmoved', e => {
+        const {x, y} = e.detail, st = this.stik[id] || 0;
+        if (Math.hypot(x, y) < 0.3){ this.stik[id] = 0; return; }
+        if (st) return;                                           // één duw = één keus
+        if (Math.abs(x) < 0.7 && Math.abs(y) < 0.7) return;
+        this.stik[id] = 1;
+        this.kies(id, Math.abs(y) > Math.abs(x) ? (y < 0 ? 'raket' : 'laser') : (x < 0 ? 'molotov' : 'auto'));
+      });
+    });
+    window.addEventListener('keydown', e => {
+      const k = {Digit1:'pistool', Digit2:'raket', Digit3:'laser', Digit4:'molotov', Digit5:'auto'}[e.code];
+      if (k) this.kies('handR', k); if (e.code === 'KeyG') this.ult(); });
+    window.addEventListener('mouseup', () => { this.vuurt.muis = false; });
+    const muis = e => { if (e.button === 0){ this.muisE = e; this.vuurt.muis = true; this.vuur('muis', e); } };
+    this.el.addEventListener('loaded', () => this.maakEffecten());
     this.el.canvas ? this.el.canvas.addEventListener('mousedown', muis)
                    : this.el.addEventListener('render-target-loaded', () => this.el.canvas.addEventListener('mousedown', muis));
     this.el.addEventListener('plekwissel', () => this.leeg());
@@ -403,33 +439,292 @@ AFRAME.registerComponent('zombies', {
   },
   leeg(){
     this.lijst.forEach(z => z.grp.removeFromParent()); this.lijst = [];
-    this.los.forEach(l => l.o.removeFromParent()); this.los = []; this.spuiters = [];
-    this.plas.count = 0; this.wacht = 1.5;
+    this.los.forEach(l => l.o.removeFromParent()); this.los = []; this.spuiters = []; this.vuren = [];
+    (this.vliegt || []).forEach(p => p.g.removeFromParent()); this.vliegt = [];
+    this.plas.count = 0; this.schroei.count = 0; this.wacht = 1.5;
   },
   /* ---------- schieten ---------- */
-  schiet(bron, e){
-    const T = this.T, cam = this.el.camera;
+  /* ================= WAPENS ================= */
+  kies(id, w){
+    this.wapen[id] = w;
+    const h = document.getElementById(id);
+    if (h && h.components.raycaster) h.setAttribute('raycaster', 'lineColor', WAPENS[w].kleur);
+    this.melding(WAPENS[w].naam, WAPENS[w].kleur);
+    this.tril(id, 0.3, 40);
+  },
+  tril(id, k, ms){
+    const h = document.getElementById(id); if (!h) return;
+    const g = h.components['tracked-controls'];
+    try { const gp = g && g.controller && g.controller.gamepad; gp && gp.hapticActuators && gp.hapticActuators[0] && gp.hapticActuators[0].pulse(k, ms); } catch(_){}
+  },
+  straal(bron, e){   // zet this.rc op de richtstraal van een hand of de muis
+    const T = this.T;
     if (bron === 'muis'){
-      const r = this.el.canvas.getBoundingClientRect();
-      this.rc.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1, -((e.clientY-r.top)/r.height*2-1)), cam);
-    } else {
-      const h = document.getElementById(bron), rc = h.components.raycaster;
-      if (!rc) return; rc.updateOriginDirection && rc.updateOriginDirection();
-      this.rc.ray.copy(rc.raycaster.ray);
-      const g = h.components['tracked-controls'];
-      try { const gp = g && g.controller && g.controller.gamepad; gp && gp.hapticActuators && gp.hapticActuators[0] && gp.hapticActuators[0].pulse(0.6, 60); } catch(_){}
+      const r = this.el.canvas.getBoundingClientRect(); e = e || this.muisE; if (!e) return false;
+      this.rc.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1, -((e.clientY-r.top)/r.height*2-1)), this.el.camera);
+      return true;
     }
-    this.knal();
-    const hits = this.rc.intersectObject(this.wortel.object3D, true);
-    for (const h of hits){
-      const u = h.object.userData; if (!u.D || !h.uv) continue;
+    const h = document.getElementById(bron), rc = h && h.components.raycaster;
+    if (!rc) return false; rc.updateOriginDirection && rc.updateOriginDirection();
+    this.rc.ray.copy(rc.raycaster.ray); return true;
+  },
+  treffers(alleen1){   // trefpunten op zombies, doorzichtige stukjes overgeslagen; per zombie hooguit één
+    const uit = [], gehad = new Set();
+    for (const h of this.rc.intersectObject(this.wortel.object3D, true)){
+      const u = h.object.userData; if (!u.D || !h.uv || gehad.has(u.z)) continue;
       const D = u.D, px = Math.min(D.aw-1, h.uv.x*D.aw|0), py = Math.min(D.ah-1, (1-h.uv.y)*D.ah|0);
-      if (D.al[py*D.aw+px] < 128) continue;          // doorzichtig: kogel gaat erdoor
-      this.raak(u.z, u.deel, h.point, this.rc.ray.direction);
-      return;
+      if (D.al[py*D.aw+px] < 128) continue;
+      uit.push({z:u.z, deel:u.deel, p:h.point.clone(), d:h.distance}); gehad.add(u.z);
+      if (alleen1) break;
+    }
+    return uit;
+  },
+  vuur(bron, e){
+    const w = this.wapen[bron === 'muis' ? 'handR' : bron] || 'pistool';
+    if (this.nu < (this.klaarOm[bron] || 0)) return;
+    this.klaarOm[bron] = this.nu + WAPENS[w].wacht;
+    if (!this.straal(bron, e)) return;
+    const o = this.rc.ray.origin.clone(), d = this.rc.ray.direction.clone();
+    if (w === 'pistool' || w === 'auto'){
+      this.knal(w === 'auto' ? 0.75 : 1); this.tril(bron, w === 'auto' ? 0.35 : 0.6, 50);
+      const t = this.treffers(true)[0];
+      if (t) this.raak(t.z, t.deel, t.p, d, {ledemaat1: w === 'auto'});
+    } else if (w === 'laser'){
+      this.zap(); this.tril(bron, 0.5, 90);
+      const hits = this.treffers(false).filter(t => t.d < LASER_VER);
+      hits.forEach(t => this.raak(t.z, t.deel, t.p, d, {ledemaat1:true}));
+      this.straalFlits(o, o.clone().addScaledVector(d, LASER_VER));
+    } else if (w === 'raket'){
+      this.woesj(); this.tril(bron, 0.8, 120);
+      this.projectiel('raket', o.clone().addScaledVector(d, 0.3), d.clone().multiplyScalar(RAKET_SNEL));
+    } else if (w === 'molotov'){
+      this.tril(bron, 0.3, 60);
+      const v = d.clone().multiplyScalar(MOLO_SNEL); v.y += 3.5;          // in een boog gooien
+      this.projectiel('molotov', o.clone().addScaledVector(d, 0.2), v);
     }
   },
-  raak(z, deel, p, dir){
+  /* ---------- projectielen: raket recht, molotov in een boog ---------- */
+  projectiel(soort, p, v){
+    const T = this.T, g = new T.Group();
+    if (soort === 'raket'){
+      const lijf = new T.Mesh(new T.CylinderGeometry(0.045,0.045,0.42,8), new T.MeshLambertMaterial({color:0x4a5040}));
+      lijf.rotation.x = Math.PI/2; g.add(lijf);
+      const kop = new T.Mesh(new T.ConeGeometry(0.045,0.12,8), new T.MeshLambertMaterial({color:0x8a2a1a}));
+      kop.rotation.x = -Math.PI/2; kop.position.z = -0.27; g.add(kop);
+      const vlam = new T.Mesh(new T.SphereGeometry(0.07,8,6), new T.MeshBasicMaterial({color:0xffb040}));
+      vlam.position.z = 0.25; vlam.scale.set(1,1,2.2); g.add(vlam);
+    } else {
+      const fles = new T.Mesh(new T.CylinderGeometry(0.035,0.04,0.2,8), new T.MeshLambertMaterial({color:0x5a8a3a, transparent:true, opacity:0.85}));
+      g.add(fles);
+      const lap = new T.Mesh(new T.SphereGeometry(0.03,6,4), new T.MeshBasicMaterial({color:0xffa030}));
+      lap.position.y = 0.12; g.add(lap);
+    }
+    g.position.copy(p); g.lookAt(p.clone().add(v)); this.sc.add(g);
+    (this.vliegt || (this.vliegt = [])).push({soort, g, v, t:0});
+  },
+  projectielTick(s){
+    const T = this.T;
+    for (const pr of this.vliegt || []){
+      pr.t += s;
+      const van = pr.g.position.clone();
+      if (pr.soort === 'molotov'){ pr.v.y -= ZWAARTE*s; pr.g.rotation.x += s*9; }
+      const naar = van.clone().addScaledVector(pr.v, s);
+      if (pr.soort === 'raket'){ pr.g.lookAt(naar); if (Math.random() < 0.8) this.rookPluim(van, 0.25, 0.9); }
+      // raakt hij een zombie onderweg?
+      const dir = naar.clone().sub(van), len = dir.length(); dir.normalize();
+      this.rc.set(van, dir); this.rc.far = len + 0.05;
+      const t = this.treffers(true)[0]; this.rc.far = 80;
+      let klap = null;
+      if (t) klap = t.p;
+      else if (naar.y <= 0.05) klap = naar.clone().setY(0.05);
+      else if (pr.t > 4) klap = naar;
+      if (klap){
+        pr.weg = true; pr.g.removeFromParent();
+        if (pr.soort === 'raket') this.ontplof(klap, RAKET_STRAAL, 1);
+        else this.vuurPlas(klap.setY(0.02));
+      } else pr.g.position.copy(naar);
+    }
+    if (this.vliegt) this.vliegt = this.vliegt.filter(p => !p.weg);
+  },
+  /* ---------- ontploffing: ledematen eraf, alles omver ---------- */
+  ontplof(p, straal, kracht){
+    const T = this.T;
+    this.boem(kracht); this.vuurbal(p, straal*1.1);
+    for (let k=0;k<6;k++) this.rookPluim(p.clone().add(new T.Vector3((Math.random()-0.5)*straal, Math.random()*1.5, (Math.random()-0.5)*straal)), 1.6, 2.5);
+    this.vlek(p.x, p.z, straal*0.9, true);
+    for (const z of this.lijst){
+      if (z.dood && z.val > 1.5) continue;
+      const d = z.grp.position.clone().setY(0).distanceTo(p.clone().setY(0));
+      if (d > straal) continue;
+      const weg = p.clone().sub(z.grp.position).setY(0).normalize().negate(), dir = weg.clone().setY(0.4).normalize();
+      const dicht = 1 - d/straal;
+      // hoe dichterbij, hoe meer stukken eraf
+      const delen = Object.keys(z.knoop).filter(k => !/borst|buik/.test(k) && !z.knoop[k].userData.los);
+      delen.sort(() => Math.random()-0.5);
+      const n = Math.ceil(delen.length * (0.25 + dicht*0.75));
+      for (const k of delen.slice(0, n)) this.losMaak(z, k, dir, 1.3 + dicht*1.5);
+      if (dicht > 0.6 && z.knoop.borst && !z.knoop.borst.userData.los) this.losMaak(z, 'borst', dir, 1.6);   // doormidden
+      this.spat(z.grp.position.clone().setY(1), dir, 60);
+      this.omver(z);
+    }
+  },
+  /* ---------- molotov: vuurplas, zombies vatten vlam ---------- */
+  vuurPlas(p){
+    this.glas(); this.vuurbal(p.clone().setY(0.6), 1.2);
+    (this.vuren || (this.vuren = [])).push({p:p.clone(), t:MOLO_TIJD});
+    this.vlek(p.x, p.z, MOLO_STRAAL*1.4, true);
+  },
+  vuurTick(s){
+    const T = this.T;
+    for (const v of this.vuren || []){
+      v.t -= s;
+      const sterk = Math.min(1, v.t/1.5);
+      for (let k=0;k<3;k++){ if (Math.random() > sterk) continue;
+        const a = Math.random()*6.28, r = Math.sqrt(Math.random())*MOLO_STRAAL;
+        this.vlammetje(new T.Vector3(v.p.x + Math.cos(a)*r, 0.1, v.p.z + Math.sin(a)*r), 0.5 + Math.random()*0.6); }
+      for (const z of this.lijst){
+        if (z.brand || (z.dood && z.val > 1)) continue;
+        if (z.grp.position.clone().setY(0).distanceTo(v.p.clone().setY(0)) < MOLO_STRAAL) this.ontsteek(z);
+      }
+    }
+    if (this.vuren) this.vuren = this.vuren.filter(v => v.t > 0);
+    for (const z of this.lijst){
+      if (!z.brand) continue;
+      z.brand -= s;
+      // vlammen op het lijf
+      const b = z.knoop.buik || z.knoop.borst;
+      if (b && Math.random() < 0.9){ const p = new T.Vector3((Math.random()-0.5)*0.4, Math.random()*0.9, 0.05); b.localToWorld(p); this.vlammetje(p, 0.35 + Math.random()*0.35); }
+      // langzaam verkolen
+      const zw = Math.min(1, 1 - z.brand/BRAND_TIJD);
+      z.mats && z.mats.forEach(m => m.color.setScalar(1 - zw*0.8));
+      if (z.brand <= 0){ z.brand = 0.0001; if (!z.dood){ this.omver(z); } else if (z.val > LIJK_TIJD) z.brand = 0; }
+    }
+  },
+  ontsteek(z){
+    z.brand = BRAND_TIJD; z.snel *= 1.4; this.fwoesj();
+    // eigen materialen, zodat alleen deze zombie zwart wordt
+    z.mats = [];
+    z.grp.traverse(o => { if (o.isMesh && o.userData.D){ o.material = o.material.clone(); z.mats.push(o.material); } });
+  },
+  /* ---------- ULT: bommenwerper ---------- */
+  ult(){
+    if (this.nu < this.ultKlaar || this.vliegtuig){ this.melding('AIR STRIKE NOT READY', '#888888'); return; }
+    this.ultKlaar = this.nu + ULT_WACHT;
+    this.melding('AIR STRIKE INBOUND', '#ff5a3a');
+    const T = this.T, g = new T.Group(), m = new T.MeshLambertMaterial({color:0x3a3f45}), d = new T.MeshLambertMaterial({color:0x22262a});
+    const blok = (w,h,l,x,y,z,mm) => { const b = new T.Mesh(new T.BoxGeometry(w,h,l), mm); b.position.set(x,y,z); g.add(b); };
+    blok(1.6,1.5,12, 0,0,0, m);              // romp
+    blok(17,0.25,3.2, 0,0.1,0.5, d);         // vleugels
+    blok(6,0.2,1.6, 0,0.3,5.2, d);           // staartvlak
+    blok(0.25,2.2,1.8, 0,1.3,5.2, d);        // staartvin
+    [-5,-2.5,2.5,5].forEach(x => blok(0.7,0.7,2.2, x,-0.5,0.2, m));   // motoren
+    g.position.set(0, VLIEG_HOOG, 70); this.sc.add(g);
+    // bommen: op elke zombie in het veld, plus een tapijt over de straat
+    const doelen = this.lijst.filter(z => !z.dood).map(z => z.grp.position.clone());
+    for (let z=-6; z>=-28; z-=4.5) doelen.push(new T.Vector3((Math.random()-0.5)*14, 0, z));
+    this.vliegtuig = {g, doelen:doelen.map(p => ({p, los:false})), t:0};
+    this.brom();
+  },
+  vliegTick(s){
+    const T = this.T, v = this.vliegtuig; if (!v) return;
+    v.t += s; v.g.position.z -= VLIEG_SNEL*s;
+    for (const d of v.doelen){
+      if (!d.los && v.g.position.z < d.p.z + 18){   // los laten zodat hij er bij het vallen boven uitkomt
+        d.los = true;
+        this.bom = this.bom || [];
+        const b = new T.Mesh(new T.CapsuleGeometry(0.18,0.6,4,8), new T.MeshLambertMaterial({color:0x1e2226}));
+        b.position.set(d.p.x + (Math.random()-0.5)*1.5, VLIEG_HOOG - 1, d.p.z + 8); this.sc.add(b);
+        this.bom.push({b, doel:d.p, v:new T.Vector3(0, -6, -(8/2.6))});
+      }
+    }
+    if (v.g.position.z < -160){ v.g.removeFromParent(); this.vliegtuig = null; }
+  },
+  bomTick(s){
+    for (const b of this.bom || []){
+      b.v.y -= ZWAARTE*s*1.6; b.b.position.addScaledVector(b.v, s);
+      b.b.lookAt(b.b.position.clone().add(b.v)); b.b.rotateX(Math.PI/2);
+      if (b.b.position.y <= 0.1){ b.weg = true; b.b.removeFromParent(); this.ontplof(b.b.position.clone().setY(0.1), 5, 1.4); }
+    }
+    if (this.bom) this.bom = this.bom.filter(b => !b.weg);
+  },
+  /* ---------- effecten: vuurbal, rook, vlammetjes, laserstraal, meldingen ---------- */
+  maakEffecten(){
+    if (this.fx) return; const T = this.T;
+    const vlek = (stops) => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
+      const g = x.createRadialGradient(32,32,1,32,32,32); stops.forEach(([o,k]) => g.addColorStop(o,k)); x.fillStyle = g; x.fillRect(0,0,64,64);
+      const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; return t; };
+    const vuurT = vlek([[0,'rgba(255,250,220,1)'],[0.25,'rgba(255,190,70,0.95)'],[0.6,'rgba(220,70,10,0.6)'],[1,'rgba(120,20,0,0)']]);
+    const rookT = vlek([[0,'rgba(60,58,55,0.8)'],[0.6,'rgba(45,43,40,0.45)'],[1,'rgba(30,30,30,0)']]);
+    const pool = (n, tex, add) => Array.from({length:n}, () => { const sp = new T.Sprite(new T.SpriteMaterial({map:tex, transparent:true, depthWrite:false,
+      blending: add ? T.AdditiveBlending : T.NormalBlending, opacity:0})); sp.visible = false; sp.userData = {t:0, duur:1, maat:1}; this.sc.add(sp); return sp; });
+    this.fx = {vuur:pool(70, vuurT, true), rook:pool(60, rookT, false), vI:0, rI:0};
+    const lm = new T.MeshBasicMaterial({color:0x7ae8ff, transparent:true, blending:T.AdditiveBlending, depthWrite:false});
+    this.laserStraal = new T.Mesh(new T.CylinderGeometry(0.012,0.012,1,6,1,true), lm); this.laserStraal.visible = false; this.sc.add(this.laserStraal);
+    // melding in beeld (hangt aan de camera)
+    this.mcv = document.createElement('canvas'); this.mcv.width = 1024; this.mcv.height = 128;
+    this.mtex = new T.CanvasTexture(this.mcv); this.mtex.colorSpace = T.SRGBColorSpace;
+    this.mbord = new T.Mesh(new T.PlaneGeometry(0.5, 0.0625), new T.MeshBasicMaterial({map:this.mtex, transparent:true, depthTest:false, depthWrite:false}));
+    this.mbord.position.set(0, -0.09, -0.45); this.mbord.renderOrder = 1001; this.mbord.visible = false;
+    document.getElementById('cam').object3D.add(this.mbord); this.mT = 0;
+  },
+  fxStart(lijst, p, maat, duur){
+    if (!this.fx) return; const k = lijst === 'vuur' ? 'vI' : 'rI', a = this.fx[lijst], sp = a[this.fx[k]];
+    this.fx[k] = (this.fx[k]+1) % a.length;
+    sp.position.copy(p); sp.userData = {t:duur, duur, maat, stijg: lijst === 'rook' ? 0.9 : 0.6}; sp.visible = true;
+  },
+  vuurbal(p, maat){ for (let k=0;k<5;k++) this.fxStart('vuur', p.clone().add(new this.T.Vector3((Math.random()-0.5)*maat*0.5, Math.random()*maat*0.4, (Math.random()-0.5)*maat*0.5)), maat*(1+Math.random()), 0.45); },
+  vlammetje(p, maat){ this.fxStart('vuur', p, maat, 0.35 + Math.random()*0.3); },
+  rookPluim(p, maat, duur){ this.fxStart('rook', p, maat, duur); },
+  straalFlits(a, b){
+    const L = this.laserStraal; if (!L) return;
+    const m = a.clone().add(b).multiplyScalar(0.5), d = b.clone().sub(a);
+    L.position.copy(m); L.scale.set(1, d.length(), 1);
+    L.quaternion.setFromUnitVectors(new this.T.Vector3(0,1,0), d.normalize()); L.visible = true; L.userData.t = 0.14;
+  },
+  melding(tekst, kleur){
+    if (!this.mbord) return;
+    const c = this.mcv.getContext('2d'); c.clearRect(0,0,1024,128);
+    c.font = '700 64px Trebuchet MS, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.lineWidth = 10; c.strokeStyle = 'rgba(0,0,0,0.9)'; c.strokeText(tekst, 512, 64); c.fillStyle = kleur; c.fillText(tekst, 512, 64);
+    this.mtex.needsUpdate = true; this.mbord.visible = true; this.mT = 1.4;
+  },
+  effectTick(s){
+    if (!this.fx) return;
+    for (const sp of this.fx.vuur.concat(this.fx.rook)){
+      if (!sp.visible) continue; const u = sp.userData; u.t -= s;
+      const a = Math.max(0, u.t/u.duur); sp.material.opacity = a*(u.stijg > 0.8 ? 0.7 : 1);
+      sp.scale.setScalar(u.maat*(0.4 + (1-a)*0.9)); sp.position.y += u.stijg*s;
+      if (a <= 0) sp.visible = false;
+    }
+    const L = this.laserStraal; if (L && L.visible){ L.userData.t -= s; L.material.opacity = Math.max(0, L.userData.t/0.14); if (L.userData.t <= 0) L.visible = false; }
+    if (this.mT > 0){ this.mT -= s; this.mbord.material.opacity = Math.min(1, this.mT/0.4); if (this.mT <= 0) this.mbord.visible = false; }
+  },
+  wapenUpdate(s){
+    this.nu += s;
+    ['handL','handR','muis'].forEach(id => { if (this.vuurt[id] && this.wapen[id === 'muis' ? 'handR' : id] === 'auto') this.vuur(id); });
+    this.projectielTick(s); this.vuurTick(s); this.vliegTick(s); this.bomTick(s); this.effectTick(s);
+  },
+  /* ---------- geluiden ---------- */
+  geluid(f){ try { const A = this.ac || (this.ac = new (window.AudioContext||window.webkitAudioContext)()); if (A.state === 'suspended') A.resume(); this.knal(0); f(A, A.currentTime); } catch(_){} },
+  ruisBuf(A, dur, macht){ const n = A.sampleRate*dur|0, b = A.createBuffer(1, n, A.sampleRate), d = b.getChannelData(0);
+    for (let i=0;i<n;i++) d[i] = (Math.random()*2-1)*Math.pow(1-i/n, macht); return b; },
+  speel(A, buf, type, f, vol, t0=0){ const s = A.createBufferSource(); s.buffer = buf; const fl = A.createBiquadFilter(); fl.type = type; fl.frequency.value = f;
+    const g = A.createGain(); g.gain.value = vol; s.connect(fl).connect(g).connect(this.uit); s.start(A.currentTime + t0); return s; },
+  boem(k){ this.geluid((A,n) => { this.speel(A, this.ruisBuf(A, 1.6, 2.5), 'lowpass', 500, 1.6*k); this.speel(A, this.ruisBuf(A, 0.25, 4), 'lowpass', 2200, 1.2*k);
+    const o = A.createOscillator(), g = A.createGain(); o.frequency.setValueAtTime(90, n); o.frequency.exponentialRampToValueAtTime(25, n+0.6);
+    g.gain.setValueAtTime(1.5*k, n); g.gain.exponentialRampToValueAtTime(0.001, n+0.8); o.connect(g).connect(this.uit); o.start(n); o.stop(n+0.85); }); },
+  zap(){ this.geluid((A,n) => { const o = A.createOscillator(), g = A.createGain(); o.type = 'sawtooth';
+    o.frequency.setValueAtTime(2400, n); o.frequency.exponentialRampToValueAtTime(180, n+0.18);
+    g.gain.setValueAtTime(0.5, n); g.gain.exponentialRampToValueAtTime(0.001, n+0.2); o.connect(g).connect(this.uit); o.start(n); o.stop(n+0.22); }); },
+  woesj(){ this.geluid(A => this.speel(A, this.ruisBuf(A, 0.6, 1.2), 'bandpass', 900, 0.9)); },
+  glas(){ this.geluid(A => { this.speel(A, this.ruisBuf(A, 0.25, 5), 'highpass', 3500, 0.9); this.speel(A, this.ruisBuf(A, 0.9, 1.5), 'lowpass', 700, 0.8, 0.05); }); },
+  fwoesj(){ this.geluid(A => this.speel(A, this.ruisBuf(A, 0.7, 1.5), 'lowpass', 1200, 0.5)); },
+  brom(){ this.geluid((A,n) => { const o = A.createOscillator(), o2 = A.createOscillator(), g = A.createGain(); o.type = 'sawtooth'; o2.type = 'sawtooth';
+    o.frequency.setValueAtTime(70, n); o.frequency.linearRampToValueAtTime(52, n+4.5); o2.frequency.setValueAtTime(72.5, n); o2.frequency.linearRampToValueAtTime(53, n+4.5);
+    const f = A.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 400;
+    g.gain.setValueAtTime(0.001, n); g.gain.linearRampToValueAtTime(0.5, n+1.4); g.gain.linearRampToValueAtTime(0.001, n+4.5);
+    o.connect(f); o2.connect(f); f.connect(g).connect(this.uit); o.start(n); o2.start(n); o.stop(n+4.6); o2.stop(n+4.6); }); },
+  raak(z, deel, p, dir, opt){
     this.spat(p, dir, 26);
     if (deel === 'borst' || deel === 'buik'){
       if (z.dood) return;
@@ -458,6 +753,7 @@ AFRAME.registerComponent('zombies', {
     const soort = deel.replace(/[LR]$/, '');
     z.deelHp = z.deelHp || {};
     if (z.deelHp[deel] === undefined) z.deelHp[deel] = DEELHP[soort] || 1;
+    if (opt && opt.ledemaat1) z.deelHp[deel] = 1;                 // automatic / laser: in één keer eraf
     if (--z.deelHp[deel] > 0){ this.spat(p, dir, 20); this.schok(kn, 1); return; }
     this.losMaak(z, deel, dir, 1);
     if (/been|voet/.test(deel) && !z.dood) z.kruip = true;   // been kwijt → voorover en kruipen
@@ -506,14 +802,21 @@ AFRAME.registerComponent('zombies', {
       this.bLeef[i] = 2.5;
     }
   },
-  vlek(x, z, maat){
-    const T = this.T, m = new T.Matrix4(), i = this.pI; this.pI = (this.pI+1) % PLAS_N;
+  vlek(x, z, maat, zwart){
+    const T = this.T, m = new T.Matrix4();
+    if (zwart){
+      const i = this.sI; this.sI = (this.sI+1) % 60;
+      m.compose(new T.Vector3(x, 0.003, z), new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0), Math.random()*6.28), new T.Vector3(maat, 1, maat));
+      this.schroei.setMatrixAt(i, m); this.schroei.count = Math.max(this.schroei.count, i+1); this.schroei.instanceMatrix.needsUpdate = true;
+      return;
+    }
+    const i = this.pI; this.pI = (this.pI+1) % PLAS_N;
     m.compose(new T.Vector3(x, 0.004 + i*0.00002, z), new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0), Math.random()*6.28),
               new T.Vector3(maat, 1, maat));
     this.plas.setMatrixAt(i, m); this.plas.count = Math.max(this.plas.count, i+1); this.plas.instanceMatrix.needsUpdate = true;
   },
   /* ---------- geluid ---------- */
-  knal(){   // harde klap: tik + scherpe knal + dreun + galm, door een compressor zodat het hard is zonder te kraken
+  knal(k=1){   // harde klap: tik + scherpe knal + dreun + galm, door een compressor zodat het hard is zonder te kraken
     try {
       const A = this.ac || (this.ac = new (window.AudioContext||window.webkitAudioContext)());
       if (A.state === 'suspended') A.resume();
@@ -526,15 +829,16 @@ AFRAME.registerComponent('zombies', {
           for (let i=0;i<n;i++) d[i] = (Math.random()*2-1) * Math.pow(1-i/n, macht); return b; };
         this.bKnal = ruis(0.09, 6); this.bGalm = ruis(0.6, 3);
       }
+      if (!k) return;
       const bron = (buf, type, f, vol, t0=0) => { const s = A.createBufferSource(); s.buffer = buf;
         const fl = A.createBiquadFilter(); fl.type = type; fl.frequency.value = f;
         const g = A.createGain(); g.gain.value = vol; s.connect(fl).connect(g).connect(this.uit); s.start(nu+t0); };
-      bron(this.bKnal, 'highpass', 900, 1.4);          // de scherpe knal
-      bron(this.bKnal, 'lowpass', 2500, 1.2);          // het lijf van de knal
-      bron(this.bGalm, 'lowpass', 700, 0.45, 0.01);   // galm tussen de huizen
+      bron(this.bKnal, 'highpass', 900, 1.4*k);          // de scherpe knal
+      bron(this.bKnal, 'lowpass', 2500, 1.2*k);          // het lijf van de knal
+      bron(this.bGalm, 'lowpass', 700, 0.45*k, 0.01);   // galm tussen de huizen
       const o = A.createOscillator(), og = A.createGain();     // de dreun
       o.type = 'sine'; o.frequency.setValueAtTime(140, nu); o.frequency.exponentialRampToValueAtTime(38, nu+0.16);
-      og.gain.setValueAtTime(1.3, nu); og.gain.exponentialRampToValueAtTime(0.001, nu+0.22);
+      og.gain.setValueAtTime(1.3*k, nu); og.gain.exponentialRampToValueAtTime(0.001, nu+0.22);
       o.connect(og).connect(this.uit); o.start(nu); o.stop(nu+0.25);
     } catch(_){}
   },
@@ -543,6 +847,8 @@ AFRAME.registerComponent('zombies', {
     const s = Math.min(dt/1000, 0.05), T = this.T, cam = this.el.camera;
     this.wapenTick(s);
     if (!this.klaar) return;
+    if (!this.fx) this.maakEffecten();
+    this.wapenUpdate(s);
     const ik = new T.Vector3(); cam.getWorldPosition(ik); ik.y = 0;
     // nieuwe zombies
     const levend = this.lijst.filter(z => !z.dood).length;
