@@ -25,7 +25,7 @@
 
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v41.1";
+const VERSIE = "v41.2";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2309,6 +2309,7 @@ AFRAME.registerComponent('zombies', {
     const hb = S.bot.hand_r; if (hb){ const ws = hb.getWorldScale(new T.Vector3()).x || sch; gw.scale.setScalar(1/ws); gw.position.set(0.0, -0.05/ws, 0.0); gw.rotation.set(GEWEER3D.rx, GEWEER3D.ry, GEWEER3D.rz); hb.add(gw); }
     if (z.geweer && z.geweer.parent) z.geweer.visible = false;
     z.geweer = gw;
+    const geen = () => {}; m.traverse(o => { if (o.isMesh && !(o.userData && o.userData.box)) o.raycast = geen; });   // alleen de trefzones testen: een skinned mesh raycasten is zwaar (haperen!)
     this.s3dSpeel(z, 'Idle_Loop', 'Pistol_Idle_Loop', 0);
   },
   s3dAct(z, naam){ const S = z.s3d, c = this.s3dBron.clips[naam]; if (!c) return null; return S.acts[naam] || (S.acts[naam] = S.mixer.clipAction(c)); },
