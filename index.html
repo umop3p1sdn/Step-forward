@@ -12,7 +12,7 @@
 </style>
 </head>
 <body>
-<div id="info">Step Forward <span id="ver"></span> · menu: kies hand (L/R), dan START (Enter) of DEMO (D) of AUTO (A) · klik = schieten · 1-5 = wapen · G = bommenwerper · spatie = volgende plek · VR: joystick = wapen, A/B/X/Y = pistool (nog eens = herladen), R = herladen, grip = bommenwerper, joystick indrukken = volgende plek</div>
+<div id="info">Step Forward <span id="ver"></span> · menu: kies hand (L/R), dan START (Enter) of DEMO (D) of AUTO (A) · klik = schieten · 1-5 = wapen · G = bommenwerper · spatie = volgende plek · VR: joystick = wapen, A/B/X/Y = pistool (nog eens = herladen), R = herladen, grip = bommenwerper, joystick indrukken = logboek kopiëren</div>
 
 <a-scene renderer="colorManagement:true; antialias:true" background="color:#0b0d10"
          xr-mode-ui="enabled:true" vr-mode-ui="enabled:true" stad zombies>
@@ -25,7 +25,7 @@
 
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v41.2";
+const VERSIE = "v41.3";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -136,8 +136,6 @@ AFRAME.registerComponent('stad', {
 
     const volgende = () => { const zb = this.el.components.zombies; if (zb && zb.gestart && zb.modus === 'lvl') return;   // in de levels kiest het spel de plek
       if (this.fase === 'open') { this.doel = (this.i+1) % PLEKKEN.length; this.laad(this.doel); this.fase = 'dicht'; } };
-    ['handL','handR'].forEach(id => { const h = document.getElementById(id);
-      h.addEventListener('thumbstickdown', volgende); });
     window.addEventListener('keydown', e => { if (e.code === 'Space' || e.code === 'ArrowRight' || e.code === 'KeyN') volgende(); });
   },
 
@@ -459,7 +457,9 @@ AFRAME.registerComponent('zombies', {
     this.ultKlaar = 0; this.nu = 0;
     this.upg = {kanon:false, raket:false}; this.molo = 0; this.lvlReset();
     try { this.god = !!localStorage.getItem('sf_god'); this.oneindig = !!localStorage.getItem('sf_oneindig'); this.drieD = localStorage.getItem('sf_drieD') !== ''; } catch(_){ this.drieD = true; } this.blokken = []; this.blokWacht = BLOK_EERST;
+    this.logInit();
     ['handL','handR'].forEach(id => { const h = document.getElementById(id);
+      h.addEventListener('thumbstickdown', () => this.kopieerLog());               // joystick indrukken = logboek kopiëren
       h.addEventListener('triggerdown', () => { if (!this.gestart){ this.menuKies(id); return; } if (id !== this.gunHand) return; this.vuurt[id] = true; this.vuur(id); });
       h.addEventListener('triggerup',   () => { this.vuurt[id] = false; });
       ['abuttondown','bbuttondown','xbuttondown','ybuttondown'].forEach(k => h.addEventListener(k, () => { if (!this.gestart) return;
@@ -1286,6 +1286,7 @@ AFRAME.registerComponent('zombies', {
       } }
     else if (this.modus === 'demo' && st && st.i >= 5) st.gaNaar(0);                  // demo: de oude straat
     if (W.mg && !this.mgNest){ const m = (this.plekNu() && this.plekNu().mg) || MG_NEST; this.zetMgNest(m.x, m.z); }
+    this.logboek(`wave ${this.waveNr} start · lvl ${this.lvlNr} · lopers ${W.lopers} max ${W.max} · wagens ${W.wagens.length} · ${W.tekst || ''}`);
     if (this.modus === 'lvl' && this.waveNr >= 10) this.melding(`BOSS — ${W.tekst}`, '#ff3a3a');
     else if (W.demoBaas) this.melding(`BOSS TEST ${W.demoBaas}/${LEVELS.length} — ${W.tekst}`, '#ff3a3a');
     else this.melding(this.modus === 'lvl' ? `LEVEL ${this.lvlNr} · WAVE ${this.waveNr}` : `WAVE ${this.waveNr}`, '#ffffff');
@@ -1416,18 +1417,19 @@ AFRAME.registerComponent('zombies', {
   },
   /* ================= CONTINUES ================= */
   neer(){   // HP op: continue? (verder waar je was)
-    if (this.overleden) return;
+    if (this.overleden) return; this.logboek('SPELER NEER · continues ' + this.continues + ' · ' + this.staatKort());
     this.rood = 1;
     if ((this.continues || 0) > 0){ this.overleden = 'continue'; this.doodT = CONTINUE_TIJD; this.contSec = -1; }
     else this.eindeSpel();
   },
   doorgaan(){
-    if (this.overleden !== 'continue') return;
+    if (this.overleden !== 'continue'){ this.logboek('doorgaan genegeerd (staat ' + this.overleden + ')'); return; } this.logboek('CONTINUE gebruikt');
     this.continues--; this.overleden = false; this.speler.hp = SPELER_HP; this.beschermd = 2.5; this.hudVuil = true; this.rood = 0;
     this.upVast = false; if (this.upBord) this.upBord.visible = false;
     this.melding(`CONTINUE — ${this.continues} LEFT`, '#7dff7a'); this.pling(1);
   },
   eindeSpel(){
+    this.logboek('GAME OVER · ' + this.staatKort());
     this.overleden = 'over'; this.doodT = 6; this.upVast = true;
     this.bord('GAME OVER', this.modus === 'lvl' ? `LEVEL ${this.lvlNr} · WAVE ${this.waveNr}` : `WAVE ${this.waveNr}`, this.modus === 'lvl' ? 'Weapons reset — back to level 1…' : 'Weapons reset — restarting at wave 1…', '#ff3a3a', 99, 0);
   },
@@ -2429,6 +2431,49 @@ AFRAME.registerComponent('zombies', {
     if (!z.dood && dicht > 0.18) this.omver(z, dir, {wapen:'explosie', dicht});
     else if (!z.dood){ this.wankel(z, dir, 0.6); this.s3dHit(z, 'Hit_Chest'); }
   },
+  /* ================= LOGBOEK (debug): joystick indrukken = log kopiëren ================= */
+  logInit(){
+    if (this.logboekAan) return; this.logboekAan = true; this.logR = []; this.logT0 = performance.now();
+    const z = this, oe = console.error.bind(console), ow = console.warn.bind(console);
+    console.error = (...a) => { z.logboek('CONSOLE.ERROR ' + a.map(x => String(x && x.stack || x)).join(' ').slice(0, 400)); oe(...a); };
+    console.warn = (...a) => { const t = a.map(x => String(x)).join(' '); if (!/GPU stall|GL Driver/.test(t)) z.logboek('warn ' + t.slice(0, 200)); ow(...a); };
+    window.addEventListener('error', e => z.logboek('WINDOW.ERROR ' + (e.message || '') + ' @' + (e.lineno || '?')));
+    window.addEventListener('unhandledrejection', e => z.logboek('PROMISE ' + String(e.reason && e.reason.stack || e.reason).slice(0, 300)));
+    this.perf = {n:0, som:0, max:0, js:0, jsMax:0, t:0};
+    const b = document.createElement('button'); b.textContent = '📋 COPY LOG'; b.id = 'logKnop';
+    b.style.cssText = 'position:fixed;right:10px;top:10px;z-index:30;padding:8px 12px;border-radius:8px;border:0;background:#1f3a24;color:#cfe;font:700 13px sans-serif';
+    b.onclick = () => this.kopieerLog(); document.body.appendChild(b);
+    this.logboek('start · ' + VERSIE + ' · ' + navigator.userAgent.slice(0, 120));
+  },
+  logboek(t){
+    if (!this.logR) return; const s = ((performance.now() - (this.logT0 || 0))/1000);
+    const m = Math.floor(s/60), r = (s % 60).toFixed(1).padStart(4, '0');
+    this.logR.push(`[${m}:${r}] ${t}`); if (this.logR.length > 500) this.logR.splice(0, this.logR.length - 500);
+  },
+  perfTick(dt, jsMs){                  // haperingen opsporen: lange frames en dure beurten
+    const P = this.perf; if (!P) return;
+    P.n++; P.som += dt; P.max = Math.max(P.max, dt); P.js += jsMs; P.jsMax = Math.max(P.jsMax, jsMs); P.t += dt;
+    if ((dt > 60 || jsMs > 25) && this.nu - (P.laatst || -9) > 1){ P.laatst = this.nu;
+      this.logboek(`HAPERING frame ${dt.toFixed(0)} ms (js ${jsMs.toFixed(0)} ms) · ${this.staatKort()}`); }
+    if (P.t > 10000){ const L = this.lijst || [];
+      this.logboek(`perf 10s · fps ${(1000*P.n/P.som).toFixed(0)} · traagste frame ${P.max.toFixed(0)} ms · js gem ${(P.js/P.n).toFixed(1)} max ${P.jsMax.toFixed(0)} ms · ${this.staatKort()} · scene ${this.sc ? this.sc.children.length : '?'} · los ${(this.los || []).length} · wrak ${(this.wrakken || []).length}`);
+      this.perf = {n:0, som:0, max:0, js:0, jsMax:0, t:0}; }
+  },
+  staatKort(){
+    const L = (this.lijst || []).filter(z => !z.dood), d3 = L.filter(z => z.s3d).length;
+    return `${this.modus || '-'} L${this.lvlNr || 0} W${this.waveNr || 0} · levend ${L.length} (3D ${d3}) · lijken ${(this.lijst || []).length - L.length} · hp ${this.speler ? Math.round(this.speler.hp) : '-'} · ${this.overleden || 'speelt'} · wapen ${this.wapen && this.wapen[this.gunHand]} · heli ${(this.helis || []).length} wagen ${(this.wagens || []).length} tank ${(this.tanks || []).length} · vr ${this.el.is('vr-mode')}`;
+  },
+  logTekst(){
+    return [`STEP FORWARD LOG ${VERSIE} · ${new Date().toISOString()}`, `instellingen: 3D ${this.drieD} · god ${this.god} · ∞ ${this.oneindig} · auto ${!!this.auto} · hand ${this.gunHand}`,
+      `nu: ${this.staatKort()}`, `fouten: ${this.fouten || 0}`, ...(window.__fouten || []).slice(-5).map(f => 'FOUT ' + String(f).split('\n').slice(0, 4).join(' | ')), '--- logboek ---', ...this.logR].join('\n');
+  },
+  kopieerLog(){
+    const t = this.logTekst(); try { localStorage.setItem('sf_log', t); } catch(_){}
+    const ok = () => { this.melding('LOG COPIED — paste it in the chat', '#7dff7a'); this.logboek('log gekopieerd'); };
+    const nee = () => { this.melding('LOG SAVED — take off headset, tap COPY LOG', '#ffd060'); };
+    try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(ok, () => this.kopieerOud(t) ? ok() : nee()); else (this.kopieerOud(t) ? ok() : nee()); } catch(_){ nee(); }
+  },
+  kopieerOud(t){ try { const a = document.createElement('textarea'); a.value = t; a.style.position = 'fixed'; a.style.opacity = '0'; document.body.appendChild(a); a.select(); const r = document.execCommand('copy'); a.remove(); return r; } catch(_){ return false; } },
   /* ---------- eigen zandzakmuurtje vóór je ---------- */
   zetMuur(){
     if (this.muur || !this.props.zandzakken) return;
@@ -3067,7 +3112,7 @@ AFRAME.registerComponent('zombies', {
     this.menuHand = id; if (this.menu){ this.menu.removeFromParent(); this.menu = null; } this.maakMenu(); this.tril(id, 0.4, 40); this.tik();
   },
   startMet(id, modus){
-    if (this.gestart) return; const auto = modus === 'auto'; if (auto) modus = 'lvl'; this.modus = modus || 'demo'; this.lvlNr = 1;
+    if (this.gestart) return; this.logboek('startMet ' + id + ' ' + modus); const auto = modus === 'auto'; if (auto) modus = 'lvl'; this.modus = modus || 'demo'; this.lvlNr = 1;
     if (auto) this.autoStart();
     this.gunHand = id; this.gestart = true; try { localStorage.setItem('sf_hand', id); } catch(_){}
     if (this.menu){ this.menu.removeFromParent(); this.menu = null; }
@@ -3235,7 +3280,7 @@ AFRAME.registerComponent('zombies', {
     if (this.nu < (this.klaarOm[bron] || 0)) return;
     this.klaarOm[bron] = this.nu + this.wachtTijd(w);
     if (!this.straal(bron, e)) return;
-    if (this.overleden === 'continue'){ this.doorgaan(); return; } if (this.overleden) return;
+    if (this.overleden === 'continue'){ this.logboek('schot tijdens continue-scherm (' + bron + ')'); this.doorgaan(); return; } if (this.overleden) return;
     if (!this.heeftAmmo(w)){ this.droog(w); return; } this.gebruik(w); this.bronWapen = w;
     const o = this.rc.ray.origin.clone(), d = this.rc.ray.direction.clone();
     if (w === 'pistool' || w === 'auto' || w === 'laser'){       // schiet je een upgradeblok?
@@ -4944,8 +4989,9 @@ AFRAME.registerComponent('zombies', {
     } catch(_){}
   },
   /* ---------- elke beurt ---------- */
-  tick(t, dt){ try { this.tickEcht(t, dt); } catch(e){ this.fout(e); } },   // vangnet: een fout laat de game nooit vastlopen
+  tick(t, dt){ const t0 = performance.now(); try { this.tickEcht(t, dt); } catch(e){ this.fout(e); } if (this.gestart) this.perfTick(dt, performance.now() - t0); },   // vangnet: een fout laat de game nooit vastlopen
   fout(e){
+    this.logboek('FOUT ' + String(e && e.stack || e).split('\n').slice(0, 3).join(' | '));
     this.fouten = (this.fouten || 0) + 1; (window.__fouten = window.__fouten || []).push(String(e && e.stack || e));
     if (this.fouten < 20) console.error('Step Forward fout:', e); this.hudVuil = true;
   },
