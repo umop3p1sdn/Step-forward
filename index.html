@@ -25,7 +25,7 @@
 
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v33.2";
+const VERSIE = "v34";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -72,6 +72,18 @@ const PLEKKEN = [
      {naam:'front',start:[-12,24]}, {naam:'front',start:[25,24]} ],
    muren:[ {van:-90,tot:-89,r:8,h:9}, {van:-83,tot:-66,r:8,h:9}, {van:-40,tot:-29,r:16,h:12}, {van:-23,tot:2,r:16,h:12},
            {van:9.5,tot:23,r:16,h:12}, {van:66,tot:82.5,r:8,h:9}, {van:89,tot:90,r:8,h:9} ]},
+  // levels: per level 2 plekken (wave 1-7, wave 8-10). nieuw = voertuigen komen van achter het panorama (geen muren nodig)
+  {naam:'CROSSING',      src:'art/l1a.jpg', horizon:0.545, nieuw:true, uitgangen:[{naam:'straat', start:[0,26]}], muren:[]},
+  {naam:'OFFICE BLOCK',  src:'art/l1b.jpg', horizon:0.630, nieuw:true, uitgangen:[{naam:'straat', start:[0,26]}], muren:[]},
+  {naam:'CASTLE WOODS',  src:'art/l2a.jpg', horizon:0.575, nieuw:true, uitgangen:[{naam:'pad', start:[0,26]}], muren:[]},
+  {naam:'SAND PITS',     src:'art/l2b.jpg', horizon:0.515, nieuw:true, uitgangen:[{naam:'pad', start:[0,26]}], muren:[]},
+  {naam:'GRASSLANDS',    src:'art/l3a.jpg', horizon:0.540, nieuw:true, uitgangen:[{naam:'veld', start:[0,26]}], muren:[]},
+  {naam:'STEPPE ROAD',   src:'art/l3b.jpg', horizon:0.545, nieuw:true, uitgangen:[{naam:'veld', start:[0,26]}], muren:[]},
+  // binnen: smalle gang (breed = halve breedte waar soldaten lopen), eigen dekking en MG-plek
+  {naam:'BUNKER HALL',   src:'art/l4a.jpg', horizon:0.640, nieuw:true, binnen:true, breed:2.4, mg:{x:0.4, z:-19.5}, uitgangen:[{naam:'gang', start:[0,26]}], muren:[],
+   dekking:[{x:-5.6, z:-5.4}, {x:5.4, z:-5.9}, {x:0.3, z:-7.6}, {x:-6.4, z:-8.2}, {x:-1.5, z:-11.2}, {x:1.6, z:-13.6}, {x:6.4, z:-8.6}, {x:-1.3, z:-16.8}, {x:1.5, z:-22}, {x:-0.4, z:-25}]},
+  {naam:'THE TUNNEL',    src:'art/l4b.jpg', horizon:0.520, nieuw:true, binnen:true, breed:1.3, mg:{x:0, z:-21.5}, uitgangen:[{naam:'tunnel', start:[0,26]}], muren:[],
+   dekking:[{x:-0.9, z:-4.8}, {x:0.9, z:-5.9}, {x:0, z:-7.3}, {x:-0.85, z:-9.6}, {x:0.9, z:-12}, {x:-0.8, z:-14.5}, {x:0.85, z:-17}, {x:-0.8, z:-19.6}, {x:0.8, z:-22.6}, {x:0, z:-26}]},
 ];
 /* ================================================ */
 document.getElementById('ver').textContent = VERSIE;
@@ -81,13 +93,7 @@ AFRAME.registerComponent('stad', {
     const T = THREE, sc = this.el.object3D, re = this.el.renderer;
     this.T = T;
     this.wereld = new T.Group(); sc.add(this.wereld);
-    this.tex = PLEKKEN.map(p => {
-      const t = new T.TextureLoader().load(p.src);
-      t.colorSpace = T.SRGBColorSpace;
-      t.anisotropy = re ? re.capabilities.getMaxAnisotropy() : 8;
-      t.wrapS = t.wrapT = T.ClampToEdgeWrapping;
-      return t;
-    });
+    this.tex = []; this.laad(0);                                    // panorama's pas laden als ze nodig zijn (geheugen)
     this.mat = new T.MeshBasicMaterial({side:T.DoubleSide});
     this.wand = new T.Mesh(new T.BufferGeometry(), this.mat); this.wand.renderOrder = -3;
     this.vloerVer = new T.Mesh(new T.BufferGeometry(), this.mat); this.vloerVer.renderOrder = -3;
@@ -128,12 +134,24 @@ AFRAME.registerComponent('stad', {
     this.oogMeet = 0;
     this.el.addEventListener('enter-vr', () => { this.oogMeet = 1.0; });
 
-    const volgende = () => { if (this.fase === 'open') { this.doel = (this.i+1) % PLEKKEN.length; this.fase = 'dicht'; } };
+    const volgende = () => { const zb = this.el.components.zombies; if (zb && zb.gestart && zb.modus === 'lvl') return;   // in de levels kiest het spel de plek
+      if (this.fase === 'open') { this.doel = (this.i+1) % PLEKKEN.length; this.laad(this.doel); this.fase = 'dicht'; } };
     ['handL','handR'].forEach(id => { const h = document.getElementById(id);
       h.addEventListener('thumbstickdown', volgende); });
     window.addEventListener('keydown', e => { if (e.code === 'Space' || e.code === 'ArrowRight' || e.code === 'KeyN') volgende(); });
   },
 
+  laad(k){
+    if (this.tex[k]) return this.tex[k];
+    const T = this.T, re = this.el.renderer, t = new T.TextureLoader().load(PLEKKEN[k].src);
+    t.colorSpace = T.SRGBColorSpace; t.anisotropy = re ? re.capabilities.getMaxAnisotropy() : 8; t.wrapS = t.wrapT = T.ClampToEdgeWrapping;
+    return this.tex[k] = t;
+  },
+  gaNaar(k, voorlaad){   // naar een andere plek (zwart → nieuw plaatje → open); voorlaad = alvast inladen
+    this.voorlaad = voorlaad; if (voorlaad != null) this.laad(voorlaad);
+    if (this.i === k && this.fase !== 'dicht' && this.fase !== 'zwart') return;
+    this.laad(k); this.doel = k; this.fase = 'dicht';
+  },
   bouw(p){
     const T = this.T, VFOV = BOOG * 1536/2720;          // verticale graden van het plaatje
     const rad = Math.PI/180, hb = BOOG/2;
@@ -228,8 +246,9 @@ AFRAME.registerComponent('stad', {
     if (this.oogMeet > 0){ this.oogMeet -= s; if (this.oogMeet <= 0) this.oogHoogte(); }
     if (this.fase === 'dicht'){ this.dek = Math.min(1, this.dek + s/DOOF); if (this.dek >= 1) this.fase = 'zwart'; }
     else if (this.fase === 'zwart'){
-      const tx = this.tex[this.doel];
-      if (tx.image && tx.image.complete !== false && tx.image.width){ this.toon(this.doel); this.fase = 'op'; }
+      const tx = this.laad(this.doel);
+      if (tx.image && tx.image.complete !== false && tx.image.width){ this.toon(this.doel); this.fase = 'op';
+        this.tex.forEach((t, j) => { if (t && j !== this.doel && j !== this.voorlaad){ t.dispose(); this.tex[j] = null; } }); }   // oude plaatjes uit het geheugen
     }
     else if (this.fase === 'op'){ this.dek = Math.max(0, this.dek - s/DOOF); if (this.dek <= 0) this.fase = 'open'; }
     this.doek.material.opacity = this.dek; this.doek.visible = this.dek > 0.001;
@@ -254,20 +273,18 @@ const DEKKING = [ {soort:'barrier', x:-4.6, z:-5.6, laag:0, schaal:0.85}, {soort
 const MG_NEST = {x:-1.8, z:-17.8};
 // LEVELS: 10 waves per level, dekking bouwt op (indexen in DEKKING: 0-2 voor, 3-6 midden, 7-9 ver), wave 10 = baas
 const LEVELS = [
-  {naam:'STREET ENTRY', dekking:[], lopers:[5, 11], max:[3, 5], raak:[0.28, 0.42], gran:[0, 0], helm:[0, 0.05], vest:[0, 0],
+  {naam:'CITY', plek:[5, 6], stijl:['stad', 'stad'], dekking:[[], [7, 9]], lopers:[5, 11], max:[3, 5], raak:[0.28, 0.45], gran:[0, 0], helm:[0, 0.05], vest:[0, 0],
    baas:{tekst:'ARMORED JEEP', wagens:['jeep'], vestLading:true, lopers:6, max:5}},
-  {naam:'JEEPS', dekking:[7, 9], lopers:[7, 12], max:[4, 6], raak:[0.4, 0.55], gran:[0.04, 0.06], granVanaf:5, helm:[0.05, 0.2], vest:[0.05, 0.2], schild:1, schildVanaf:7,
-   extra:{3:{wagens:['jeep']}, 6:{wagens:['jeep_zand']}, 8:{wagens:['jeep']}},
+  {naam:'WOODS', plek:[7, 8], stijl:['natuur', 'natuur'], dekking:[[7, 8, 9], [7, 9, 4, 5]], lopers:[7, 12], max:[4, 6], raak:[0.4, 0.6], gran:[0.04, 0.07], granVanaf:4,
+   helm:[0.1, 0.25], vest:[0.1, 0.25], schild:1, schildVanaf:6, extra:{3:{wagens:['jeep']}, 6:{wagens:['jeep_zand']}, 8:{wagens:['jeep_snorkel']}},
    baas:{tekst:'CHOPPER', apache:1, lopers:8, max:6}},
-  {naam:'CHOPPER ALLEY', dekking:[7, 8, 9, 4], lopers:[8, 12], max:[5, 7], raak:[0.5, 0.7], gran:[0.05, 0.1], granVanaf:1, helm:[0.2, 0.4], vest:[0.2, 0.4], schild:1, schildVanaf:4,
-   extra:{2:{wagens:['jeep']}, 4:{apache:1}, 5:{wagens:['truck']}, 7:{apache:1}, 8:{wagens:['jeep_snorkel']}},
-   baas:{tekst:'2 CHOPPERS WITH GUNNERS', huey:2, lopers:8, max:7}},
-  {naam:'HEAVY CONVOY', dekking:[7, 8, 9, 3, 4, 5], lopers:[9, 13], max:[6, 8], raak:[0.65, 0.85], gran:[0.08, 0.12], granVanaf:1, helm:[0.35, 0.55], vest:[0.35, 0.55], schild:2, schildVanaf:3, mgVanaf:3,
-   extra:{2:{wagens:['truck']}, 3:{huey:1}, 4:{wagens:['swat_truck']}, 5:{touw:1}, 6:{huey:1}, 7:{wagens:['jeep']}, 8:{huey:1}, 9:{wagens:['truck'], touw:1}},
-   baas:{tekst:'GUN TRUCK', vracht:{mg:true}, lopers:8, max:7, mg:1}},
-  {naam:'LAST STAND', dekking:[1, 2, 3, 4, 5, 7, 8, 9], lopers:[11, 14], max:[8, 10], raak:[0.85, 1.1], gran:[0.1, 0.15], granVanaf:1, helm:[0.5, 0.8], vest:[0.5, 0.75], schild:3, schildVanaf:1, mgVanaf:1,
-   extra:{2:{wagens:['truck', 'jeep']}, 3:{apache:1}, 4:{huey:1, wagens:['swat_truck']}, 5:{touw:1}, 6:{apache:1, wagens:['truck']}, 7:{touw:1, huey:1}, 8:{wagens:['swat_truck', 'jeep_zand']}, 9:{apache:1, huey:1}},
-   baas:{tekst:'GUN TRUCK + 2 APACHES', vracht:{mg:true, rijdt:true}, apache:2, wagens:['swat_truck'], lopers:8, max:9, mg:1}},
+  {naam:'OPEN LAND', plek:[9, 10], stijl:['natuur', 'natuur'], dekking:[[7, 8, 9, 4], [7, 8, 9, 3, 4, 5]], lopers:[8, 13], max:[5, 8], raak:[0.55, 0.8], gran:[0.06, 0.1], granVanaf:1,
+   helm:[0.25, 0.5], vest:[0.25, 0.5], schild:2, schildVanaf:3, mgVanaf:5,
+   extra:{2:{apache:1}, 3:{wagens:['jeep']}, 5:{wagens:['truck']}, 6:{huey:1}, 8:{touw:1, wagens:['swat_truck']}, 9:{apache:1}},
+   baas:{tekst:'GUN TRUCK + CHOPPER', vracht:{mg:true, rijdt:true}, huey:1, lopers:8, max:8, mg:1}},
+  {naam:'UNDERGROUND', plek:[11, 12], stijl:['binnen', 'binnen'], dekking:[[7, 8, 9, 3, 4, 5], [1, 2, 3, 4, 5, 7, 8, 9]], lopers:[10, 14], max:[7, 10], raak:[0.75, 1.05], gran:[0.1, 0.16], granVanaf:1,
+   helm:[0.5, 0.8], vest:[0.5, 0.8], schild:3, schildVanaf:1, mgVanaf:2, soorten:[2, 3, 4, 1],
+   baas:{tekst:'SWAT ASSAULT', lopers:12, schild:5, mg:1, max:10, vest:1, soorten:[2, 3, 4]}},
 ];
 const FRONT_Z = -4.4;                              // front line: dichterbij komen ze niet
 const MUUR = {z:-1.1, schaal:0.72};               // jouw eigen zandzakken om achter te bukken
@@ -712,7 +729,7 @@ AFRAME.registerComponent('zombies', {
     const p = this.vrijePlek(z.grp.position, wens);
     if (p){ p.bezet = z; ai.plek = p; ai.laag = (p.dekking && p.dekking.laag != null) ? p.dekking.laag : this.laagVan(p.p);
       ai.doel = p.p.clone().add(new this.T.Vector3((Math.random()-0.5)*0.2, 0, 0)); ai.staat = 'rennen'; }
-    else { ai.plek = null; ai.doel = new this.T.Vector3((Math.random()-0.5)*8, 0, -10 - Math.random()*8); ai.staat = 'rennen'; }
+    else { ai.plek = null; ai.doel = new this.T.Vector3((Math.random()-0.5)*2*(this.laan() || 4), 0, -10 - Math.random()*8); ai.staat = 'rennen'; }
   },
   zetHelm(z){
     const T = this.T, so = this.soorten[z.n], G = so.j.gezicht, kn = z.knoop.hoofd; if (!G || !kn) return;
@@ -862,7 +879,7 @@ AFRAME.registerComponent('zombies', {
           if (kanSchieten) this.vijandSchot(z, SCHOT_SCHADE, ai.rol === 'stormer' ? 0.2 : 0); ai.t = 0.9 + Math.random()*1.4;
           if (ai.rol === 'stormer' && ai.verder && Math.random() < 0.6){ ai.staat = 'storm'; ai.vt = 0.5; break; }
           if (Math.random() < 0.35){                                    // een stukje opzij schuifelen
-            const x = Math.max(-7, Math.min(7, g.position.x + (Math.random() < 0.5 ? -1 : 1)*(0.6 + Math.random()*0.8)));
+            const br = this.laan() || 7, x = Math.max(-br, Math.min(br, g.position.x + (Math.random() < 0.5 ? -1 : 1)*(0.6 + Math.random()*0.8)));
             ai.doel = new T.Vector3(x, 0, Math.min(FRONT_Z, g.position.z)); ai.staat = 'schuif'; ai.t = 0; }
         }
         break;
@@ -971,7 +988,9 @@ AFRAME.registerComponent('zombies', {
   /* ---------- voertuigen ---------- */
   wagen(naam, lading, opt){
     opt = opt || {}; const T = this.T, P = this.props[naam]; if (!P) return;
-    const links = Math.random() < 0.5, z = -(15.5 + Math.random()*2.5), x0 = (links ? -1 : 1)*(Math.abs(z)*0.72 + P.w*0.25), x1 = (Math.random()-0.5)*5;   // start achter de gevel
+    const st = this.el.components.stad, pk = st && PLEKKEN[st.i];
+    const links = Math.random() < 0.5, z = -(15.5 + Math.random()*2.5), x1 = (Math.random()-0.5)*5;
+    const x0 = (links ? -1 : 1)*(pk && pk.nieuw ? 31 + P.w*0.5 : Math.abs(z)*0.72 + P.w*0.25);   // start achter de gevel / achter het panorama
     const g = new T.Group(); g.position.set(x0, 0, z);
     const m = this.propMesh(naam, {mat:P.mat.clone()}); m.position.y = P.h/2; g.add(m);
     const naarRechts = x1 > x0, spiegel = (P.i.neus_kant === 'L') === naarRechts;
@@ -1168,8 +1187,13 @@ AFRAME.registerComponent('zombies', {
     this.waveBegin();
   },
   waveBegin(){
-    const W = this.wave = this.waveDef(), T = this.T;
-    if (W.mg && !this.mgNest) this.zetMgNest(MG_NEST.x, MG_NEST.z);
+    const W = this.wave = this.waveDef(), T = this.T, st = this.el.components.stad;
+    if (this.modus === 'lvl' && st){ const L = LEVELS[this.lvlNr - 1];
+      if (this.waveNr === 1) st.gaNaar(L.plek[0], L.plek[1]);
+      if (this.waveNr === 8){ this.leegOorlog(); st.gaNaar(L.plek[1], LEVELS[this.lvlNr] ? LEVELS[this.lvlNr].plek[0] : null); this.zetLevelDekking();
+        this.melding(PLEKKEN[L.plek[1]].naam, '#ffd060'); } }
+    else if (this.modus === 'demo' && st && st.i >= 5) st.gaNaar(0);                  // demo: de oude straat
+    if (W.mg && !this.mgNest){ const m = (this.plekNu() && this.plekNu().mg) || MG_NEST; this.zetMgNest(m.x, m.z); }
     if (this.modus === 'lvl' && this.waveNr >= 10) this.melding(`BOSS — ${W.tekst}`, '#ff3a3a');
     else this.melding(this.modus === 'lvl' ? `LEVEL ${this.lvlNr} · WAVE ${this.waveNr}` : `WAVE ${this.waveNr}`, '#ffffff');
     this.hudVuil = true;
@@ -1187,9 +1211,9 @@ AFRAME.registerComponent('zombies', {
     this.wq = q.sort((a, b) => a.t - b.t); this.wt = 0; this.waveKlaar = false;
   },
   loper(soort){
-    const T = this.T, x = (Math.random()-0.5)*9, z = -(24 + Math.random()*3);
+    const T = this.T, x = (Math.random()-0.5)*2*(this.laan() || 4.5), z = -(24 + Math.random()*3);
     if (soort === 'mg' && (!this.mgNest || (this.mgNest.plek.bezet && !this.mgNest.plek.bezet.dood))) soort = null;
-    return this.soldaat(new T.Vector3(x, 0, z), {soort:soort || 'dekking', schild:soort === 'schild'});
+    return this.soldaat(new T.Vector3(x, 0, z), {soort:soort || 'dekking', schild:soort === 'schild', soorten:this.wave && this.wave.soorten});
   },
   oorlogTick(s){
     if (!this.wave) return;
@@ -1442,7 +1466,7 @@ AFRAME.registerComponent('zombies', {
   stormDoel(z){
     const ai = z.ai; if (ai.plek && ai.plek.bezet === z) ai.plek.bezet = null; ai.plek = null;
     const geenDek = !(this.dekkingen || []).some(d => !this.mgNest || d !== this.mgNest.d);
-    ai.doel = new this.T.Vector3((Math.random()-0.5)*6.4, 0, FRONT_Z - Math.random()*1.4 - (geenDek ? Math.random()*5 : 0));
+    ai.doel = new this.T.Vector3((Math.random()-0.5)*2*Math.min(3.2, this.laan() || 3.2), 0, FRONT_Z - Math.random()*1.4 - (geenDek ? Math.random()*5 : 0));
     ai.staat = 'storm'; ai.vt = 0.6 + Math.random();
   },
   laagVan(p){ return p.z > -7.5 ? 0 : p.z > -13.5 ? 1 : 2; },
@@ -1913,13 +1937,21 @@ AFRAME.registerComponent('zombies', {
     if (w >= 10) return Object.assign({wagens:[], lopers:0, max:6, raak:mix(L.raak), gran:mix(L.gran), helm:mix(L.helm), vest:mix(L.vest)}, L.baas);
     const e = (L.extra && L.extra[w]) || {};
     return Object.assign({wagens:[], lopers:Math.round(mix(L.lopers)), max:Math.round(mix(L.max)), raak:mix(L.raak), gran:w >= (L.granVanaf || 99) ? mix(L.gran) : 0,
-      helm:mix(L.helm), vest:mix(L.vest), schild:w >= (L.schildVanaf || 99) ? (L.schild || 0) : 0, mg:L.mgVanaf && w >= L.mgVanaf ? 1 : 0}, e);
+      helm:mix(L.helm), vest:mix(L.vest), schild:w >= (L.schildVanaf || 99) ? (L.schild || 0) : 0, mg:L.mgVanaf && w >= L.mgVanaf ? 1 : 0, soorten:L.soorten}, e);
   },
+  plekNu(){   // de plek waar we nu (of zo meteen) spelen
+    if (this.modus !== 'lvl') return PLEKKEN[0];
+    const L = LEVELS[this.lvlNr - 1]; return PLEKKEN[L.plek[(this.waveNr || 1) >= 8 ? 1 : 0]];
+  },
+  laan(){ const p = this.plekNu(); return (p && p.breed) || null; },        // halve breedte van een smalle gang
   zetLevelDekking(){
     (this.dekkingen || []).forEach(d => { if (!this.mgNest || d !== this.mgNest.d) d.g.removeFromParent(); });
     this.dekkingen = this.mgNest ? [this.mgNest.d] : [];
-    const welke = this.modus === 'lvl' ? LEVELS[this.lvlNr - 1].dekking : DEKKING.map((_, i) => i);
-    welke.forEach(i => { const d = DEKKING[i]; this.zetDekking(d.soort, d.x, d.z, {schaal:d.schaal, laag:d.laag}); });
+    const L = this.modus === 'lvl' && LEVELS[this.lvlNr - 1], deel = (this.waveNr || 1) >= 8 ? 1 : 0;
+    const welke = L ? L.dekking[deel] : DEKKING.map((_, i) => i), stijl = L ? L.stijl[deel] : 'stad';
+    const pk = this.plekNu(), eigen = pk && pk.dekking;
+    welke.forEach(i => { const d = eigen ? Object.assign({}, DEKKING[i], eigen[i], {schaal:0.8}) : DEKKING[i], soort = stijl === 'natuur' ? 'zandzakken' : stijl === 'binnen' ? 'barrier' : d.soort;   // dekking past bij de plek
+      this.zetDekking(soort, d.x, d.z, {schaal:d.schaal, laag:d.laag}); });
   },
   levelKlaar(){   // level uit: volgend level, nieuwe dekking, +1 continue
     this.leegOorlog();
@@ -1965,7 +1997,7 @@ AFRAME.registerComponent('zombies', {
         tekst(x, naam, h*0.42, 100, '#ffffff'); tekst(x, aan ? 'gun hand ✓' : 'hand', h*0.8, 32, '#ffcfc0'); });
       k.position.set(x0, 1.6, -2.6); k.userData.hand = id; g.add(k); this.menuKnop[id] = k;
     });
-    [['lvl', 'START', 'levels 1 – 5', -0.55, '#2a7a2a'], ['demo', 'DEMO', '10 waves', 0.55, '#2a4a7a']].forEach(([m, naam, sub, x0, kl]) => {
+    [['lvl', 'START', '4 levels', -0.55, '#2a7a2a'], ['demo', 'DEMO', '10 waves', 0.55, '#2a4a7a']].forEach(([m, naam, sub, x0, kl]) => {
       const k = bord(0.9, 0.5, (x, w, h) => { x.fillStyle = kl; x.globalAlpha = 0.85; x.fillRect(0, 0, w, h); x.globalAlpha = 1;
         x.strokeStyle = '#e8f2ea'; x.lineWidth = 10; x.strokeRect(5, 5, w-10, h-10);
         tekst(x, naam, h*0.42, 100, '#ffffff'); tekst(x, sub, h*0.8, 32, '#e8f2ea'); });
