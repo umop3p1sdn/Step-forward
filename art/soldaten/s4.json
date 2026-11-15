@@ -2,288 +2,288 @@
  "bron": "soldaat_4.png",
  "maat": [
   1433,
-  2305
+  2288
  ],
  "delen": {
   "bekken": {
    "x": 453,
-   "y": 984,
+   "y": 975,
    "w": 523,
    "h": 237,
    "ouder": null,
    "scharnier": [
     700,
-    1221
+    1212
    ]
   },
   "bovenarmL": {
    "x": 206,
-   "y": 410,
+   "y": 401,
    "w": 285,
    "h": 394,
    "ouder": "borst",
    "scharnier": [
     479,
-    542
+    533
    ]
   },
   "onderarmL": {
    "x": 77,
-   "y": 700,
+   "y": 691,
    "w": 257,
    "h": 292,
    "ouder": "bovenarmL",
    "scharnier": [
     269,
-    753
+    744
    ]
   },
   "handL": {
    "x": 8,
-   "y": 916,
+   "y": 907,
    "w": 159,
    "h": 296,
    "ouder": "onderarmL",
    "scharnier": [
     124,
-    945
+    936
    ]
   },
   "bovenbeenL": {
    "x": 425,
-   "y": 1221,
+   "y": 1212,
    "w": 267,
    "h": 378,
    "ouder": "bekken",
    "scharnier": [
     576,
-    1221
+    1212
    ]
   },
   "onderbeenL": {
    "x": 393,
-   "y": 1594,
+   "y": 1585,
    "w": 252,
    "h": 553,
    "ouder": "bovenbeenL",
    "scharnier": [
     548,
-    1593
+    1584
    ]
   },
   "voetL": {
    "x": 327,
-   "y": 2134,
+   "y": 2125,
    "w": 246,
    "h": 156,
    "ouder": "onderbeenL",
    "scharnier": [
     488,
-    2139
+    2130
    ]
   },
   "bovenarmR": {
    "x": 924,
-   "y": 396,
+   "y": 387,
    "w": 294,
    "h": 426,
    "ouder": "borst",
    "scharnier": [
     940,
-    557
+    548
    ]
   },
   "onderarmR": {
    "x": 1084,
-   "y": 728,
+   "y": 719,
    "w": 270,
    "h": 256,
    "ouder": "bovenarmR",
    "scharnier": [
     1149,
-    772
+    763
    ]
   },
   "handR": {
    "x": 1263,
-   "y": 934,
+   "y": 925,
    "w": 163,
    "h": 283,
    "ouder": "onderarmR",
    "scharnier": [
     1309,
-    955
+    946
    ]
   },
   "bovenbeenR": {
    "x": 691,
-   "y": 1221,
+   "y": 1212,
    "w": 317,
    "h": 387,
    "ouder": "bekken",
    "scharnier": [
     825,
-    1221
+    1212
    ]
   },
   "onderbeenR": {
    "x": 793,
-   "y": 1584,
+   "y": 1575,
    "w": 281,
    "h": 562,
    "ouder": "bovenbeenR",
    "scharnier": [
     886,
-    1594
+    1585
    ]
   },
   "voetR": {
    "x": 893,
-   "y": 2139,
+   "y": 2130,
    "w": 209,
    "h": 158,
    "ouder": "onderbeenR",
    "scharnier": [
     963,
-    2140
+    2131
    ]
   },
   "borst": {
    "x": 474,
-   "y": 281,
+   "y": 272,
    "w": 478,
    "h": 448,
    "ouder": "buik",
    "scharnier": [
     705,
-    720
+    711
    ]
   },
   "buik": {
    "x": 471,
-   "y": 708,
+   "y": 699,
    "w": 486,
    "h": 289,
    "ouder": "bekken",
    "scharnier": [
     700,
-    992
+    983
    ]
   },
   "hoofd": {
    "x": 580,
-   "y": 9,
+   "y": 0,
    "w": 228,
    "h": 287,
    "ouder": "borst",
    "scharnier": [
     696,
-    290
+    281
    ]
   }
  },
  "naden": {
   "bovenarmL": {
    "x": 369,
-   "y": 432,
+   "y": 423,
    "w": 221,
    "h": 221,
    "ouder": "borst"
   },
   "onderarmL": {
    "x": 182,
-   "y": 666,
+   "y": 657,
    "w": 174,
    "h": 174,
    "ouder": "bovenarmL"
   },
   "handL": {
    "x": 66,
-   "y": 887,
+   "y": 878,
    "w": 116,
    "h": 116,
    "ouder": "onderarmL"
   },
   "bovenbeenL": {
    "x": 466,
-   "y": 1111,
+   "y": 1102,
    "w": 221,
    "h": 221,
    "ouder": "bekken"
   },
   "onderbeenL": {
    "x": 438,
-   "y": 1483,
+   "y": 1474,
    "w": 221,
    "h": 221,
    "ouder": "bovenbeenL"
   },
   "voetL": {
    "x": 407,
-   "y": 2058,
+   "y": 2049,
    "w": 162,
    "h": 162,
    "ouder": "onderbeenL"
   },
   "bovenarmR": {
    "x": 830,
-   "y": 447,
+   "y": 438,
    "w": 221,
    "h": 221,
    "ouder": "borst"
   },
   "onderarmR": {
    "x": 1052,
-   "y": 675,
+   "y": 666,
    "w": 194,
    "h": 194,
    "ouder": "bovenarmR"
   },
   "handR": {
    "x": 1258,
-   "y": 904,
+   "y": 895,
    "w": 102,
    "h": 102,
    "ouder": "onderarmR"
   },
   "bovenbeenR": {
    "x": 715,
-   "y": 1111,
+   "y": 1102,
    "w": 221,
    "h": 221,
    "ouder": "bekken"
   },
   "onderbeenR": {
    "x": 776,
-   "y": 1484,
+   "y": 1475,
    "w": 221,
    "h": 221,
    "ouder": "bovenbeenR"
   },
   "voetR": {
    "x": 890,
-   "y": 2067,
+   "y": 2058,
    "w": 146,
    "h": 146,
    "ouder": "onderbeenR"
   },
   "borst": {
    "x": 595,
-   "y": 610,
+   "y": 601,
    "w": 221,
    "h": 221,
    "ouder": "buik"
   },
   "buik": {
    "x": 590,
-   "y": 882,
+   "y": 873,
    "w": 221,
    "h": 221,
    "ouder": "bekken"
   },
   "hoofd": {
    "x": 592,
-   "y": 186,
+   "y": 177,
    "w": 208,
    "h": 208,
    "ouder": "borst"
@@ -317,5 +317,6 @@
  },
  "bril": false,
  "helm": null,
- "vest": true
+ "vest": true,
+ "lengte_genormaliseerd": true
 }
