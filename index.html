@@ -25,7 +25,7 @@
 
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v41";
+const VERSIE = "v41.1";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2346,8 +2346,10 @@ AFRAME.registerComponent('zombies', {
     }
     this.s3dSpeel(z, benen, boven);
     const ab = this.s3dAct(z, benen + '|benen'); if (ab) ab.timeScale = ts;
+    const rb = S.bot.spine_03;
+    if (rb && S.kickNu){ rb.rotation.x += S.kickNu; S.kickNu = 0; }               // terugslag van vorige beurt eerst terugzetten (niet optellen!)
     S.mixer.update(s);
-    if (S.kick > 0.01){ const b = S.bot.spine_03; if (b) b.rotation.x -= S.kick*0.18; S.kick *= Math.exp(-14*s); }
+    if (S.kick > 0.01 && rb){ S.kickNu = S.kick*0.18; rb.rotation.x -= S.kickNu; S.kick *= Math.exp(-14*s); }
     // hoogte: achter dekking gehurkt (en de rest wegzakken), anders zoals de 2D-soldaat
     const hurkDekking = ai.staat === 'dekking' ? 0.62 : 0;
     g.position.y = (ai.y0 || 0) - Math.max(0, zak - hurkDekking) + this.reactie(z, s);
