@@ -25,7 +25,7 @@
 
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v42.1";
+const VERSIE = "v43";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2331,7 +2331,7 @@ AFRAME.registerComponent('zombies', {
   },
   s3dLeef(z, s){
     const S = z.s3d, ai = z.ai || {}, g = z.grp, T = this.T;
-    const v = g.position.clone().sub(S.vorige); v.y = 0; S.vorige.copy(g.position);
+    const v = g.position.clone().sub(S.vorige); v.y = 0; S.vorige.copy(g.position); S.snelV = v.clone().multiplyScalar(1/Math.max(s, 1e-3));
     S.snel += (v.length()/Math.max(s, 1e-3) - S.snel)*Math.min(1, s*10);
     // kijkrichting: lopend naar waar hij heen gaat, mikkend naar jou
     let wil = 0; if (S.snel > 0.3 && !ai.mik && !ai.mikLopen) wil = Math.atan2(v.x, v.z) - g.rotation.y;
@@ -2364,18 +2364,89 @@ AFRAME.registerComponent('zombies', {
     g.rotation.x = (z.wankel > 0 ? -0.22*Math.min(1, z.wankel/WANKEL_TIJD) : 0) - 0.12*(z.flinch || 0);
     if (z.flinch) z.flinch = Math.max(0, z.flinch - s*7);
   },
-  s3dDood(z, s){
+  /* ================= RAGDOLL: zwaartekracht-pop na de treffer (verlet-deeltjes op de gewrichten) ================= */
+  RAG_P: ['pelvis','spine_03','Head','upperarm_l','lowerarm_l','hand_l','upperarm_r','lowerarm_r','hand_r','thigh_l','calf_l','foot_l','thigh_r','calf_r','foot_r'],
+  s3dStop(S){                           // animaties stoppen zonder terug te springen naar de T-houding
+    const bewaar = []; S.m.traverse(o => { if (o.isBone) bewaar.push([o, o.quaternion.clone(), o.position.clone()]); });
+    S.mixer.stopAllAction(); bewaar.forEach(([o, q, p]) => { o.quaternion.copy(q); o.position.copy(p); });
+  },
+  s3dRagStart(z, impulsen){
+    const S = z.s3d, T = this.T, N = this.RAG_P, idx = n => N.indexOf(n);
+    this.s3dStop(S); S.m.updateMatrixWorld(true);
+    const P = N.map(n => { const b = S.bot[n], p = b.getWorldPosition(new T.Vector3()); return {n, b, p, o:p.clone(), r:/Head/.test(n) ? 0.12 : /pelvis|spine/.test(n) ? 0.11 : /foot|hand/.test(n) ? 0.05 : 0.07}; });
+    const v0 = S.snelV ? S.snelV.clone().multiplyScalar(1/60) : new T.Vector3();
+    P.forEach(q => q.o.sub(v0));
+    (impulsen || []).forEach(([naam, v]) => { const i = idx(naam); if (i >= 0) P[i].o.addScaledVector(v, -1/60); });
+    const paren = [['pelvis','spine_03'],['spine_03','Head'],['spine_03','upperarm_l'],['upperarm_l','lowerarm_l'],['lowerarm_l','hand_l'],['spine_03','upperarm_r'],['upperarm_r','lowerarm_r'],['lowerarm_r','hand_r'],
+      ['pelvis','thigh_l'],['thigh_l','calf_l'],['calf_l','foot_l'],['pelvis','thigh_r'],['thigh_r','calf_r'],['calf_r','foot_r'],
+      ['upperarm_l','upperarm_r'],['thigh_l','thigh_r'],['pelvis','upperarm_l'],['pelvis','upperarm_r'],['spine_03','thigh_l'],['spine_03','thigh_r'],['upperarm_l','thigh_r'],['upperarm_r','thigh_l'],
+      ['Head','upperarm_l'],['Head','upperarm_r']];
+    const C = paren.map(([a, b]) => { const i = idx(a), j = idx(b); return [i, j, P[i].p.distanceTo(P[j].p)]; });
+    const knik = [['thigh_l','foot_l',0.55],['thigh_r','foot_r',0.55],['upperarm_l','hand_l',0.35],['upperarm_r','hand_r',0.35],['pelvis','Head',0.75]]   // niet helemaal dubbelklappen
+      .map(([a, b, f]) => { const i = idx(a), j = idx(b); return [i, j, P[i].p.distanceTo(P[j].p)*f]; });
+    // rusthouding vastleggen voor het draaien van de botten
+    const dirs = {upperarm_l:'lowerarm_l', lowerarm_l:'hand_l', upperarm_r:'lowerarm_r', lowerarm_r:'hand_r', thigh_l:'calf_l', calf_l:'foot_l', thigh_r:'calf_r', calf_r:'foot_r', neck_01:'Head'};
+    const rust = {};
+    const wq = b => b.getWorldQuaternion(new T.Quaternion());
+    Object.entries(dirs).forEach(([bn, kind]) => { const b = S.bot[bn]; if (!b) return; rust[bn] = {q:wq(b), d:P[idx(kind)].p.clone().sub(b.getWorldPosition(new T.Vector3())).normalize()}; });
+    const frame = (up, rechts) => { const u = up.clone().normalize(), r = rechts.clone().addScaledVector(u, -rechts.dot(u)).normalize(), f = new T.Vector3().crossVectors(r, u); return new T.Matrix4().makeBasis(r, u, f); };
+    const F = () => ({pel:frame(P[idx('spine_03')].p.clone().sub(P[0].p), P[idx('thigh_r')].p.clone().sub(P[idx('thigh_l')].p)),
+                      bor:frame(P[idx('Head')].p.clone().sub(P[1].p), P[idx('upperarm_r')].p.clone().sub(P[idx('upperarm_l')].p))});
+    const f0 = F();
+    rust.pelvis = {q:wq(S.bot.pelvis), B:new T.Quaternion().setFromRotationMatrix(f0.pel)};
+    rust.spine_03 = {q:wq(S.bot.spine_03), B:new T.Quaternion().setFromRotationMatrix(f0.bor)};
+    S.rag = {P, C, knik, rust, F, dirs, rustT:0, t:0};
+  },
+  s3dRagDuw(z, p, dir, kracht){         // treffer op een liggend lijk: dat stuk krijgt een duw
+    const R = z.s3d && z.s3d.rag; if (!R) return; let best = null, bd = 1e9;
+    R.P.forEach(q => { const d = q.p.distanceTo(p); if (d < bd){ bd = d; best = q; } });
+    if (best){ best.o.addScaledVector(dir, -kracht/60); R.rustT = 0; R.slaap = false; }
+  },
+  s3dRagTick(z, s){
+    const S = z.s3d, R = S.rag, T = this.T; if (!R || R.slaap) return;
+    R.t += s; const h = Math.min(s, 1/30), G = ZWAARTE*0.72*h*h, demp = 0.985;   // iets trager vallen: met gevoel
+    let beweging = 0;
+    for (const q of R.P){ const v = q.p.clone().sub(q.o).multiplyScalar(demp); q.o.copy(q.p); q.p.add(v); q.p.y -= G; beweging += v.lengthSq();
+      if (q.p.y < q.r){ q.p.y = q.r; const vx = q.p.x - q.o.x, vz = q.p.z - q.o.z; q.o.x = q.p.x - vx*0.55; q.o.z = q.p.z - vz*0.55; } }   // grond: wrijving
+    for (let it=0; it<8; it++){
+      for (const [i, j, L] of R.C){ const a = R.P[i].p, b = R.P[j].p, d = b.clone().sub(a), l = d.length() || 1e-6, f = (l - L)/l*0.5; a.addScaledVector(d, f); b.addScaledVector(d, -f); }
+      for (const [i, j, L] of R.knik){ const a = R.P[i].p, b = R.P[j].p, d = b.clone().sub(a), l = d.length() || 1e-6; if (l >= L) continue; const f = (l - L)/l*0.5; a.addScaledVector(d, f); b.addScaledVector(d, -f); }
+      for (const q of R.P) if (q.p.y < q.r) q.p.y = q.r;
+    }
+    // botten naar de deeltjes zetten (van boven naar beneden)
+    const zetWereld = (b, q) => { const pq = b.parent.getWorldQuaternion(new T.Quaternion()); b.quaternion.copy(pq.invert().multiply(q)); b.updateMatrixWorld(true); };
+    const pel = S.bot.pelvis, f = R.F();
+    pel.position.copy(pel.parent.worldToLocal(R.P[0].p.clone()));
+    const qp = new T.Quaternion().setFromRotationMatrix(f.pel).multiply(R.rust.pelvis.B.clone().invert()).multiply(R.rust.pelvis.q); zetWereld(pel, qp);
+    const qb = new T.Quaternion().setFromRotationMatrix(f.bor).multiply(R.rust.spine_03.B.clone().invert()).multiply(R.rust.spine_03.q); zetWereld(S.bot.spine_03, qb);
+    const N = this.RAG_P;
+    ['neck_01','upperarm_l','lowerarm_l','upperarm_r','lowerarm_r','thigh_l','calf_l','thigh_r','calf_r'].forEach(bn => { const b = S.bot[bn], r = R.rust[bn]; if (!b || !r) return;
+      const doel = R.P[N.indexOf(R.dirs[bn])].p, nu = doel.clone().sub(b.getWorldPosition(new T.Vector3())).normalize();
+      zetWereld(b, new T.Quaternion().setFromUnitVectors(r.d, nu).multiply(r.q)); });
+    if (beweging < 1e-7*R.P.length){ R.rustT += s; if (R.rustT > 1.2) R.slaap = true; } else R.rustT = 0;
+  },
+  s3dDood(z, s){                        // korte reactie (per wapen/raakplek anders), dan ragdoll
     const S = z.s3d, T = this.T, g = z.grp;
-    if (!S.valt){ S.valt = true; const o = S.doodOpt || {}, w = o.wapen;
-      const naam = (w === 'kanon' || w === 'explosie') ? 'Hit_Knockback' : (Math.random() < 0.5 ? 'Death01' : 'Death02');
-      S.mixer.stopAllAction(); const a = this.s3dAct(z, naam); if (a){ a.reset(); a.setLoop(T.LoopOnce, 1); a.clampWhenFinished = true; a.play(); }
-      if (w === 'explosie'){ const ik = this.el.camera.getWorldPosition(new T.Vector3()), weg = g.position.clone().sub(ik).setY(0).normalize();
-        S.vlieg = weg.multiplyScalar(3 + Math.random()*3).setY(3.5 + Math.random()*2.5); }
-      S.yaw = 0; S.m.rotation.y = Math.random() < 0.5 ? 0 : (Math.random()-0.5)*1.2;
-      g.rotation.set(0, g.rotation.y, 0); if ((z.ai && z.ai.y0 || 0) < 0.4) g.position.y = Math.max(0, g.position.y); }
-    if (S.vlieg){ S.vlieg.y -= ZWAARTE*s; g.position.addScaledVector(S.vlieg, s); if (g.position.y <= 0){ g.position.y = 0; S.vlieg = null; } }
-    else if (g.position.y > 0.01){ g.position.y = Math.max(0, g.position.y - s*6); }
-    if (z.val < 4) S.mixer.update(s);
+    if (!S.valt){ S.valt = true; const o = S.doodOpt || {}, w = o.wapen, ik = this.el.camera.getWorldPosition(new T.Vector3());
+      g.rotation.set(0, g.rotation.y, 0); S.m.rotation.z = 0;
+      const weg = g.position.clone().sub(ik).setY(0).normalize(), r = Math.random();
+      S.impuls = [];
+      if (w === 'explosie'){ const k = 3 + (o.dicht || 0.5)*5; ['pelvis','spine_03','Head','thigh_l','thigh_r'].forEach(n => S.impuls.push([n, weg.clone().multiplyScalar(k*(0.8 + Math.random()*0.5)).setY(k*0.9)])); S.wacht = 0; }
+      else if (w === 'kanon'){ S.wacht = 0.3 + Math.random()*0.3; S.schok = true; S.impuls.push(['spine_03', weg.clone().multiplyScalar(1.6)], ['calf_l', weg.clone().multiplyScalar(-0.8)], ['calf_r', weg.clone().multiplyScalar(-0.8)]); }
+      else if (o.hoofd){ S.wacht = 0; S.impuls.push(['Head', weg.clone().multiplyScalar(1.4)], ['calf_l', weg.clone().multiplyScalar(-0.9)], ['calf_r', weg.clone().multiplyScalar(-0.9)]); }   // touwtjes doorgeknipt: knieën knikken
+      else { S.wacht = 0.12 + Math.random()*0.3;
+        const naam = r < 0.35 ? 'Death01' : r < 0.7 ? 'Death02' : 'Hit_Stomach'; this.s3dStop(S); const a = this.s3dAct(z, naam); if (a){ a.reset(); a.setLoop(T.LoopOnce, 1); a.clampWhenFinished = true; a.play(); }
+        const zij = new T.Vector3(-weg.z, 0, weg.x).multiplyScalar((Math.random() - 0.5)*1.6);
+        S.impuls.push(['spine_03', weg.clone().multiplyScalar(0.9 + Math.random()).add(zij)], ['Head', weg.clone().multiplyScalar(0.6)]);
+        if (S.snel > 1.5) S.impuls.push(['spine_03', S.snelV ? S.snelV.clone().multiplyScalar(0.6) : new T.Vector3()]); }
+      if (S.schok){ this.s3dStop(S); const a = this.s3dAct(z, 'Hit_Chest'); if (a){ a.reset(); a.setLoop(T.LoopRepeat, 9); a.timeScale = 2.2; a.play(); } }
+    }
+    if (S.wacht > 0){ S.wacht -= s; S.mixer.update(s);
+      if (S.schok) g.position.addScaledVector(new T.Vector3(Math.random()-0.5, 0, Math.random()-0.5), 0.01);
+      if (S.wacht <= 0) this.s3dRagStart(z, S.impuls); }
+    else if (!S.rag) this.s3dRagStart(z, S.impuls);
+    else this.s3dRagTick(z, s);
+    if (g.position.y > 0.01 && !(z.ai && (z.ai.y0 || 0) > 0.4)) g.position.y = Math.max(0, g.position.y - s*6);
     this.s3dSpuitTick(z, s);
   },
   /* ================= KNIPPEN in de 3D-pop: gaten, ledematen op elke plek door, hoofd stap voor stap ================= */
@@ -2581,7 +2652,7 @@ AFRAME.registerComponent('zombies', {
       if (deel === 'hoofd' || deel === 'nek') this.s3dHoofd(z, p, dir, wapen);
       else if (/arm|been|hand|voet/.test(deel) && knipt) this.s3dDoorknip(z, bn, p, dir, 1);
       else this.s3dGat(z, bn, p, dir, zwaar ? 0.09 : groteLaser ? 0.08 : laser ? 0.045 : 0.035, groteLaser ? 'door' : laser ? 'gloei' : 'vlees');
-      if (S.vlieg == null && !zwaar) S.duw = (S.duw || 0) + 1;
+      this.s3dRagDuw(z, p, dir, zwaar ? 4 : groteLaser ? 2.5 : 1.4);
       return; }
     // ---- hoofd en nek
     if (deel === 'hoofd' || deel === 'nek'){
