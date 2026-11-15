@@ -25,7 +25,7 @@
 
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v33";
+const VERSIE = "v33.1";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -259,13 +259,13 @@ const LEVELS = [
   {naam:'JEEPS', dekking:[7, 9], lopers:[7, 12], max:[4, 6], raak:[0.4, 0.55], gran:[0.04, 0.06], granVanaf:5, helm:[0.05, 0.2], vest:[0.05, 0.2], schild:1, schildVanaf:7,
    extra:{3:{wagens:['jeep']}, 6:{wagens:['jeep_zand']}, 8:{wagens:['jeep']}},
    baas:{tekst:'CHOPPER', apache:1, lopers:8, max:6}},
-  {naam:'CHOPPER ALLEY', dekking:[7, 8, 9, 4, 5], lopers:[8, 12], max:[5, 7], raak:[0.5, 0.7], gran:[0.05, 0.1], granVanaf:1, helm:[0.2, 0.4], vest:[0.2, 0.4], schild:1, schildVanaf:4,
+  {naam:'CHOPPER ALLEY', dekking:[7, 8, 9, 4], lopers:[8, 12], max:[5, 7], raak:[0.5, 0.7], gran:[0.05, 0.1], granVanaf:1, helm:[0.2, 0.4], vest:[0.2, 0.4], schild:1, schildVanaf:4,
    extra:{2:{wagens:['jeep']}, 4:{apache:1}, 5:{wagens:['truck']}, 7:{apache:1}, 8:{wagens:['jeep_snorkel']}},
    baas:{tekst:'2 CHOPPERS WITH GUNNERS', huey:2, lopers:8, max:7}},
-  {naam:'HEAVY CONVOY', dekking:[7, 8, 9, 3, 4, 5, 6, 1], lopers:[9, 13], max:[6, 8], raak:[0.65, 0.85], gran:[0.08, 0.12], granVanaf:1, helm:[0.35, 0.55], vest:[0.35, 0.55], schild:2, schildVanaf:3, mgVanaf:3,
+  {naam:'HEAVY CONVOY', dekking:[7, 8, 9, 3, 4, 5], lopers:[9, 13], max:[6, 8], raak:[0.65, 0.85], gran:[0.08, 0.12], granVanaf:1, helm:[0.35, 0.55], vest:[0.35, 0.55], schild:2, schildVanaf:3, mgVanaf:3,
    extra:{2:{wagens:['truck']}, 3:{huey:1}, 4:{wagens:['swat_truck']}, 5:{touw:1}, 6:{huey:1}, 7:{wagens:['jeep']}, 8:{huey:1}, 9:{wagens:['truck'], touw:1}},
    baas:{tekst:'GUN TRUCK', vracht:{mg:true}, lopers:8, max:7, mg:1}},
-  {naam:'LAST STAND', dekking:[0, 1, 2, 3, 4, 5, 6, 7, 8, 9], lopers:[11, 14], max:[8, 10], raak:[0.85, 1.1], gran:[0.1, 0.15], granVanaf:1, helm:[0.5, 0.8], vest:[0.5, 0.75], schild:3, schildVanaf:1, mgVanaf:1,
+  {naam:'LAST STAND', dekking:[1, 2, 3, 4, 5, 7, 8, 9], lopers:[11, 14], max:[8, 10], raak:[0.85, 1.1], gran:[0.1, 0.15], granVanaf:1, helm:[0.5, 0.8], vest:[0.5, 0.75], schild:3, schildVanaf:1, mgVanaf:1,
    extra:{2:{wagens:['truck', 'jeep']}, 3:{apache:1}, 4:{huey:1, wagens:['swat_truck']}, 5:{touw:1}, 6:{apache:1, wagens:['truck']}, 7:{touw:1, huey:1}, 8:{wagens:['swat_truck', 'jeep_zand']}, 9:{apache:1, huey:1}},
    baas:{tekst:'GUN TRUCK + 2 APACHES', vracht:{mg:true, rijdt:true}, apache:2, wagens:['swat_truck'], lopers:8, max:9, mg:1}},
 ];
