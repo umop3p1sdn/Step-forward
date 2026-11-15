@@ -316,5 +316,6 @@
   ]
  },
  "bril": true,
- "helm": 236
+ "helm": 236,
+ "vest": true
 }
