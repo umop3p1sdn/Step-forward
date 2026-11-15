@@ -25,7 +25,7 @@
 
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v26";
+const VERSIE = "v27";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -241,7 +241,8 @@ AFRAME.registerComponent('stad', {
 </script>
 <script>
 /* ================= ZOMBIES — REGELKNOPPEN ================= */
-const ZOMBIE_SOORTEN = [1, 3, 4, 5, 6, 7, 8];     // welke zN.json in art/zombies staan
+const VIJAND_SOORTEN = [1, 2, 3, 4, 5];          // soldaten: sN.json in art/soldaten (de zombies staan nog in art/zombies)
+const VIJAND_MAP = 'art/soldaten/s';
 const ZLENGTE   = 1.72;   // hoe lang een zombie is (m)
 const ZTEGELIJK = 14;     // maximaal zoveel tegelijk in beeld
 const ZAFSTAND  = [15, 24];  // waar ze verschijnen (m vóór je)
@@ -265,7 +266,8 @@ const HAP_MAAT   = {kanon:0.075, auto:0.05};                // straal van de hap
 const HAP_MAX    = 6;                                       // hooguit zoveel happen per zombie
 const STRUIKEL_KANS = {kanon:0.45, pistool:0.06};           // kans dat een romptreffer hem laat struikelen
 const STRUIKEL_VAL  = 0.4;                                  // ...en dat hij dan ook echt valt (en weer opstaat)
-const VEST_SOORTEN = [6, 7, 8];                             // zombies met kogelvest: borst en buik houden kogels tegen (laser niet)
+const HELM_LOS = 0.6, HELM_TREFFERS = [2, 4];               // helm: zoveel kans dat hij eraf kan, na zoveel treffers (kanon: meteen)
+const ZIJ_KANS = 0.75, ZIJ_SNEL = [1.1, 2.0], ZIJ_DUUR = [0.5, 1.6], ZIJ_PAUZE = [0.4, 1.6];   // schuifelen links/rechts
 const RING = [0.25, 0.5, 0.75];                             // explosie: grenzen van ring 1/2/3 als deel van de straal (daarbuiten tot de straal: ring 4, drukgolf)
 const VONK_N = 160;
 const STRALEN = ['dun', 'normaal', 'puls', 'sproei', 'boog'];   // 5 soorten bloedstraal uit hoofd en nek
@@ -277,7 +279,7 @@ const RAG_DELEN = ['buik','borst','nek','bovenbeenL','bovenbeenR','onderbeenL','
                    'bovenarmL','bovenarmR','onderarmL','onderarmR','handL','handR'];                                    // been eraf: zolang spartelt hij op straat voor hij stil ligt (s)
 const HALF_KANS  = 0.35;                                  // explosie: kans dat het halve lijf wegvliegt (met darmen)                                    // hoe hard een dode omvalt
 const LOOP_SCHAAL = 1.0;  // alle loopsnelheden ×
-const LOOPSOORTEN = [['schuifel',30], ['loop',25], ['mank',17], ['sleep',8], ['ren',20]];   // soort, kans
+const LOOPSOORTEN = [['loop',55], ['ren',45]];   // soldaten: lopen of rennen (mank komt van een kogel in het been)
 const LOOPJES = {   // tempo = cycli/s (2 stappen), hoeken in graden, bob in m — gebaseerd op menselijke looprcyclus
   schuifel:{tempo:[0.50,0.70], heupF:[10,17], heupE:[3,7],   knieZ:[18,32],  knieS:[6,12],  drop:[4,8], draai:[3,7],  bob:[0.012,0.025], leun:[10,28], steun:0.62},
   loop:    {tempo:[0.80,0.95], heupF:[20,28], heupE:[8,12],  knieZ:[48,62],  knieS:[12,20], drop:[3,6], draai:[5,9],  bob:[0.025,0.04],  leun:[3,12],  steun:0.60},
@@ -430,11 +432,11 @@ AFRAME.registerComponent('zombies', {
     const T = this.T, tl = new T.TextureLoader();
     const plaat = src => new Promise(ok => {
       const im = new Image(); im.onload = () => ok(im); im.onerror = () => ok(null); im.src = src; });
-    await Promise.all(ZOMBIE_SOORTEN.map(async n => {
-      const j = await (await fetch(`art/zombies/z${n}.json`)).json();
+    await Promise.all(VIJAND_SOORTEN.map(async n => {
+      const j = await (await fetch(`${VIJAND_MAP}${n}.json`)).json();
       const s = ZLENGTE / j.maat[1], soort = {j, s, delen:{}};
       await Promise.all(Object.entries(j.delen).map(async ([d, info]) => {
-        const im = await plaat(`art/zombies/z${n}_${d}.png`); if (!im) return;
+        const im = await plaat(`${VIJAND_MAP}${n}_${d}.png`); if (!im) return;
         const t = new T.Texture(im); t.colorSpace = T.SRGBColorSpace; t.needsUpdate = true;
         // alfa bewaren (halve maat) voor de trefproef: alleen raak als je echt op de zombie mikt
         const c = document.createElement('canvas'), w = Math.max(1, im.width>>1), h = Math.max(1, im.height>>1);
@@ -446,7 +448,7 @@ AFRAME.registerComponent('zombies', {
       }));
       soort.naden = {};
       await Promise.all(Object.entries(j.naden || {}).map(async ([k, info]) => {
-        const im = await plaat(`art/zombies/z${n}_naad_${k}.png`); if (!im) return;
+        const im = await plaat(`${VIJAND_MAP}${n}_naad_${k}.png`); if (!im) return;
         const t = new T.Texture(im); t.colorSpace = T.SRGBColorSpace; t.needsUpdate = true;
         soort.naden[k] = {info, mat:new T.MeshBasicMaterial({map:t, alphaTest:0.35, side:T.DoubleSide, clippingPlanes:this.klip}),
                           geo:new T.PlaneGeometry(info.w*s, info.h*s)};
@@ -572,23 +574,65 @@ AFRAME.registerComponent('zombies', {
   },
   /* ================= KOGELVEST ================= */
   vestRaak(z, deel, p, dir, wapen){
-    if (!VEST_SOORTEN.includes(z.n) || !/borst|buik/.test(deel) || wapen === 'laser' || wapen === 'explosie') return false;
+    if (!this.soorten[z.n].j.vest || !/borst|buik/.test(deel) || wapen === 'laser' || wapen === 'explosie') return false;
     if (deel === 'borst' && this.hoofdZone(z, 'borst', p)) return false;          // nek zit niet onder het vest
     const T = this.T, d = new T.Vector3(dir.x, 0, dir.z).normalize();
-    for (let k=0;k<(wapen === 'kanon' ? 26 : 14);k++){                           // vonken spatten terug, naar je toe
-      const i = this.vI; this.vI = (this.vI+1) % VONK_N, sp = 1.5 + Math.random()*3.5;
-      this.vPos[i*3] = p.x; this.vPos[i*3+1] = p.y; this.vPos[i*3+2] = p.z + 0.02;
-      this.vVel[i*3] = -d.x*sp + (Math.random()-0.5)*3; this.vVel[i*3+1] = Math.random()*2.5; this.vVel[i*3+2] = -d.z*sp + (Math.random()-0.5)*3; this.vLeef[i] = 0.25 + Math.random()*0.25; }
-    this.geluid((A,n) => { this.speel(A, this.ruisBuf(A, 0.05, 6), 'highpass', 3000, 0.8);
-      const o = A.createOscillator(), g = A.createGain(); o.frequency.setValueAtTime(2600 + Math.random()*900, n); o.frequency.exponentialRampToValueAtTime(1400, n+0.15);
-      g.gain.setValueAtTime(0.25, n); g.gain.exponentialRampToValueAtTime(0.001, n+0.18); o.connect(g).connect(this.uit); o.start(n); o.stop(n+0.2); });
-    if (this.laatsteHand) setTimeout(() => this.tril(this.laatsteHand, 0.5, 25), 40);
+    this.ketst(p, dir, wapen === 'kanon' ? 26 : 14);
     if (z.dood){ this.lijkDuw(z, dir, wapen === 'kanon' ? 1 : 0.4); return true; }
     z.stop = 0.03; z.grp.position.addScaledVector(d, wapen === 'kanon' ? 0.1 : 0.04); z.flinch = 1;
     this.schok(z.knoop[deel], wapen === 'kanon' ? 0.6 : 0.3);
     if (wapen === 'kanon' && Math.random() < STRUIKEL_KANS.kanon) this.struikel(z, dir, 0.3);
     else this.wankel(z, dir, wapen === 'kanon' ? 1.4 : wapen === 'pistool' ? 0.5 : 0.25);
     return true;
+  },
+  ketst(p, dir, n){   // kogel ketst af: vonken naar je toe en een metalen ping
+    const d = new this.T.Vector3(dir.x, 0, dir.z).normalize();
+    for (let k=0;k<n;k++){
+      const i = this.vI; this.vI = (this.vI+1) % VONK_N, sp = 1.5 + Math.random()*3.5;
+      this.vPos[i*3] = p.x; this.vPos[i*3+1] = p.y; this.vPos[i*3+2] = p.z + 0.02;
+      this.vVel[i*3] = -d.x*sp + (Math.random()-0.5)*3; this.vVel[i*3+1] = Math.random()*2.5; this.vVel[i*3+2] = -d.z*sp + (Math.random()-0.5)*3; this.vLeef[i] = 0.25 + Math.random()*0.25; }
+    this.geluid((A,t) => { this.speel(A, this.ruisBuf(A, 0.05, 6), 'highpass', 3000, 0.8);
+      const o = A.createOscillator(), g = A.createGain(); o.frequency.setValueAtTime(2600 + Math.random()*900, t); o.frequency.exponentialRampToValueAtTime(1400, t+0.15);
+      g.gain.setValueAtTime(0.25, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.18); o.connect(g).connect(this.uit); o.start(t); o.stop(t+0.2); });
+    if (this.laatsteHand) setTimeout(() => this.tril(this.laatsteHand, 0.5, 25), 40);
+  },
+  /* ---------- helm: ketst af; bij sommigen vliegt hij er na een paar treffers af ---------- */
+  helmRaak(z, p, dir, wapen){
+    const j = this.soorten[z.n].j; if (j.helm == null || z.helmAf || wapen === 'laser' || wapen === 'explosie') return false;
+    const I = this.hoofdInfo(z); if (!I) return false;
+    const [, py] = this.naarPx(I, p); if (py > j.helm + 4) return false;           // onder de rand: gezicht, gewoon raak
+    if (z.helmLos === undefined){ z.helmLos = Math.random() < HELM_LOS; z.helmMax = HELM_TREFFERS[0] + (Math.random()*(HELM_TREFFERS[1] - HELM_TREFFERS[0] + 1)|0); }
+    z.helmT = (z.helmT || 0) + 1;
+    this.ketst(p, dir, wapen === 'kanon' ? 30 : 16);
+    if (z.dood){ this.lijkDuw(z, dir, 0.4); }
+    else { this.reageer(z, 'nek', wapen === 'kanon' ? 1.4 : 0.8); z.stop = 0.03; }
+    if (z.helmLos && (wapen === 'kanon' || z.helmT >= z.helmMax)) this.helmAf(z, I, dir);
+    return true;
+  },
+  helmAf(z, I, dir){
+    const T = this.T, j = this.soorten[z.n].j, G = I.G, fw = I.fw, y = j.helm + 2, x = I.x;
+    const ys = y + 0.09*I.H, b0 = G.breed[0] + fw*0.06, b1 = G.breed[1] - fw*0.06;          // oorstukken aan de zijkant gaan mee
+    const pol = [[-20, -20], [I.W + 20, -20], [I.W + 20, ys], [b1, ys], [b1, y], [b0, y], [b0, ys], [-20, ys]];
+    const helm = this.vliegPoly(I, pol, new T.Vector3(dir.x*0.6, 0, dir.z*0.6), 1.3);      // helm vliegt eraf
+    const lv = this.los[this.los.length - 1]; if (lv && lv.o === helm) lv.v.y += 1.5;
+    const px = x.getImageData(Math.round(G.neus[0] + fw*0.2), Math.round(G.neus[1] + 0.03*I.H), 1, 1).data;   // huid van de wang
+    this.knipPoly(I, pol);
+    // kale kop met stoppelhaar in de vorm waar de helm zat
+    const cx = G.neus[0], rx = fw*0.56, ry = fw*0.6;
+    x.save(); this.pad(x, pol); x.clip();
+    const kop = () => { x.beginPath(); x.ellipse(cx, y, rx, ry, 0, Math.PI, 0); x.lineTo(cx + rx*0.97, ys); x.lineTo(cx - rx*0.97, ys); x.closePath(); };
+    const gr = x.createRadialGradient(cx - rx*0.15, y - ry*0.5, 3, cx, y - ry*0.2, rx*1.15);
+    gr.addColorStop(0, `rgb(${Math.min(255, px[0]+30)},${Math.min(255, px[1]+26)},${Math.min(255, px[2]+22)})`);
+    gr.addColorStop(1, `rgb(${px[0]*0.85|0},${px[1]*0.8|0},${px[2]*0.78|0})`);
+    x.fillStyle = gr; kop(); x.fill(); x.clip();
+    for (let i=0;i<2600;i++){ const hx = cx + (Math.random()*2 - 1)*rx, hy = y - ry + Math.random()*(ys - y + ry);
+      const voor = hy > y - ry*0.18 && Math.abs(hx - cx) < rx*0.7, slaap = hy > y + (ys - y)*0.3;
+      if (voor || slaap) continue;                                                           // voorhoofd en slapen: huid
+      x.fillStyle = `rgba(${35+Math.random()*30|0},${26+Math.random()*20|0},${18+Math.random()*14|0},0.6)`; x.fillRect(hx, hy, 1.6, 1.6); }
+    x.fillStyle = 'rgba(130,45,45,0.3)'; x.fillRect(cx - rx*0.75, y - 3, rx*1.5, 4);         // rode afdruk van de rand
+    x.restore();
+    this.alfaBij(I.m); z.helmAf = true;
+    this.geluid(A => this.speel(A, this.ruisBuf(A, 0.25, 3), 'bandpass', 1800, 0.6));
   },
   vonkTick(s){
     for (let i=0;i<VONK_N;i++){ if (this.vLeef[i] <= 0) continue; this.vLeef[i] -= s; const j = i*3;
@@ -1036,6 +1080,7 @@ AFRAME.registerComponent('zombies', {
     if (this.vestRaak(z, deel, p, dir, wapen)) return;                    // kogelvest: vonken, geen schade
     this.inslag(z, deel, p, dir, wapen);
     this.spat(p, dir, 26);
+    if (deel === 'hoofd' && this.helmRaak(z, p, dir, wapen)) return;               // helm: ketst af
     if (deel === 'hoofd' || (deel === 'borst' && this.hoofdZone(z, 'borst', p))){   // hoofd en nek: 25 manieren
       if (this.hoofdRaak(z, deel, p, dir, wapen)) return;
       if (deel === 'hoofd') return;
@@ -1124,13 +1169,13 @@ AFRAME.registerComponent('zombies', {
     const B = LOOPJES[soort];
     const L = {soort,
       tempo:r(B.tempo), heupF:r(B.heupF), heupE:r(B.heupE), knieZ:r(B.knieZ), knieS:r(B.knieS),
-      drop:r(B.drop), draai:r(B.draai), bob:r(B.bob), leun:r(B.leun),
+      drop:r(B.drop), draai:r(B.draai), bob:r(B.bob), leun:Math.min(soort === 'ren' ? 14 : 6, r(B.leun)),
       steun: B.steun,                                   // deel van de cyclus dat de voet op de grond staat
-      nek:r([4,26]), kantel:(Math.random()-0.5)*30, wiebel:r([0.02,0.12]),
+      nek:r([0,8]), kantel:(Math.random()-0.5)*10, wiebel:r([0.01,0.04]),
       zwak:null, zwakK:1, sleep:false, armen:{}};
     if (soort === 'mank' || soort === 'sleep'){ L.zwak = Math.random() < 0.5 ? 'L' : 'R'; L.zwakK = soort === 'sleep' ? 0.35 : r([0.35,0.6]); L.sleep = soort === 'sleep'; }
     // armen: per arm een stijl
-    const armStijl = () => soort === 'ren' ? kies([['pomp',6],['reik',4]]) : kies([['zwaai',4],['reik',4],['slap',3],['maai',2]]);
+    const armStijl = () => soort === 'ren' ? 'pomp' : 'zwaai';                      // soldaten: geen zombie-armen
     const a1 = armStijl(); L.armen.L = a1; L.armen.R = Math.random() < 0.6 ? a1 : armStijl();
     L.armF = {L:r([0.7,1.3]), R:r([0.7,1.3])};
     // snelheid volgt uit paslengte × tempo, zodat de voeten niet glijden
@@ -1706,7 +1751,7 @@ AFRAME.registerComponent('zombies', {
       else if (hs.schedel) v = r < 0.5 ? 3 : (Z.kant === 'L' ? 4 : 5);
       else v = r < 0.4 ? 1 : r < 0.75 ? 2 : 3;
     } else if (Z.zone === 'voorhoofd') v = zwaar ? [6, 22, 23][Math.random()*3|0] : (r < 0.5 ? 1 : 16);
-    else if (Z.zone === 'oog') v = zwaar ? [13, 22, 14][Math.random()*3|0] : (r < 0.5 ? 15 : 9);
+    else if (Z.zone === 'oog') v = zwaar ? [13, 22, 14][Math.random()*3|0] : (r < 0.5 || this.soorten[z.n].j.bril ? 15 : 9);
     else if (Z.zone === 'neus') v = zwaar ? (r < 0.5 ? 14 : 23) : (hs.gezicht ? 14 : 10);
     else if (Z.zone === 'wang') v = zwaar ? (r < 0.5 ? 13 : 24) : (hs.gezicht ? 13 : 8);
     else if (Z.zone === 'mond') v = zwaar ? [25, 12, 24][Math.random()*3|0] : hs.kaak === 'heel' ? 11 : hs.kaak === 'hangt' ? 12 : 14;
@@ -2347,7 +2392,24 @@ AFRAME.registerComponent('zombies', {
             const zw = (Math.sin(z.t*0.7 + z.n*1.3)*0.75 + Math.sin(z.t*1.9)*0.25) * SCHEDEL_DWAAL*Math.PI/180;
             naar.applyAxisAngle(new T.Vector3(0,1,0), zw);
           }
-          g.position.addScaledVector(naar, v*s*((z.loop && z.loop.stuw) || 1));
+          // soldaten schuifelen links en rechts (binnen de ±VOORHOEK voor je)
+          let vooruit = 1;
+          if (!z.halfdood){
+            z.zijT = (z.zijT === undefined ? Math.random()*ZIJ_PAUZE[1] : z.zijT) - s;
+            if (z.zijT <= 0){
+              const r = (a) => a[0] + Math.random()*(a[1] - a[0]);
+              z.zijV = Math.random() < ZIJ_KANS ? (Math.random() < 0.5 ? -1 : 1)*r(ZIJ_SNEL)*(z.loop && z.loop.soort === 'ren' ? 1.3 : 1) : 0;
+              z.zijD = r(ZIJ_DUUR); z.zijT = z.zijD + r(ZIJ_PAUZE);
+            }
+            if (z.zijD > 0 && z.zijV){
+              z.zijD -= s; vooruit = 0.35;
+              const zij = new T.Vector3(-naar.z, 0, naar.x), oud = g.position.clone();
+              g.position.addScaledVector(zij, z.zijV*s);
+              const ik = this.el.camera.getWorldPosition(new T.Vector3()), rel = g.position.clone().sub(ik);
+              if (Math.abs(Math.atan2(rel.x, -rel.z))*180/Math.PI > VOORHOEK - 4){ g.position.copy(oud); z.zijV = -z.zijV; }   // niet buiten beeld: andere kant op
+            }
+          }
+          g.position.addScaledVector(naar, v*s*vooruit*((z.loop && z.loop.stuw) || 1));
         }
         const f = z.t * (2.2 + v*2), k = z.knoop;
         if (z.kruip && (z.kruipT || 0) < KRUIP_VAL){
