@@ -1,0 +1,321 @@
+{
+ "bron": "soldaat_5.png",
+ "maat": [
+  1664,
+  2496
+ ],
+ "delen": {
+  "bekken": {
+   "x": 528,
+   "y": 1067,
+   "w": 595,
+   "h": 346,
+   "ouder": null,
+   "scharnier": [
+    824,
+    1250
+   ]
+  },
+  "buik": {
+   "x": 625,
+   "y": 850,
+   "w": 402,
+   "h": 232,
+   "ouder": "bekken",
+   "scharnier": [
+    824,
+    1075
+   ]
+  },
+  "borst": {
+   "x": 612,
+   "y": 466,
+   "w": 436,
+   "h": 399,
+   "ouder": "buik",
+   "scharnier": [
+    826,
+    859
+   ]
+  },
+  "hoofd": {
+   "x": 725,
+   "y": 189,
+   "w": 211,
+   "h": 297,
+   "ouder": "borst",
+   "scharnier": [
+    829,
+    475
+   ]
+  },
+  "bovenarmL": {
+   "x": 354,
+   "y": 525,
+   "w": 303,
+   "h": 400,
+   "ouder": "borst",
+   "scharnier": [
+    625,
+    653
+   ]
+  },
+  "onderarmL": {
+   "x": 224,
+   "y": 817,
+   "w": 263,
+   "h": 256,
+   "ouder": "bovenarmL",
+   "scharnier": [
+    417,
+    875
+   ]
+  },
+  "handL": {
+   "x": 71,
+   "y": 1005,
+   "w": 227,
+   "h": 219,
+   "ouder": "onderarmL",
+   "scharnier": [
+    258,
+    1039
+   ]
+  },
+  "bovenbeenL": {
+   "x": 501,
+   "y": 1401,
+   "w": 311,
+   "h": 312,
+   "ouder": "bekken",
+   "scharnier": [
+    672,
+    1250
+   ]
+  },
+  "onderbeenL": {
+   "x": 456,
+   "y": 1692,
+   "w": 264,
+   "h": 316,
+   "ouder": "bovenbeenL",
+   "scharnier": [
+    620,
+    1699
+   ]
+  },
+  "voetL": {
+   "x": 399,
+   "y": 1993,
+   "w": 228,
+   "h": 340,
+   "ouder": "onderbeenL",
+   "scharnier": [
+    564,
+    1996
+   ]
+  },
+  "bovenarmR": {
+   "x": 1004,
+   "y": 526,
+   "w": 301,
+   "h": 397,
+   "ouder": "borst",
+   "scharnier": [
+    1034,
+    654
+   ]
+  },
+  "onderarmR": {
+   "x": 1178,
+   "y": 836,
+   "w": 268,
+   "h": 226,
+   "ouder": "bovenarmR",
+   "scharnier": [
+    1241,
+    878
+   ]
+  },
+  "handR": {
+   "x": 1364,
+   "y": 999,
+   "w": 246,
+   "h": 217,
+   "ouder": "onderarmR",
+   "scharnier": [
+    1405,
+    1031
+   ]
+  },
+  "bovenbeenR": {
+   "x": 836,
+   "y": 1396,
+   "w": 321,
+   "h": 301,
+   "ouder": "bekken",
+   "scharnier": [
+    977,
+    1250
+   ]
+  },
+  "onderbeenR": {
+   "x": 935,
+   "y": 1681,
+   "w": 266,
+   "h": 330,
+   "ouder": "bovenbeenR",
+   "scharnier": [
+    1037,
+    1685
+   ]
+  },
+  "voetR": {
+   "x": 1027,
+   "y": 1990,
+   "w": 231,
+   "h": 339,
+   "ouder": "onderbeenR",
+   "scharnier": [
+    1100,
+    1994
+   ]
+  }
+ },
+ "naden": {
+  "buik": {
+   "x": 714,
+   "y": 965,
+   "w": 221,
+   "h": 221,
+   "ouder": "bekken"
+  },
+  "borst": {
+   "x": 716,
+   "y": 749,
+   "w": 221,
+   "h": 221,
+   "ouder": "buik"
+  },
+  "hoofd": {
+   "x": 738,
+   "y": 384,
+   "w": 182,
+   "h": 182,
+   "ouder": "borst"
+  },
+  "bovenarmL": {
+   "x": 515,
+   "y": 543,
+   "w": 221,
+   "h": 221,
+   "ouder": "borst"
+  },
+  "onderarmL": {
+   "x": 334,
+   "y": 792,
+   "w": 166,
+   "h": 166,
+   "ouder": "bovenarmL"
+  },
+  "handL": {
+   "x": 197,
+   "y": 978,
+   "w": 122,
+   "h": 122,
+   "ouder": "onderarmL"
+  },
+  "bovenbeenL": {
+   "x": 570,
+   "y": 1148,
+   "w": 204,
+   "h": 204,
+   "ouder": "bekken"
+  },
+  "onderbeenL": {
+   "x": 510,
+   "y": 1589,
+   "w": 221,
+   "h": 221,
+   "ouder": "bovenbeenL"
+  },
+  "voetL": {
+   "x": 487,
+   "y": 1919,
+   "w": 154,
+   "h": 154,
+   "ouder": "onderbeenL"
+  },
+  "bovenarmR": {
+   "x": 924,
+   "y": 544,
+   "w": 221,
+   "h": 221,
+   "ouder": "borst"
+  },
+  "onderarmR": {
+   "x": 1159,
+   "y": 796,
+   "w": 164,
+   "h": 164,
+   "ouder": "bovenarmR"
+  },
+  "handR": {
+   "x": 1340,
+   "y": 966,
+   "w": 130,
+   "h": 130,
+   "ouder": "onderarmR"
+  },
+  "bovenbeenR": {
+   "x": 869,
+   "y": 1142,
+   "w": 216,
+   "h": 216,
+   "ouder": "bekken"
+  },
+  "onderbeenR": {
+   "x": 927,
+   "y": 1575,
+   "w": 221,
+   "h": 221,
+   "ouder": "bovenbeenR"
+  },
+  "voetR": {
+   "x": 1023,
+   "y": 1917,
+   "w": 154,
+   "h": 154,
+   "ouder": "onderbeenR"
+  }
+ },
+ "gezicht": {
+  "oogL": [
+   60,
+   136
+  ],
+  "oogR": [
+   150,
+   136
+  ],
+  "neus": [
+   105,
+   176
+  ],
+  "mond": [
+   105,
+   223
+  ],
+  "kin": [
+   105,
+   266
+  ],
+  "breed": [
+   10,
+   200
+  ]
+ },
+ "bril": true,
+ "helm": null,
+ "vest": false
+}

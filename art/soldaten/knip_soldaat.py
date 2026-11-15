@@ -12,6 +12,14 @@ S = {
                    buik=(450,860,1200,860), knieL=(450,1800,760,1800), knieR=(900,1790,1210,1790), enkelL=(380,2170,660,2170), enkelR=(1000,2170,1290,2170)),
          taille=1085, heup=1215,
          gezicht=dict(oogL=[770,235], oogR=[890,235], neus=[830,282], mond=[830,330], kin=[830,372], breed=[720,940]), bril=True, helm=265),
+ 5: dict(cuts={'hoofd':[(720,450),(770,478),(830,485),(890,478),(940,450)],
+               'armL':[(660,515),(625,650),(612,780),(600,880)], 'armR':[(1000,515),(1035,650),(1048,780),(1060,880)],
+               'benen':[(470,1405),(1190,1395)], 'tussen':[(810,1380),(810,1800)]},
+         seeds={'hoofd':(830,250),'romp':(830,750),'armL':(200,1080),'armR':(1460,1080),'beenL':(520,2150),'beenR':(1140,2150)},
+         fijn=dict(ellL=(323,812,531,968), polsL=(191,992,319,1088), ellR=(1129,968,1337,812), polsR=(1341,1088,1469,992),
+                   buik=(560,860,1100,860), knieL=(480,1700,800,1700), knieR=(860,1690,1230,1690), enkelL=(380,2000,660,2000), enkelR=(1000,2000,1290,2000)),
+         taille=1075, heup=1250,
+         gezicht=dict(oogL=[785,325], oogR=[875,325], neus=[830,365], mond=[830,412], kin=[830,455], breed=[735,925]), bril=True, helm=None),
 }
 KLEUR = {'hoofd':(255,80,80),'romp':(80,160,255),'armL':(255,210,0),'armR':(255,140,0),'beenL':(170,90,255),'beenR':(0,220,200)}
 def verleng(p, d=30):
@@ -104,7 +112,7 @@ for n, c in S.items():
     # ---- gezicht (in hoofd-coördinaten) ----
     h = uit['delen']['hoofd']; G = c['gezicht']
     uit['gezicht'] = {k:([v[0]-h['x'], v[1]-h['y']] if k != 'breed' else [v[0]-h['x'], v[1]-h['x']]) for k,v in G.items()}
-    uit['bril'] = c.get('bril', False); uit['helm'] = c['helm'] - h['y'] if c.get('helm') else None
+    uit['bril'] = c.get('bril', False); uit['helm'] = c['helm'] - h['y'] if c.get('helm') else None; uit['vest'] = c.get('vest', n == 1)
     json.dump(uit, open(f'{D}s{n}.json','w'), indent=1)
     # ---- controleplaatje ----
     vb = np.zeros((H,W,3),np.uint8); vb[:] = (40,40,40); kl = {}
