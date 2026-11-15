@@ -25,7 +25,7 @@
 
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v36.1";
+const VERSIE = "v37";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -273,19 +273,29 @@ const DEKKING = [ {soort:'barrier', x:-4.6, z:-5.6, laag:0, schaal:0.85}, {soort
 const MG_NEST = {x:-1.8, z:-17.8};
 // LEVELS: 10 waves per level, dekking bouwt op (indexen in DEKKING: 0-2 voor, 3-6 midden, 7-9 ver), wave 10 = baas
 const LEVELS = [
-  {naam:'CITY', plek:[5, 6], stijl:['stad', 'stad'], dekking:[[], [7, 9]], lopers:[5, 11], max:[3, 5], raak:[0.28, 0.45], gran:[0, 0], helm:[0, 0.05], vest:[0, 0],
+  {naam:'CITY', plek:[5, 6], stijl:['stad', 'stad'], dekking:[[], [7, 9]], lopers:[6, 11], max:[6, 7], raak:[0.28, 0.45], team:{groot:[3, 3], bound:false, kniel:0.2, rommel:0.7, tussen:9}, gran:[0, 0], helm:[0, 0.05], vest:[0, 0],
    baas:{tekst:'ARMORED JEEP', wagens:['jeep'], vestLading:true, lopers:6, max:5}},
-  {naam:'WOODS', plek:[7, 8], stijl:['natuur', 'natuur'], dekking:[[7, 8, 9], [7, 9, 4, 5]], lopers:[7, 12], max:[4, 6], raak:[0.4, 0.6], gran:[0.04, 0.07], granVanaf:4,
+  {naam:'WOODS', plek:[7, 8], stijl:['natuur', 'natuur'], dekking:[[7, 8, 9], [7, 9, 4, 5]], lopers:[7, 12], max:[7, 8], raak:[0.4, 0.6], team:{groot:[3, 4], bound:true, kniel:0.5, rommel:0.3, tussen:8}, gran:[0.04, 0.07], granVanaf:4,
    helm:[0.1, 0.25], vest:[0.1, 0.25], schild:1, schildVanaf:6, extra:{3:{wagens:['jeep']}, 6:{wagens:['jeep_zand']}, 8:{wagens:['jeep_snorkel']}},
    baas:{tekst:'CHOPPER', apache:1, lopers:8, max:6}},
-  {naam:'OPEN LAND', plek:[9, 10], stijl:['natuur', 'natuur'], dekking:[[7, 8, 9, 4], [7, 8, 9, 3, 4, 5]], lopers:[8, 13], max:[5, 8], raak:[0.55, 0.8], gran:[0.06, 0.1], granVanaf:1,
+  {naam:'OPEN LAND', plek:[9, 10], stijl:['natuur', 'natuur'], dekking:[[7, 8, 9, 4], [7, 8, 9, 3, 4, 5]], lopers:[8, 13], max:[8, 10], raak:[0.55, 0.8], team:{groot:[3, 4], bound:true, kniel:0.55, rommel:0.15, tussen:7, flank:true}, gran:[0.06, 0.1], granVanaf:1,
    helm:[0.25, 0.5], vest:[0.25, 0.5], schild:2, schildVanaf:3, mgVanaf:5,
    extra:{2:{apache:1}, 3:{wagens:['jeep']}, 5:{wagens:['truck']}, 6:{huey:1}, 8:{touw:1, wagens:['swat_truck']}, 9:{apache:1}},
    baas:{tekst:'GUN TRUCK + CHOPPER', vracht:{mg:true, rijdt:true}, huey:1, lopers:8, max:8, mg:1}},
-  {naam:'UNDERGROUND', plek:[11, 12], stijl:['binnen', 'binnen'], dekking:[[7, 8, 9, 3, 4, 5], [1, 2, 3, 4, 5, 7, 8, 9]], lopers:[10, 14], max:[7, 10], raak:[0.75, 1.05], gran:[0.1, 0.16], granVanaf:1,
+  {naam:'UNDERGROUND', plek:[11, 12], stijl:['binnen', 'binnen'], dekking:[[7, 8, 9, 3, 4, 5], [1, 2, 3, 4, 5, 7, 8, 9]], lopers:[10, 14], max:[9, 12], raak:[0.75, 1.05], team:{groot:[4, 4], bound:true, kniel:0.6, rommel:0.05, tussen:7, flank:true}, gran:[0.1, 0.16], granVanaf:1,
    helm:[0.5, 0.8], vest:[0.5, 0.8], schild:3, schildVanaf:1, mgVanaf:2, soorten:[2, 3, 4, 1],
    baas:{tekst:'TANK + SWAT', tank:1, lopers:10, schild:4, max:9, vest:1, soorten:[2, 3, 4]}},
 ];
+// teams: formaties (x opzij, achteruit in m; 0 = teamleider vooraan), om de beurt dekken, schild voorop
+const TEAM = {wig:[[0, 0], [-1.7, 1.5], [1.7, 1.5], [-3.2, 3.0]], rij:[[0, 0], [0.3, 1.4], [-0.3, 2.8], [0.3, 4.2]],
+              schildRij:[[0, 0], [0.14, 0.62], [-0.14, 1.24], [0.14, 1.86]], bound:[4.5, 7.5]};
+const TEAM_STD = {groot:[3, 4], bound:true, kniel:0.5, rommel:0.2, tussen:7};
+// schade: soldaten, geen zombies
+const HELM_DOOD = {pistool:0.8, auto:0.7};       // kans dat een kogel op de helm tóch dodelijk is (anders duizelig)
+const HOOFD_LEEFT = 0.07;                         // heel soms overleeft hij een hoofdtreffer (schampschot)
+const VEST_TREFFERS = 2;                          // zoveel kleine kogels vangt een vest op, daarna gaat het erdoor
+const BLOED_DOOD = [14, 22];                      // zwaargewond: na zoveel s bezwijkt hij
+const NEK_TIJD = [1.1, 2.0];                      // nekschot: zo lang wankelt hij met zijn hand aan zijn nek
 const FRONT_Z = -4.4;                              // front line: dichterbij komen ze niet
 const MUUR = {z:-1.1, schaal:0.72};               // jouw eigen zandzakken om achter te bukken
 const KOGEL_V = 26, KOGEL_STREEP = 0.9;            // vijandelijke kogels: zichtbaar en te ontwijken (±0,4 s onderweg)
@@ -616,7 +626,7 @@ AFRAME.registerComponent('zombies', {
     this.wortel.object3D.add(z.grp); this.lijst.push(z);
   },
   leeg(){
-    this.lijst.forEach(z => { z.grp.removeFromParent(); this.darmWeg(z); }); this.lijst = [];
+    this.lijst.forEach(z => { z.grp.removeFromParent(); this.darmWeg(z); }); this.lijst = []; this.teams = [];
     this.los.forEach(l => l.o.removeFromParent()); this.los = []; this.spuiters = []; this.vuren = [];
     (this.vliegt || []).forEach(p => p.g.removeFromParent()); this.vliegt = [];
     (this.blokken || []).forEach(b => b.g.removeFromParent()); this.blokken = [];
@@ -705,11 +715,11 @@ AFRAME.registerComponent('zombies', {
     (this.dekkingen = this.dekkingen || []).push(d);
     return d;
   },
-  vrijePlek(van, wens){
+  vrijePlek(van, wens, strak){
     const alle = []; (this.dekkingen || []).forEach(d => d.plekken.forEach(p => { if (!p.bezet || p.bezet.dood) alle.push(p); }));
     (this.wagens || []).forEach(w => { if (w.staat !== 'rijden' && !w.kapot) w.plekken.forEach(p => { if (!p.bezet || p.bezet.dood) alle.push(p); }); });
     if (!alle.length) return null;
-    const score = p => (wens == null ? 0 : Math.abs(((p.dekking && p.dekking.laag != null) ? p.dekking.laag : this.laagVan(p.p)) - wens)*8) + p.p.distanceTo(van)*0.5 + Math.random()*4;
+    const score = p => (wens == null ? 0 : Math.abs(((p.dekking && p.dekking.laag != null) ? p.dekking.laag : this.laagVan(p.p)) - wens)*8) + p.p.distanceTo(van)*(strak ? 1.6 : 0.5) + Math.random()*(strak ? 0.8 : 4);
     alle.forEach(p => p.sc = score(p)); alle.sort((a, b) => a.sc - b.sc);
     return alle[0];
   },
@@ -725,12 +735,14 @@ AFRAME.registerComponent('zombies', {
     if (opt.schild) this.zetSchild(z); else this.zetGeweer(z);
     z.ai = {soort:opt.soort || 'dekking', staat:'rennen', doel:null, plek:null, zak:0, zakDoel:0, t:0, stil:false, mik:false, schoten:0};
     if (z.loop) { z.loop.tempo *= 1.15; }
+    if (opt.team){ z.team = opt.team; opt.team.leden.push(z); this.zetGang(z, 'loop'); z.ai.armen = opt.schild ? 'schild' : 'laag';
+      if (opt.soort === 'team'){ z.ai.staat = opt.team.leden.length === 1 ? 'rennen' : opt.team.schild ? 'stapel' : 'volg'; z.ai.doel = pos.clone(); z.ai.piekT = 1.5 + Math.random()*2; } }
     if (opt.soort === 'mg'){ z.ai.doel = this.mgNest.plek.p.clone(); z.ai.plek = this.mgNest.plek; this.mgNest.plek.bezet = z; }
     else if (opt.soort === 'schild'){ z.ai.dichtbij = Math.random() < 0.4; z.ai.doel = new T.Vector3(pos.x*0.4 + (Math.random()-0.5)*3, 0, z.ai.dichtbij ? FRONT_Z - 0.1 : -6.5 - Math.random()*2.5); z.snel *= 0.6; }
     else if (opt.soort === 'touw'){ z.ai.heli = opt.heli; z.ai.touw = opt.touw || 0; }
     else if (opt.soort === 'bak'){ z.ai.staat = 'bak'; z.ai.stil = true; z.ai.mik = true; z.ai.wagen = opt.wagen; z.ai.bakF = opt.bakF; z.ai.mg = opt.mg; z.ai.t = 1 + Math.random()*1.5; }
     else if (opt.soort === 'deur'){ z.ai.staat = 'deur'; z.ai.stil = true; z.ai.mik = true; z.ai.heli = opt.heli; z.ai.t = 1 + Math.random(); }
-    if (opt.soort !== 'touw' && opt.soort !== 'deur' && opt.soort !== 'mg' && opt.soort !== 'schild' && opt.soort !== 'bak') this.geefRol(z);
+    if (opt.soort !== 'touw' && opt.soort !== 'deur' && opt.soort !== 'mg' && opt.soort !== 'schild' && opt.soort !== 'bak' && opt.soort !== 'team') this.geefRol(z);
     return z;
   },
   zoekDekking(z, wens){
@@ -810,13 +822,45 @@ AFRAME.registerComponent('zombies', {
     if (ai.schuifDoel && (ai.staat === 'op' || ai.staat === 'dekking')){        // om de hoek van de dekking stappen en terug
       const nv = ai.schuifDoel.clone().sub(g.position); nv.y = 0; const d = nv.length();
       if (d > 0.02) g.position.addScaledVector(nv.normalize(), Math.min(d, 1.5*s)); else if (ai.staat === 'dekking') ai.schuifDoel = null; }
+    if (z.knieVast && ['rennen','storm','schuif','volg','stapel'].includes(ai.staat)){ if (ai.plek && ai.plek.bezet === z) ai.plek.bezet = null; ai.plek = null; ai.staat = 'vrij'; ai.t = 0.6 + Math.random(); ai.houding = 'kniel'; }
+    if (z.gewond && ai.staat !== 'gewond'){ ai.staat = 'gewond'; ai.t = 1; }
     switch (ai.staat){
+      case 'gewond': {                                                  // zwaargewond op zijn knieën: schiet af en toe zwak, bezwijkt dan
+        ai.stil = true; ai.mik = ai.t < 0.6 && kanSchieten; ai.houding = 'kniel'; ai.zakDoel = ai.plek ? ai.plek.zak : 0;
+        z.bloedT -= s; if (z.bloedT <= 0){ const b = this.bronWapen; this.bronWapen = null; this.omver(z, new T.Vector3(0, 0, -1), {}); this.bronWapen = b; break; }
+        if (ai.t <= 0){ if (kanSchieten && Math.random() < 0.6) this.vijandSchot(z, SCHOT_SCHADE, 0.8); ai.t = 2.2 + Math.random()*2.5; }
+        break; }
+      case 'volg': {                                                    // in formatie achter de leider aan (wig / rij)
+        ai.mik = false; ai.zakDoel = 0; ai.houding = null; ai.armen = 'laag';
+        const t = z.team; if (!t || !t.leider || t.leider === z || t.leider.dood){ ai.staat = 'rennen'; ai.doel = ai.doel || g.position.clone(); break; }
+        const doel = this.teamSlot(t, z), nv = doel.sub(g.position); nv.y = 0; const d = nv.length(), L = t.leider;
+        const lv = L.ai && !L.ai.stil ? (L.snel || 1.2)*1.25 : 0;
+        if (d < 0.12 && lv === 0){ ai.stil = true; break; }
+        ai.stil = false;
+        g.position.addScaledVector(nv.normalize(), Math.min(d, Math.max(lv, 0.8)*(d > 0.6 ? 1.35 : 1)*s));
+        break; }
+      case 'stapel': {                                                  // schildrij: dicht achter het schild, hand op de schouder, om de beurt eruit leunen
+        ai.zakDoel = 0; ai.houding = null;
+        const t = z.team, L = t && t.leider; if (!t || !L || L.dood || L === z){ ai.staat = 'rennen'; ai.doel = g.position.clone(); break; }
+        const staan = L.ai && L.ai.staat === 'schildStaan';
+        ai.piekT -= s;
+        if (staan && ai.piekT <= 0 && !ai.piek && kanSchieten && !t.leden.some(q => q !== z && q.ai && q.ai.piek)){ ai.piek = t.leden.indexOf(z) % 2 ? -1 : 1; ai.piekT = 1.4 + Math.random()*0.8; ai.schoten = 2 + (Math.random()*2|0); ai.vt = 0.35; }
+        if (ai.piek && (!staan || ai.piekT <= 0)){ ai.piek = 0; ai.piekT = 1.2 + Math.random()*1.8; }
+        const doel = this.teamSlot(t, z);
+        if (ai.piek){ const weg = L.grp.position.clone().sub(this.ikGrond()).setY(0).normalize(); doel.addScaledVector(new T.Vector3(-weg.z, 0, weg.x), ai.piek*0.75).addScaledVector(weg, -0.25); }
+        const nv = doel.sub(g.position); nv.y = 0; const d = nv.length();
+        if (d > 0.04) g.position.addScaledVector(nv.normalize(), Math.min(d, 2.6*s));
+        ai.stil = d < 0.1; ai.mik = !!ai.piek; ai.armen = ai.piek ? null : 'hand';
+        if (ai.piek && d < 0.15){ ai.vt -= s; if (ai.vt <= 0 && ai.schoten-- > 0){ this.vijandSchot(z, SCHOT_SCHADE, 0.1); ai.vt = 0.25 + Math.random()*0.2; } }
+        break; }
       case 'rennen': {
-        ai.stil = false; ai.mik = false; ai.zakDoel = 0;
+        ai.stil = false; ai.mik = false; ai.zakDoel = 0; ai.houding = null;
+        if (ai.soort !== 'schild') ai.armen = z.geweer ? (z.loop && z.loop.soort === 'ren' ? 'port' : 'laag') : null;
         const nv = ai.doel.clone().sub(g.position); nv.y = 0; const d = nv.length();
         if (ai.soort === 'schild'){ ai.armen = z.schild ? 'schild' : null;
           const tot = g.position.clone().setY(0).distanceTo(ik); if (tot < (ai.dichtbij ? -FRONT_Z : 7) || d < 0.4){ ai.staat = 'schildStaan'; ai.t = 1 + Math.random(); break; } }
         if (d < 0.25){
+          if (z.team && z.loop && z.loop.soort === 'ren') this.zetGang(z, 'loop');
           if (ai.soort === 'mg'){ ai.staat = 'mg'; ai.t = 1.5; ai.zakDoel = this.mgNest.zak; ai.stil = true; ai.mik = true; }
           else if (ai.plek){ ai.staat = 'dekking'; ai.t = 0.8 + Math.random()*1.5; }
           else { ai.staat = 'vrij'; ai.t = 0.5 + Math.random(); }
@@ -883,10 +927,12 @@ AFRAME.registerComponent('zombies', {
         ai.y0 = Math.max(0, ai.y0 - 2.6*s);
         if (ai.y0 <= 0){ ai.y0 = 0; ai.soort = 'dekking'; this.geefRol(z); }
         break; }
-      case 'vrij':                                                      // staat in de open straat en schiet
+      case 'vrij':                                                      // staat in de open straat en schiet (staand, knielend of gehurkt)
         ai.stil = true; ai.mik = true; ai.zakDoel = 0;
+        if (ai.houding === undefined || ai.houding === null){ const kk = (this.teamKwal().kniel ?? 0.5); const r = Math.random(); ai.houding = z.knieVast ? 'kniel' : r < kk*0.75 ? 'kniel' : r < kk ? 'hurk' : 'staan'; }
         if (ai.t <= 0){
-          if (kanSchieten) this.vijandSchot(z, SCHOT_SCHADE, ai.rol === 'stormer' ? 0.2 : 0); ai.t = 0.9 + Math.random()*1.4;
+          if (kanSchieten) this.vijandSchot(z, SCHOT_SCHADE, ai.rol === 'stormer' ? 0.2 : 0); ai.t = (ai.dekVuur > 0 ? 0.35 : 0.9) + Math.random()*(ai.dekVuur > 0 ? 0.3 : 1.4); if (ai.dekVuur > 0) ai.dekVuur--;
+          if (z.knieVast || z.team) break;
           if (ai.rol === 'stormer' && ai.verder && Math.random() < 0.6){ ai.staat = 'storm'; ai.vt = 0.5; break; }
           if (Math.random() < 0.35){                                    // een stukje opzij schuifelen
             const br = this.laan() || 7, x = Math.max(-br, Math.min(br, g.position.x + (Math.random() < 0.5 ? -1 : 1)*(0.6 + Math.random()*0.8)));
@@ -1215,9 +1261,11 @@ AFRAME.registerComponent('zombies', {
     W.wagens.forEach((n, i) => q.push({t:2 + i*8, geenSoldaat:true, f:() => { const w = this.wagen(n, {jeep:3, jeep_zand:3, jeep_snorkel:3, truck:5, swat_truck:5}[n]); if (w && W.vestLading) w.vest = true; }}));
     if (W.tank) q.push({t:4, geenSoldaat:true, f:() => this.tank()});
     if (W.vracht) q.push({t:3, geenSoldaat:true, f:() => this.wagen('vracht_open', 0, {mgBak:W.vracht.mg, rijdt:W.vracht.rijdt})});
-    for (let i=0;i<W.lopers;i++) q.push({t:4 + i*2.2, f:() => this.loper()});
+    { const kw = W.team || TEAM_STD; let rest = W.lopers, i = 0;                    // lopers komen per team binnen
+      const schild = W.schild || 0; for (let k=0;k<schild;k++){ q.push({t:7 + k*kw.tussen*1.2, n:3, f:() => this.spawnTeam(3, true)}); rest -= 2; }
+      while (rest > 0){ let n = Math.min(rest, kw.groot[0] + (Math.random()*(kw.groot[1] - kw.groot[0] + 1)|0)); if (rest - n === 1) n++; rest -= n;
+        const nn = n; q.push({t:3 + i*kw.tussen, n:nn, f:() => nn === 1 ? this.loper() : this.spawnTeam(nn)}); i++; } }
     for (let i=0;i<(W.touw || 0);i++) q.push({t:20 + i*20, geenSoldaat:true, f:() => this.heli('huey_grijs', {touw:true})});
-    for (let i=0;i<(W.schild || 0);i++) q.push({t:7 + i*4, f:() => this.loper('schild')});
     if (W.mg) q.push({t:5, f:() => this.loper('mg')});
     for (let i=0;i<(W.apache || 0);i++) q.push({t:16 + i*14, geenSoldaat:true, f:() => this.heli('apache')});
     for (let i=0;i<(W.huey || 0);i++) q.push({t:11 + i*15, geenSoldaat:true, f:() => this.heli('huey_groen')});
@@ -1231,13 +1279,13 @@ AFRAME.registerComponent('zombies', {
   oorlogTick(s){
     if (!this.wave) return;
     this.wagenTick(s); this.heliTick(s); this.vRaketTick(s); this.spoorTick(s); this.hudTick(s);
-    this.ammoTick(s); this.vGranaatTick(s); this.touwTick(s); this.scheiden(); this.kogelTick(s); this.wrakTick(s); this.upgradeTick(s); this.bliksemTick(s); this.paneelTick(s); this.tankTick(s);
+    this.ammoTick(s); this.vGranaatTick(s); this.touwTick(s); this.scheiden(); this.kogelTick(s); this.wrakTick(s); this.upgradeTick(s); this.bliksemTick(s); this.paneelTick(s); this.tankTick(s); this.teamTick(s);
     for (const z of this.lijst) if (z.ai && (z.dood || z.strk || z.kruip) && !((z.ai.y0 || 0) > 0.4) && !(z.dood && z.val > 3)) this.uitDekking(z, s);
     if (!this.overleden) this.houdBeweging(s);
     this.beschermd = Math.max(0, (this.beschermd || 0) - s);
     if (this.overleden){ this.doodTick(s); return; }
     this.wt += s;
-    while (this.wq.length && this.wq[0].t <= this.wt && (this.levend() < this.maxNu() || this.wq[0].geenSoldaat)) this.wq.shift().f();
+    while (this.wq.length && this.wq[0].t <= this.wt && (this.levend() + Math.min(this.wq[0].n || 1, this.maxNu()) - 1 < this.maxNu() || this.wq[0].geenSoldaat)) this.wq.shift().f();
     // MG weer bemannen als de schutter dood is
     if (this.mgNest && this.wave.mg && (!this.mgNest.plek.bezet || this.mgNest.plek.bezet.dood) && this.wt > 5 && Math.random() < s*0.25 && this.levend() < this.maxNu()){ this.mgNest.plek.bezet = null; this.loper('mg'); }
     const bezig = this.wq.length || this.levend() || (this.helis || []).some(h => !h.kapot && !h.weggaan) || (this.wagens || []).some(w => !w.kapot && (w.lading > 0 || (w.bak && !w.bemand))) || (this.tanks || []).some(t => !t.kapot);
@@ -1261,7 +1309,7 @@ AFRAME.registerComponent('zombies', {
     this.melding(`KILLED IN ACTION — WAVE ${this.waveNr}`, '#ff3a3a'); this.rood = 1;
   },
   leegOorlog(alles){
-    this.lijst.forEach(z => { z.grp.removeFromParent(); this.darmWeg(z); }); this.lijst = [];
+    this.lijst.forEach(z => { z.grp.removeFromParent(); this.darmWeg(z); }); this.lijst = []; this.teams = [];
     (this.wagens || []).forEach(w => { w.g.removeFromParent(); this.motorStop(w); }); this.wagens = [];
     (this.helis || []).forEach(h => { h.g.removeFromParent(); this.heliStil(h); (h.lijnen || []).forEach(l => l.removeFromParent()); }); this.helis = [];
     (this.vGranaten || []).forEach(g => g.g.removeFromParent && g.g.removeFromParent()); this.vGranaten = [];
@@ -1360,6 +1408,7 @@ AFRAME.registerComponent('zombies', {
     for (let i=0;i<L.length;i++) for (let j=i+1;j<L.length;j++){
       const a = L[i].grp.position, b = L[j].grp.position, dx = b.x - a.x, dz = b.z - a.z, d2 = dx*dx + dz*dz;
       if (d2 >= 0.49) continue;
+      if (L[i].team && L[i].team === L[j].team && L[i].team.schild && L[i].team.fase !== 'los') continue;   // schildrij: dicht op elkaar
       if (d2 < 1e-6){ a.x -= 0.05 + Math.random()*0.05; b.x += 0.05 + Math.random()*0.05; continue; }   // precies op elkaar: uit elkaar zetten
       const d = Math.sqrt(d2), dw = (0.7 - d), wa = vast(L[i]) ? 0.15 : 1, wb = vast(L[j]) ? 0.15 : 1, k = dw/(wa + wb)/d;
       a.x -= dx*k*wa; a.z -= dz*k*wa; b.x += dx*k*wb; b.z += dz*k*wb;
@@ -1507,8 +1556,244 @@ AFRAME.registerComponent('zombies', {
   houdBeweging(s){   // er is altijd wel iemand in beweging
     if (this.bewegers() > 0){ this.stilT = 0; return; }
     this.stilT = (this.stilT || 0) + s; if (this.stilT < 1.6) return; this.stilT = 0;
-    const kand = this.lijst.filter(z => !z.dood && z.ai && z.ai.staat === 'dekking' && (z.ai.rol === 'dekker' || z.ai.rol === 'wisselaar' || z.ai.rol === 'renner'));
+    const kand = this.lijst.filter(z => !z.dood && z.ai && z.ai.staat === 'dekking' && !z.team && !z.knieVast && !z.gewond && (z.ai.rol === 'dekker' || z.ai.rol === 'wisselaar' || z.ai.rol === 'renner'));
     if (kand.length){ const z = kand[Math.random()*kand.length|0]; this.zoekDekking(z, this.wensLaag(z)); }
+  },
+  /* ================= SCHADE: SOLDATEN ================= */
+  gewond(z, dir){                       // kleine kogel in de romp: zwaargewond, zakt door de knieën, schiet nog zwak
+    if (z.dood) return; z.gewond = true; z.bloedT = BLOED_DOOD[0] + Math.random()*(BLOED_DOOD[1] - BLOED_DOOD[0]);
+    const ai = z.ai; if (!ai) return;
+    if (z.team) this.uitTeam(z);
+    if (['rennen','storm','schuif','volg','stapel','schildStaan'].includes(ai.staat)){ if (ai.plek && ai.plek.bezet === z) ai.plek.bezet = null; ai.plek = null; }
+    ai.staat = 'gewond'; ai.t = 1.2 + Math.random()*1.5; ai.houding = 'kniel';
+    this.reageer(z, 'buk', 1);
+  },
+  nekGrijp(z, dir){                     // nekschot: wankelt, grijpt naar zijn nek, valt dan
+    if (z.dood || z.nekT) return; z.nekT = NEK_TIJD[0] + Math.random()*(NEK_TIJD[1] - NEK_TIJD[0]); z.nekKant = Math.random() < 0.5 ? 'L' : 'R';
+    if (z.geweer && z.nekKant === 'R') this.geweerWeg(z);
+    if (z.team) this.uitTeam(z);
+    this.reageer(z, 'nek', 1.2); this.wankel(z, dir, 0.6);
+  },
+  nekTick(z, s){
+    z.nekT -= s; const g = z.grp;
+    g.rotation.z = Math.sin(z.t*5.5)*0.09; g.position.addScaledVector(new this.T.Vector3(Math.sin(z.t*3.1), 0, 0), 0.25*s);
+    if (z.nekT <= 0){ z.nekT = 0; g.rotation.z = 0; this.omver(z, new this.T.Vector3(0, 0, -1), {hoofd:true}); }
+  },
+  nekArmen(z){
+    const k = z.knoop, kant = z.nekKant || 'R', sg = kant === 'L' ? 1 : -1, a = k['bovenarm'+kant], o = k['onderarm'+kant];
+    if (a && !a.userData.los && !a.userData.hangt) a.rotation.set(-0.7, 0, z.rust[kant] + sg*0.55);
+    if (o && !o.userData.los && !o.userData.hangt) o.rotation.set(-0.9, 0, sg*2.3);
+    if (z.nek) z.nek.rotation.z = -sg*0.25;
+  },
+  ledemaatRaak(z, deel, kn, p, dir, wapen){   // soldaat in arm of been geraakt
+    const lv = w => this.lv(w), aan = deel.slice(-1);
+    z.deelT = z.deelT || {}; const n = z.deelT[deel] = (z.deelT[deel] || 0) + 1;
+    const eraf = kn.userData.hangt || wapen === 'kanon' || wapen === 'explosie' || (wapen === 'laser' && lv('laser') >= 2) || (wapen === 'auto' && lv('auto') >= 3 && n >= 2);
+    if (eraf){                                                   // arm of been eraf: dodelijk
+      this.losMaak(z, deel, dir, 1);
+      this.omver(z, dir, /been|voet/.test(deel) ? {zij: aan === 'L' ? 1 : -1, wapen} : {wapen});
+      return true; }
+    this.spat(p, dir, 20); this.schok(kn, 1); this.wond(z, deel, p, wapen);
+    z.ledT = (z.ledT || 0) + 1;
+    if (z.ledT >= 3 || (z.gewond && z.ledT >= 2)){ this.omver(z, dir, {wapen}); return true; }   // te veel bloed verloren
+    const ai = z.ai;
+    if (/arm|hand/.test(deel)){                                  // arm: geweer valt, hij vlucht naar dekking
+      if (z.schild){ this.wankel(z, dir, 0.4, aan); return true; }
+      if (z.geweer) this.geweerWeg(z);
+      if (z.handGranaat) this.werpLaatVallen(z);
+      this.wankel(z, dir, 0.5, aan); z.ongewapend = true;
+      if (z.team) this.uitTeam(z);
+      if (!z.knieVast && !z.gewond){ this.zetGang(z, 'ren'); this.zoekDekking(z, 2); ai.armen = null; }
+    } else {                                                     // been: door de knie, schiet knielend verder
+      this.reageer(z, 'knik', 1, aan);
+      if (!z.knieVast){ z.knieVast = true; z.snel = 0;
+        if (z.team) this.uitTeam(z);
+        if (!['dekking','op','blijf','gewond','werp'].includes(ai.staat)){ if (ai.plek && ai.plek.bezet === z) ai.plek.bezet = null; ai.plek = null; ai.staat = 'vrij'; ai.t = 0.8 + Math.random(); }
+        ai.houding = 'kniel'; }
+    }
+    return true;
+  },
+  /* ================= HOUDINGEN ================= */
+  zetGang(z, soort){                    // wisselen tussen lopen (door de knieën) en sprinten
+    if (!z.loop) return; z.gangen = z.gangen || {};
+    if (!z.gangen[z.loop.soort]) z.gangen[z.loop.soort] = z.loop;
+    if (!z.gangen[soort]){ const oud = z.loop; this.loopSoort(z, soort); if (z.loop.soort === soort) z.gangen[soort] = z.loop; else { z.loop = oud; } }
+    if (z.gangen[soort]) z.loop = z.gangen[soort];
+    if (!z.knieVast) z.snel = z.loop.snel*(soort === 'ren' ? 1 : 1.05);
+  },
+  houdingPose(z){
+    const ai = z.ai, h = ai && !(ai.zak > 0.05) && (ai.houding || (z.knieVast || z.gewond ? 'kniel' : null));
+    if (h === 'kniel') return this.knielPose(z, ai.mik, z.gewond);
+    if (h === 'hurk') return this.hurkPose(z, ai.mik);
+    return this.staPose(z, ai && ai.mik);
+  },
+  knielPose(z, mik, gewond){            // één knie op de grond, voorste voet plat, elleboog richting knie
+    const k = z.knoop, zet = (d, x, y, zr) => { const n = k[d]; if (!n || n.userData.los || n.userData.hangt) return; n.rotation.set(x, y, zr); };
+    const v = z.knielBeen || (z.knielBeen = Math.random() < 0.5 ? 'L' : 'R'), a = v === 'L' ? 'R' : 'L';   // v = voorste been (voet plat)
+    zet('bovenbeen'+v, -1.48, 0, 0); zet('onderbeen'+v, 1.2, 0, 0); zet('voet'+v, 0.25, 0, 0);
+    zet('bovenbeen'+a, -0.12, 0, 0); zet('onderbeen'+a, 1.5, 0, 0); zet('voet'+a, -0.6, 0, 0);
+    zet('bekken', 0, 0, 0); zet('buik', 0.1, 0, 0); zet('borst', gewond ? 0.25 : 0.12, 0, gewond ? 0.06 : 0);
+    ['L','R'].forEach(kant => { const sg = kant === 'L' ? 1 : -1;
+      if (gewond && kant === 'L'){ zet('bovenarmL', -0.3, 0, z.rust.L); zet('onderarmL', -0.45, 0, sg*1.25); zet('handL', 0.17, 0, 0); return; }   // hand op de wond
+      if (mik){ zet('bovenarm'+kant, -0.95, 0, z.rust[kant] + sg*0.32); zet('onderarm'+kant, -0.85, 0, sg*0.5); }
+      else { zet('bovenarm'+kant, -0.5, 0, z.rust[kant] + sg*0.1); zet('onderarm'+kant, -0.9, 0, sg*0.55); }
+      zet('hand'+kant, 0, 0, 0); });
+    if (z.nek) z.nek.rotation.set(gewond ? 0.2 : 0, 0, 0);
+    const knie = z.knie || ZLENGTE*0.27;
+    return -knie*0.96;
+  },
+  hurkPose(z, mik){                     // gehurkt: beide knieën gebogen
+    const k = z.knoop, zet = (d, x, y, zr) => { const n = k[d]; if (!n || n.userData.los || n.userData.hangt) return; n.rotation.set(x, y, zr); };
+    const sp = 0.12;
+    zet('bovenbeenL', -0.95, 0, sp); zet('bovenbeenR', -0.95, 0, -sp); zet('onderbeenL', 1.65, 0, 0); zet('onderbeenR', 1.65, 0, 0);
+    zet('voetL', -0.7, 0, 0); zet('voetR', -0.7, 0, 0);
+    zet('bekken', 0, 0, 0); zet('buik', 0.15, 0, 0); zet('borst', 0.1, 0, 0);
+    ['L','R'].forEach(kant => { const sg = kant === 'L' ? 1 : -1;
+      if (mik){ zet('bovenarm'+kant, -0.95, 0, z.rust[kant] + sg*0.32); zet('onderarm'+kant, -0.85, 0, sg*0.5); }
+      else { zet('bovenarm'+kant, -0.45, 0, z.rust[kant]); zet('onderarm'+kant, -0.9, 0, sg*0.55); }
+      zet('hand'+kant, 0, 0, 0); });
+    if (z.nek) z.nek.rotation.set(0, 0, 0);
+    const kn = z.knie || ZLENGTE*0.27, dij = (z.heup || ZLENGTE*0.5) - kn;
+    return -((z.heup || ZLENGTE*0.5) - (dij*Math.cos(0.95)*Math.cos(sp) + kn*Math.cos(0.7)));
+  },
+  glide(z){                             // "combat glide": door de knieën, romp stil, geen gedein
+    const k = z.knoop, plus = (d, x) => { const n = k[d]; if (n && !n.userData.los && !n.userData.hangt) n.rotation.x += x; };
+    plus('bovenbeenL', -0.22); plus('bovenbeenR', -0.22); plus('onderbeenL', 0.4); plus('onderbeenR', 0.4); plus('voetL', -0.15); plus('voetR', -0.15);
+    plus('borst', 0.06);
+    return -0.035;
+  },
+  laagArmen(z){                         // low ready: geweer schuin omlaag voor het lijf
+    const k = z.knoop; ['L','R'].forEach(kant => { const sg = kant === 'L' ? 1 : -1;
+      const a = k['bovenarm'+kant], o = k['onderarm'+kant];
+      if (a && !a.userData.los && !a.userData.hangt) a.rotation.set(-0.55, 0, z.rust[kant] + sg*0.18);
+      if (o && !o.userData.los && !o.userData.hangt) o.rotation.set(-0.75, 0, sg*0.62); });
+  },
+  portArmen(z){                         // sprint: geweer schuin voor de borst, armen bewegen licht mee
+    const k = z.knoop, f = z.loop ? z.loop.fase*Math.PI*2 : 0;
+    ['L','R'].forEach((kant, i) => { const sg = kant === 'L' ? 1 : -1, zw = Math.sin(f + i*Math.PI)*0.12;
+      const a = k['bovenarm'+kant], o = k['onderarm'+kant];
+      if (a && !a.userData.los && !a.userData.hangt) a.rotation.set(-0.4 + zw, 0, z.rust[kant] + sg*0.12);
+      if (o && !o.userData.los && !o.userData.hangt) o.rotation.set(-0.7, 0, sg*(kant === 'R' ? 1.15 : 0.85)); });
+  },
+  handOpSchouder(z){                    // in de schildrij: linkerhand op de schouder van de man voor hem
+    const k = z.knoop, a = k.bovenarmL, o = k.onderarmL;
+    if (a && !a.userData.los && !a.userData.hangt) a.rotation.set(-1.25, 0, z.rust.L + 0.05);
+    if (o && !o.userData.los && !o.userData.hangt) o.rotation.set(-0.15, 0, -0.1);
+    const ar = k.bovenarmR, orr = k.onderarmR;
+    if (ar && !ar.userData.los && !ar.userData.hangt) ar.rotation.set(-0.55, 0, z.rust.R - 0.18);
+    if (orr && !orr.userData.los && !orr.userData.hangt) orr.rotation.set(-0.75, 0, -0.62);
+  },
+  /* ================= TEAMS ================= */
+  // vuurteam: leider vooraan in een wig (in een gang: een rij), samen naar dezelfde dekking,
+  // dan om de beurt: de ene helft geeft dekkingsvuur, de andere helft sprint naar de volgende dekking
+  teamKwal(){ return (this.wave && this.wave.team) || TEAM_STD; },
+  spawnTeam(n, schild){
+    const T = this.T, kw = this.teamKwal(), br = this.laan(), smal = br && br < 2;
+    let x = (Math.random()-0.5)*2*(br || 4.5)*0.8;
+    if (kw.flank && !smal && Math.random() < 0.5) x = (Math.random() < 0.5 ? -1 : 1)*(br || 6.5)*(0.75 + Math.random()*0.2);   // flankeren: via de zijkant
+    const z0 = -(24 + Math.random()*2.5);
+    const t = {leden:[], leider:null, schild:!!schild, rij:smal || !!schild, fase:'nadering', anker:null, boundT:0, helft:0, kwal:kw, flank:Math.abs(x) > 4};
+    (this.teams = this.teams || []).push(t);
+    const F = t.schild ? TEAM.schildRij : t.rij ? TEAM.rij : TEAM.wig;
+    for (let i=0;i<n;i++){
+      const o = F[Math.min(i, F.length-1)], p = new T.Vector3(x + o[0], 0, z0 - o[1]);
+      if (br) p.x = Math.max(-br, Math.min(br, p.x));
+      const z = this.soldaat(p, {soort:(t.schild && i === 0) ? 'schild' : 'team', schild:t.schild && i === 0, team:t, soorten:this.wave && this.wave.soorten});
+      if (!z) continue;
+      z.rommel = new T.Vector2((Math.random()-0.5)*2*(kw.rommel || 0), (Math.random()-0.5)*2*(kw.rommel || 0));
+    }
+    t.leider = t.leden[0] || null;
+    if (!t.leider){ this.teams = this.teams.filter(q => q !== t); return; }
+    if (!t.schild) this.teamAnker(t);
+  },
+  uitTeam(z){ const t = z.team; if (!t) return; z.team = null; t.leden = t.leden.filter(q => q !== z); if (t.leider === z) t.leider = null; },
+  losLaten(z, sprint){                  // team valt uit elkaar: ieder voor zich (rennen naar dekking)
+    this.uitTeam(z); const ai = z.ai; if (!ai || z.dood) return;
+    ai.soort = 'dekking'; ai.armen = null; ai.houding = null;
+    if (z.knieVast || z.gewond) return;
+    if (sprint) this.zetGang(z, 'ren');
+    this.geefRol(z);
+  },
+  ikGrond(){ const ik = this.el.camera.getWorldPosition(new this.T.Vector3()); ik.y = 0; return ik; },
+  teamSlot(t, z){
+    const T = this.T, L = t.leider, i = Math.max(0, t.leden.indexOf(z)), F = t.schild ? TEAM.schildRij : t.rij ? TEAM.rij : TEAM.wig, o = F[Math.min(i, F.length-1)];
+    const weg = L.grp.position.clone().sub(this.ikGrond()).setY(0).normalize(), rechts = new T.Vector3(-weg.z, 0, weg.x);
+    const r = t.schild ? new T.Vector2() : (z.rommel || new T.Vector2());
+    const p = L.grp.position.clone().addScaledVector(rechts, o[0] + r.x).addScaledVector(weg, o[1] + r.y*0.6);
+    const br = this.laan(); if (br) p.x = Math.max(-br, Math.min(br, p.x));
+    return p;
+  },
+  teamAnker(t, dichter){                // leider kiest de dekking (of een punt in het open veld) voor het hele team
+    const T = this.T, L = t.leider; if (!L || !L.ai) return;
+    const nu = L.ai.laag ?? 3, wens = dichter ? Math.max(0, nu - 1) : 2;
+    const mid = this.teamMidden(t), vooruit = mid.clone().add(new T.Vector3(0, 0, dichter ? 4 : 6));
+    const p = this.vrijePlek(vooruit, wens, true);
+    const ai = L.ai;
+    if (ai.plek && ai.plek.bezet === L) ai.plek.bezet = null; ai.plek = null;
+    if (p && p.p.distanceTo(mid) < 13 && (!dichter || p.p.z > mid.z + 1)){
+      p.bezet = L; ai.plek = p; ai.laag = (p.dekking && p.dekking.laag != null) ? p.dekking.laag : this.laagVan(p.p);
+      ai.doel = p.p.clone(); t.anker = p.p.clone(); t.open = false;
+    } else {                            // geen dekking: in het open veld, iets dichterbij
+      const br = this.laan() || 6, z = Math.min(FRONT_Z - 1.5, mid.z + (dichter ? 3 + Math.random()*1.5 : 7 + Math.random()*4));
+      ai.doel = new T.Vector3(Math.max(-br, Math.min(br, mid.x*0.85 + (Math.random()-0.5)*1.5)), 0, z); t.anker = ai.doel.clone(); t.open = true;
+    }
+    ai.staat = 'rennen'; ai.houding = null;
+  },
+  teamMidden(t){ const m = new this.T.Vector3(); t.leden.forEach(z => m.add(z.grp.position)); return m.multiplyScalar(1/Math.max(1, t.leden.length)).setY(0); },
+  teamPlek(z, t){                       // volger: een plek bij de dekking van de leider (of naast hem in het open veld)
+    const T = this.T, ai = z.ai; if (!ai || z.dood) return;
+    if (ai.plek && ai.plek.bezet === z) ai.plek.bezet = null; ai.plek = null; ai.houding = null;
+    const L = t.leider, wens = L && L.ai && L.ai.laag != null ? L.ai.laag : null;
+    const p = !t.open && this.vrijePlek(t.anker, wens, true);
+    if (p && p.p.distanceTo(t.anker) < 6.5){ p.bezet = z; ai.plek = p; ai.laag = (p.dekking && p.dekking.laag != null) ? p.dekking.laag : this.laagVan(p.p); ai.doel = p.p.clone(); }
+    else {
+      const i = Math.max(1, t.leden.indexOf(z)), zij = (i % 2 ? -1 : 1)*(1.2 + Math.floor((i - 1)/2)*1.3), br = this.laan() || 7;
+      ai.doel = new T.Vector3(Math.max(-br, Math.min(br, t.anker.x + zij + (Math.random()-0.5)*0.6)), 0, Math.min(FRONT_Z - 0.8, t.anker.z - 0.6 + (Math.random()-0.5)*1.4));
+    }
+    ai.staat = 'rennen';
+  },
+  teamTick(s){
+    if (!this.teams) return;
+    for (const t of this.teams.slice()){
+      t.leden = t.leden.filter(z => !z.dood && z.ai && z.team === t);
+      if (!t.leden.length){ this.teams = this.teams.filter(q => q !== t); continue; }
+      if (t.schild){                    // schildrij: valt de schilddrager (of zijn schild), dan stuift de rest uiteen
+        const L = t.leider;
+        if (!L || L.dood || !L.schild || L.team !== t){ t.fase = 'los'; t.leden.slice().forEach(z => this.losLaten(z, true)); this.teams = this.teams.filter(q => q !== t); }
+        continue;
+      }
+      if (!t.leider || t.leider.dood || t.leider.team !== t){ t.leider = t.leden.find(z => !z.gewond && !z.knieVast) || t.leden[0]; t.leden.sort((a, b) => (a === t.leider ? -1 : b === t.leider ? 1 : 0)); }
+      if (t.leden.length === 1 && t.fase === 'contact'){ this.losLaten(t.leden[0]); this.teams = this.teams.filter(q => q !== t); continue; }
+      const L = t.leider, kw = t.kwal;
+      if (t.fase === 'nadering'){
+        if (!t.anker) this.teamAnker(t);
+        const klaar = L.ai.staat !== 'rennen' || L.grp.position.distanceTo(t.anker) < 3.2;
+        if (klaar){ t.fase = 'contact'; t.boundT = TEAM.bound[0] + Math.random()*(TEAM.bound[1] - TEAM.bound[0]);
+          t.leden.forEach(z => { if (z !== L && z.ai.staat === 'volg') this.teamPlek(z, t); }); }
+        continue;
+      }
+      if (!kw.bound) continue;
+      t.boundT -= s; if (t.boundT > 0) continue;
+      t.boundT = TEAM.bound[0] + Math.random()*(TEAM.bound[1] - TEAM.bound[0]);
+      const klaar = t.leden.filter(z => !z.gewond && !z.knieVast && !z.ongewapend && ['dekking','op','blijf','vrij'].includes(z.ai.staat));
+      if (klaar.length < 2) continue;
+      const mid = this.teamMidden(t);
+      if (mid.z > FRONT_Z - 2.2 && t.open) continue;                  // al vooraan
+      const lopers = klaar.filter((z, i) => i % 2 === t.helft), dekkers = klaar.filter((z, i) => i % 2 !== t.helft); t.helft ^= 1;
+      lopers.forEach(z => {             // sprint naar de volgende dekking, iets dichterbij
+        const ai = z.ai, nu = ai.laag ?? 2;
+        const p = !t.open && this.vrijePlek(z.grp.position.clone().add(new this.T.Vector3(0, 0, 4)), Math.max(0, nu - 1), true);
+        if (ai.plek && ai.plek.bezet === z) ai.plek.bezet = null; ai.plek = null; ai.houding = null; ai.schuifDoel = null; ai.zij = 0;
+        if (p && p.p.z > z.grp.position.z + 0.8){ p.bezet = z; ai.plek = p; ai.laag = (p.dekking && p.dekking.laag != null) ? p.dekking.laag : this.laagVan(p.p); ai.doel = p.p.clone(); }
+        else { const br = this.laan() || 7; ai.doel = new this.T.Vector3(Math.max(-br, Math.min(br, z.grp.position.x + (Math.random()-0.5)*2)), 0, Math.min(FRONT_Z - 0.6, z.grp.position.z + 2.5 + Math.random()*2)); }
+        this.zetGang(z, 'ren'); ai.staat = 'rennen';
+      });
+      dekkers.forEach(z => {            // dekkingsvuur zolang de anderen rennen
+        const ai = z.ai; if (!z.geweer) return;
+        if (ai.staat === 'dekking' && ai.plek){ ai.staat = 'op'; ai.t = 0.35; ai.schoten = 4 + (Math.random()*3|0); ai.zij = 0; ai.zakDoel = ai.plek.op; }
+        else if (ai.staat === 'vrij'){ ai.t = Math.min(ai.t, 0.3); ai.dekVuur = 3; }
+      });
+    }
   },
   /* ---------- eigen zandzakmuurtje vóór je ---------- */
   zetMuur(){
@@ -1951,10 +2236,10 @@ AFRAME.registerComponent('zombies', {
     if (this.modus !== 'lvl'){ const k = (this.waveNr - 1) % LEVELS.length;                // demo: alle bazen om de beurt, als test
       return Object.assign({wagens:[], lopers:3, max:6, raak:0.5, gran:0.08, helm:0.3, vest:0.3}, LEVELS[k].baas, {demoBaas:k + 1}); }
     const L = LEVELS[this.lvlNr - 1], w = this.waveNr, f = (w - 1)/8, mix = ([a, b]) => a + (b - a)*Math.min(1, f);
-    if (w >= 10) return Object.assign({wagens:[], lopers:0, max:6, raak:mix(L.raak), gran:mix(L.gran), helm:mix(L.helm), vest:mix(L.vest)}, L.baas);
+    if (w >= 10) return Object.assign({wagens:[], lopers:0, max:6, team:L.team, raak:mix(L.raak), gran:mix(L.gran), helm:mix(L.helm), vest:mix(L.vest)}, L.baas);
     const e = (L.extra && L.extra[w]) || {};
     return Object.assign({wagens:[], lopers:Math.round(mix(L.lopers)), max:Math.round(mix(L.max)), raak:mix(L.raak), gran:w >= (L.granVanaf || 99) ? mix(L.gran) : 0,
-      helm:mix(L.helm), vest:mix(L.vest), schild:w >= (L.schildVanaf || 99) ? (L.schild || 0) : 0, mg:L.mgVanaf && w >= L.mgVanaf ? 1 : 0, soorten:L.soorten}, e);
+      helm:mix(L.helm), vest:mix(L.vest), team:L.team, schild:w >= (L.schildVanaf || 99) ? (L.schild || 0) : 0, mg:L.mgVanaf && w >= L.mgVanaf ? 1 : 0, soorten:L.soorten}, e);
   },
   plekNu(){   // de plek waar we nu (of zo meteen) spelen
     if (this.modus !== 'lvl') return PLEKKEN[0];
@@ -2154,6 +2439,7 @@ AFRAME.registerComponent('zombies', {
   vestRaak(z, deel, p, dir, wapen){
     if (!this.soorten[z.n].j.vest || (z.ai && !z.vestHard) || !/borst|buik/.test(deel) || wapen === 'laser' || wapen === 'explosie') return false;
     if (deel === 'borst' && this.hoofdZone(z, 'borst', p)) return false;          // nek zit niet onder het vest
+    if (z.ai && (wapen === 'kanon' || (z.vestT = (z.vestT || 0) + 1) > VEST_TREFFERS)) return false;   // handkanon erdoorheen; na 2 kogels is het vest op
     const T = this.T, d = new T.Vector3(dir.x, 0, dir.z).normalize();
     this.ketst(p, dir, wapen === 'kanon' ? 26 : 14);
     if (z.dood){ this.lijkDuw(z, dir, wapen === 'kanon' ? 1 : 0.4); return true; }
@@ -2184,6 +2470,8 @@ AFRAME.registerComponent('zombies', {
     if (z.helmLos === undefined){ z.helmLos = Math.random() < HELM_LOS; z.helmMax = HELM_TREFFERS[0] + (Math.random()*(HELM_TREFFERS[1] - HELM_TREFFERS[0] + 1)|0); }
     z.helmT = (z.helmT || 0) + 1;
     this.ketst(p, dir, wapen === 'kanon' ? 30 : 16);
+    if (z.ai && !z.dood && Math.random() < (HELM_DOOD[wapen] || 0)){             // soldaat: de kogel gaat er meestal tóch doorheen
+      this.spat(p, dir, 40); this.nevel(p, 0.5); this.omver(z, dir, {wapen, hoofd:true}); return true; }
     if (z.dood){ this.lijkDuw(z, dir, 0.4); }
     else { this.reageer(z, 'nek', wapen === 'kanon' ? 1.4 : 0.8); z.stop = 0.03; }
     if (z.helmLos && (wapen === 'kanon' || z.helmT >= z.helmMax)) this.helmAf(z, I, dir);
@@ -2713,11 +3001,11 @@ AFRAME.registerComponent('zombies', {
       if (deel === 'hoofd') return;
     }
     if (deel === 'borst' || deel === 'buik' || deel === 'bekken'){
-      let w = null;
+      let w = null, gat = false;
       if (wapen === 'laser') w = this.laserGat(z, deel, p);
       else if (wapen === 'kanon' || wapen === 'auto'){       // zwaar of snel: soms meteen een hap eruit, een tweede treffer op een wond altijd
         const oud = this.wondBij(z, deel, p);
-        if (oud || Math.random() < HAP_KANS[wapen]) w = this.hap(z, deel, p, dir, wapen);
+        if (oud || Math.random() < HAP_KANS[wapen]){ w = this.hap(z, deel, p, dir, wapen); gat = true; }
       }
       if (!w) w = this.wond(z, deel, p, wapen);
       this.brokken(z, deel, p, dir, opt.uv, wapen);
@@ -2734,11 +3022,18 @@ AFRAME.registerComponent('zombies', {
         else if (r < DARM_KANS + 0.18) this.darmVal(z, p.clone(), zij);
         else if (r < DARM_KANS + 0.36) this.brokken(z, deel, p, dir.clone().multiplyScalar(0.2), opt.uv, 'auto');
       }
-      z.hp--; this.spat(p, dir, 30);
+      this.spat(p, dir, 30);
+      if (z.ai){                                                       // soldaat: groot gat = dood, kleine kogel = zwaargewond, tweede = dood
+        if (gat || wapen === 'kanon' || wapen === 'explosie' || (wapen === 'laser' && this.lv('laser') >= 2) || z.gewond) this.omver(z, dir, {wapen});
+        else this.gewond(z, dir);
+        return;
+      }
+      z.hp--;
       if (z.hp <= 0) this.omver(z, dir, {wapen});
       return;
     }
     const kn = z.knoop[deel]; if (!kn || kn.userData.los) return;
+    if (z.ai && this.ledemaatRaak(z, deel, kn, p, dir, wapen)) return;   // soldaat: eraf = dood, anders wapen weg of door de knie
     if (kn.userData.hangt){ this.losMaak(z, deel, dir, 1); return; }    // hing al aan een draadje: nu eraf
     const soort = deel.replace(/[LR]$/, '');
     z.deelHp = z.deelHp || {};
@@ -3386,6 +3681,10 @@ AFRAME.registerComponent('zombies', {
     const uit = this.manier(z, v, Z, p, dir, wapen);       // 'dood' | 'half' | 'leeft'
     hs.n++; z.hoofdManier = v;
     if (z.dood){ this.lijkDuw(z, dir, 0.6); return true; }
+    if (z.ai && uit !== 'dood'){                                                // soldaat: hoofd = (bijna altijd) dood
+      if (Z.zone === 'nek'){ this.nekGrijp(z, dir); return true; }
+      if (uit === 'half' || hs.n >= 2 || Math.random() > HOOFD_LEEFT){ this.omver(z, dir, {wapen, hoofd:true}); return true; }
+    }
     if (uit === 'dood' || (uit === 'leeft' && hs.n >= 3)) this.omver(z, dir, {wapen, hoofd:true});
     else if (uit === 'half'){ z.halfdood = SCHEDEL_LOOP[0] + Math.random()*(SCHEDEL_LOOP[1]-SCHEDEL_LOOP[0]); z.snel *= SCHEDEL_SNEL; this.reageer(z, 'nek', 1); }
     else if (uit === 'rug'){ this.reageer(z, 'nek', 1); z.rugT = 0.5 + Math.random()*0.5; this.struikel(z, dir, 0, {dur:z.rugT, rug:true}); }
@@ -4019,7 +4318,9 @@ AFRAME.registerComponent('zombies', {
       if (!z.dood){
         g.rotation.y = Math.atan2(naar.x, naar.z);
         const v = z.kruip ? ((z.kruipT || 0) < KRUIP_VAL ? 0 : KRUIP_SNEL) : z.snel;
-        if (z.ai && !z.strk && !(z.wankel > 0)) this.aiTick(z, s, ik);
+        if (z.nekT) this.nekTick(z, s);
+        else if (z.ai && !z.strk && !(z.wankel > 0)) this.aiTick(z, s, ik);
+        if (z.dood) continue;
         if (z.via && !z.strk){   // eerst de deur uit / om de hoek
           const nv = z.via.clone().sub(g.position); nv.y = 0;
           if (nv.length() < 0.6) z.via = null;
@@ -4078,9 +4379,15 @@ AFRAME.registerComponent('zombies', {
           this.struikelTick(z, s);
         } else {
           g.rotation.z = 0;
-          const ai = z.ai, y0 = ai && ai.stil ? this.staPose(z, ai.mik) : ai && ai.zijPas ? this.zijPasPose(z, s) : this.loopTick(z, s);
+          const ai = z.ai, stil = ai && (ai.stil || z.nekT);
+          let y0 = stil ? this.houdingPose(z) : ai && ai.zijPas ? this.zijPasPose(z, s) : this.loopTick(z, s);
+          if (ai && !stil && !ai.zijPas && z.loop && z.loop.soort !== 'ren') y0 += this.glide(z);       // soldaten lopen door de knieën
           if (ai && ai.armen === 'schild') this.schildArmen(z);
+          else if (ai && ai.armen === 'hand') this.handOpSchouder(z);
+          else if (ai && !stil && !ai.mikLopen && ai.armen === 'laag') this.laagArmen(z);
+          else if (ai && !stil && !ai.mikLopen && ai.armen === 'port') this.portArmen(z);
           if (ai && ai.mikLopen && !ai.stil) this.mikArmen(z);
+          if (z.nekT) this.nekArmen(z);
           if (ai && ai.staat === 'werp') this.werpPose(z);
           if (ai && ai.staat === 'touw') this.touwPose(z);
           g.position.y = (ai ? (ai.y0 || 0) - ai.zak : 0) + y0 + this.reactie(z, s);
