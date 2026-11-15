@@ -25,7 +25,7 @@
 
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v41.3";
+const VERSIE = "v42";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -868,6 +868,7 @@ AFRAME.registerComponent('zombies', {
       case 'rennen': {
         ai.stil = false; ai.mik = false; ai.zakDoel = 0; ai.houding = null;
         if (ai.soort !== 'schild') ai.armen = z.geweer ? (z.loop && z.loop.soort === 'ren' ? 'port' : 'laag') : null;
+        if (!ai.doel) ai.doel = g.position.clone();
         const nv = ai.doel.clone().sub(g.position); nv.y = 0; const d = nv.length();
         if (ai.soort === 'schild'){ ai.armen = z.schild ? 'schild' : null;
           const tot = g.position.clone().setY(0).distanceTo(ik); if (tot < (ai.dichtbij ? -FRONT_Z : 7) || d < 0.4){ ai.staat = 'schildStaan'; ai.t = 1 + Math.random(); break; } }
@@ -1319,7 +1320,7 @@ AFRAME.registerComponent('zombies', {
     if (!this.wave) return;
     if (this.auto) this.autoTick(s);
     this.wagenTick(s); this.heliTick(s); this.vRaketTick(s); this.spoorTick(s); this.hudTick(s);
-    this.ammoTick(s); this.vGranaatTick(s); this.touwTick(s); this.scheiden(); this.kogelTick(s); this.wrakTick(s); this.upgradeTick(s); this.bliksemTick(s); this.paneelTick(s); this.tankTick(s); this.teamTick(s); this.schadeFx(s);
+    this.ammoTick(s); this.vGranaatTick(s); this.touwTick(s); this.scheiden(); this.kogelTick(s); this.wrakTick(s); this.upgradeTick(s); this.bliksemTick(s); this.paneelTick(s); this.tankTick(s); this.teamTick(s); this.schadeFx(s); this.stukken3dTick(s);
     for (const z of this.lijst) if (z.ai && (z.dood || z.strk || z.kruip) && !((z.ai.y0 || 0) > 0.4) && !(z.dood && z.val > 3)) this.uitDekking(z, s);
     if (!this.overleden) this.houdBeweging(s);
     this.beschermd = Math.max(0, (this.beschermd || 0) - s);
@@ -2220,8 +2221,8 @@ AFRAME.registerComponent('zombies', {
       clips[c.name] = c;
       const b = c.clone(); b.name = c.name + '|benen'; b.tracks = b.tracks.filter(t => BENEN.test(t.name)); clips[b.name] = b;
       const o = c.clone(); o.name = c.name + '|boven'; o.tracks = o.tracks.filter(t => !BENEN.test(t.name)); clips[o.name] = o; });
-    const atlas = this.s3dUV(sc);
-    return {scene:sc, clips, schaal:ZLENGTE/hoog, stof, stoffen, naad, atlas};
+    const atlas = this.s3dUV(sc), knipInfo = this.s3dKnipPrep(sc);
+    return {scene:sc, clips, schaal:ZLENGTE/hoog, stof, stoffen, naad, atlas, knipInfo};
   },
   /* ---------- foto-kleding: de onderdelen van de 2D-soldaat geprojecteerd op de 3D-pop (in rusthouding) ---------- */
   s3dUV(sc){                            // eenmalig: elke vertex krijgt een plek in een atlas, per lichaamsdeel een vak
@@ -2290,7 +2291,7 @@ AFRAME.registerComponent('zombies', {
     const zone = (deel, bot, w, h, d, dy) => { const b = S.bot[bot]; if (!b) return; const ws = b.getWorldScale(new T.Vector3()).x || sch;
       const box = new T.Mesh(new T.BoxGeometry(w/ws, h/ws, d/ws), new T.MeshBasicMaterial({visible:false}));
       box.position.set(0, (dy ?? h/2)/ws, 0); box.userData = {z, deel, box:true}; b.add(box); };
-    zone('hoofd', 'Head', 0.22, 0.27, 0.24, 0.1); zone('borst', 'spine_03', 0.38, 0.26, 0.26, 0.1); zone('buik', 'spine_02', 0.33, 0.2, 0.24, 0.06); zone('bekken', 'pelvis', 0.34, 0.18, 0.24, 0.0);
+    zone('hoofd', 'Head', 0.22, 0.24, 0.24, 0.13); zone('nek', 'neck_01', 0.12, 0.1, 0.12, 0.05); zone('borst', 'spine_03', 0.38, 0.26, 0.26, 0.1); zone('buik', 'spine_02', 0.33, 0.2, 0.24, 0.06); zone('bekken', 'pelvis', 0.34, 0.18, 0.24, 0.0);
     [['L','l'], ['R','r']].forEach(([K, k]) => {
       zone('bovenarm'+K, 'upperarm_'+k, 0.11, 0.3, 0.11); zone('onderarm'+K, 'lowerarm_'+k, 0.1, 0.27, 0.1); zone('hand'+K, 'hand_'+k, 0.11, 0.12, 0.07);
       zone('bovenbeen'+K, 'thigh_'+k, 0.17, 0.44, 0.17); zone('onderbeen'+K, 'calf_'+k, 0.13, 0.43, 0.13); zone('voet'+K, 'foot_'+k, 0.11, 0.12, 0.22); });
@@ -2311,7 +2312,8 @@ AFRAME.registerComponent('zombies', {
     const hb = S.bot.hand_r; if (hb){ const ws = hb.getWorldScale(new T.Vector3()).x || sch; gw.scale.setScalar(1/ws); gw.position.set(0.0, -0.05/ws, 0.0); gw.rotation.set(GEWEER3D.rx, GEWEER3D.ry, GEWEER3D.rz); hb.add(gw); }
     if (z.geweer && z.geweer.parent) z.geweer.visible = false;
     z.geweer = gw;
-    const geen = () => {}; m.traverse(o => { if (o.isMesh && !(o.userData && o.userData.box)) o.raycast = geen; });   // alleen de trefzones testen: een skinned mesh raycasten is zwaar (haperen!)
+    const geen = () => {}; m.traverse(o => { if (o.isMesh && !(o.userData && o.userData.box)) o.raycast = geen; });
+    this.s3dKnipMaak(z);   // alleen de trefzones testen: een skinned mesh raycasten is zwaar (haperen!)
     this.s3dSpeel(z, 'Idle_Loop', 'Pistol_Idle_Loop', 0);
   },
   s3dAct(z, naam){ const S = z.s3d, c = this.s3dBron.clips[naam]; if (!c) return null; return S.acts[naam] || (S.acts[naam] = S.mixer.clipAction(c)); },
@@ -2345,13 +2347,14 @@ AFRAME.registerComponent('zombies', {
       boven = !gewapend ? benen : (ai.mik || ai.mikLopen) ? 'Pistol_Aim_Neutral' : 'Pistol_Idle_Loop';
     } else {
       benen = ai.staat === 'dekking' || hurk ? 'Crouch_Idle_Loop' : kniel ? 'Fixing_Kneeling' : 'Idle_Loop';
-      boven = z.gewond || z.nekT ? 'Bandage_Loop' : !gewapend ? 'Idle_Loop' : ai.mik ? 'Pistol_Aim_Neutral' : 'Pistol_Idle_Loop';
+      boven = !gewapend || z.nekT ? 'Idle_Loop' : ai.mik ? 'Pistol_Aim_Neutral' : 'Pistol_Idle_Loop';
     }
     this.s3dSpeel(z, benen, boven);
     const ab = this.s3dAct(z, benen + '|benen'); if (ab) ab.timeScale = ts;
     const rb = S.bot.spine_03;
     if (rb && S.kickNu){ rb.rotation.x += S.kickNu; S.kickNu = 0; }               // terugslag van vorige beurt eerst terugzetten (niet optellen!)
     S.mixer.update(s);
+    this.s3dSpuitTick(z, s); this.s3dGrijpIK(z, s);
     if (S.kick > 0.01 && rb){ S.kickNu = S.kick*0.18; rb.rotation.x -= S.kickNu; S.kick *= Math.exp(-14*s); }
     // hoogte: achter dekking gehurkt (en de rest wegzakken), anders zoals de 2D-soldaat
     const hurkDekking = ai.staat === 'dekking' ? 0.62 : 0;
@@ -2372,62 +2375,249 @@ AFRAME.registerComponent('zombies', {
     if (S.vlieg){ S.vlieg.y -= ZWAARTE*s; g.position.addScaledVector(S.vlieg, s); if (g.position.y <= 0){ g.position.y = 0; S.vlieg = null; } }
     else if (g.position.y > 0.01){ g.position.y = Math.max(0, g.position.y - s*6); }
     if (z.val < 4) S.mixer.update(s);
+    this.s3dSpuitTick(z, s);
   },
-  s3dLos(z, deel, dir, kracht){         // ledemaat eraf: bot inklappen, los stuk wegslingeren, bloed
-    const S = z.s3d, T = this.T, BOT = {hoofd:'Head', bovenarmL:'upperarm_l', onderarmL:'lowerarm_l', handL:'hand_l', bovenarmR:'upperarm_r', onderarmR:'lowerarm_r', handR:'hand_r',
-      bovenbeenL:'thigh_l', onderbeenL:'calf_l', voetL:'foot_l', bovenbeenR:'thigh_r', onderbeenR:'calf_r', voetR:'foot_r'};
-    const b = S.bot[BOT[deel]]; if (!b || b.userData.los) return;
-    const wp = b.getWorldPosition(new T.Vector3()), kind = b.children.find(c => c.isBone), eind = kind ? kind.getWorldPosition(new T.Vector3()) : wp.clone().add(new T.Vector3(0, -0.3, 0));
-    b.userData.los = true; b.scale.setScalar(0.001);
-    b.traverse(o => { if (o.userData && o.userData.box){ o.userData.box = false; o.userData.z = null; } });
-    if (z.knoop[deel]) z.knoop[deel].userData.los = true;                          // de AI weet dan ook dat de arm/het been weg is
-    ['onderarm','hand'].forEach(n => { if (deel.startsWith('bovenarm') && z.knoop[n + deel.slice(-1)]) z.knoop[n + deel.slice(-1)].userData.los = true; });
-    if (/hand|onderarm|bovenarm/.test(deel) && deel.endsWith('R') && z.geweer) this.geweerWeg(z);
-    const lang = Math.max(0.12, wp.distanceTo(eind)), dik = deel === 'hoofd' ? 0.12 : /been/.test(deel) ? 0.075 : 0.055;
-    const geo = deel === 'hoofd' ? new T.SphereGeometry(0.12, 10, 8) : new T.CapsuleGeometry(dik, lang, 4, 8);
-    const me = new T.Mesh(geo, this._stukMat || (this._stukMat = new T.MeshLambertMaterial({color:0x4a4436}))); me.position.copy(wp).lerp(eind, 0.5); me.lookAt(eind); me.rotateX(Math.PI/2); this.sc.add(me);
+  /* ================= KNIPPEN in de 3D-pop: gaten, ledematen op elke plek door, hoofd stap voor stap ================= */
+  BOT3D: {hoofd:'Head', nek:'neck_01', borst:'spine_03', buik:'spine_02', bekken:'pelvis', bovenarmL:'upperarm_r', onderarmL:'lowerarm_r', handL:'hand_r', bovenarmR:'upperarm_l', onderarmR:'lowerarm_l', handR:'hand_l',
+    bovenbeenL:'thigh_r', onderbeenL:'calf_r', voetL:'foot_r', bovenbeenR:'thigh_l', onderbeenR:'calf_l', voetR:'foot_l'},
+  s3dKnipPrep(sc){                      // eenmalig per bronmodel: rust-posities, driehoeken, middelpunten, botten
+    const T = this.T, uit = {};
+    sc.traverse(o => { if (!o.isSkinnedMesh) return;
+      const g = o.geometry, pos = g.attributes.position, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, n = pos.count, sk = o.skeleton;
+      const P = new Float32Array(n*3), dom = new Int16Array(n), v = new T.Vector3();
+      for (let i=0;i<n;i++){ v.fromBufferAttribute(pos, i).applyMatrix4(o.bindMatrix); P[i*3] = v.x; P[i*3+1] = v.y; P[i*3+2] = v.z;
+        let bi = 0, bw = -1; for (let k=0;k<4;k++){ const w = sw.getComponent(i, k); if (w > bw){ bw = w; bi = si.getComponent(i, k); } } dom[i] = bi; }
+      const idx = g.index ? g.index.array : Uint32Array.from({length:n}, (_, i) => i), nt = idx.length/3, cen = new Float32Array(nt*3);
+      for (let t=0;t<nt;t++) for (let a=0;a<3;a++){ const i = idx[t*3+a]; cen[t*3] += P[i*3]/3; cen[t*3+1] += P[i*3+1]/3; cen[t*3+2] += P[i*3+2]/3; }
+      const namen = sk.bones.map(b => b.name), kind = namen.map(() => []);
+      sk.bones.forEach((b, i) => b.children.forEach(c => { const j = sk.bones.indexOf(c); if (j >= 0) kind[i].push(j); }));
+      const onder = i => { const s = new Set([i]), st = [i]; while (st.length){ const k = st.pop(); kind[k].forEach(j => { if (!s.has(j)){ s.add(j); st.push(j); } }); } return s; };
+      const boneP = sk.boneInverses.map(m => new T.Vector3().setFromMatrixPosition(m.clone().invert()));
+      const perBot = namen.map(() => []);                                   // per bot: welke driehoeken (sneller zoeken)
+      for (let t=0;t<nt;t++){ const a = dom[idx[t*3]], b = dom[idx[t*3+1]], c = dom[idx[t*3+2]]; perBot[a].push(t); if (b !== a) perBot[b].push(t); if (c !== a && c !== b) perBot[c].push(t); }
+      const ouder = sk.bones.map(b => sk.bones.indexOf(b.parent));
+      uit[o.name] = {P, dom, idx, nt, cen, namen, kind, onder, boneP, perBot, ouder};
+    });
+    return uit;
+  },
+  s3dKnipMaak(z){                       // per soldaat: eigen driehoekenlijst (de rest van het model wordt gedeeld)
+    const S = z.s3d, B = this.s3dBron, T = this.T; S.knip = [];
+    S.m.traverse(o => { if (!o.isSkinnedMesh) return; const info = B.knipInfo[o.name]; if (!info) return;
+      const g = new T.BufferGeometry(); Object.entries(o.geometry.attributes).forEach(([k, a]) => g.setAttribute(k, a));
+      g.setIndex(new T.BufferAttribute(info.idx.slice(), 1)); o.geometry = g;
+      S.knip.push({mesh:o, info, weg:new Uint8Array(info.nt)}); });
+    S.kop = 0; S.vlees = [];
+  },
+  s3dNaarRust(z, botNaam, p){           // wereldpunt → rustpositie (bind-ruimte) via dat bot
+    const K = z.s3d.knip[0]; if (!K) return null; const sk = K.mesh.skeleton, bi = K.info.namen.indexOf(botNaam); if (bi < 0) return null;
+    const b = sk.bones[bi]; b.updateWorldMatrix(true, false);
+    const M = sk.boneInverses[bi].clone().invert().multiply(b.matrixWorld.clone().invert());
+    return {p:p.clone().applyMatrix4(M), M, bi};
+  },
+  s3dIndexOpnieuw(K){ const a = K.info.idx, nt = K.info.nt, w = K.weg; let n = 0; for (let t=0;t<nt;t++) if (!w[t]) n++;
+    const uit = a.BYTES_PER_ELEMENT === 2 ? new Uint16Array(n*3) : new Uint32Array(n*3); let j = 0;
+    for (let t=0;t<nt;t++) if (!w[t]){ uit[j++] = a[t*3]; uit[j++] = a[t*3+1]; uit[j++] = a[t*3+2]; }
+    K.mesh.geometry.setIndex(new this.T.BufferAttribute(uit, 1)); },
+  s3dWeg(z, test, bij){                 // driehoeken die aan test(...) voldoen eruit halen; bij = botnamen (alleen daar zoeken, met buren)
+    const S = z.s3d, eruit = [];
+    for (const K of S.knip || []){ const I = K.info, lijst = [];
+      let kand = null;
+      if (bij){ const s = new Set(); bij.forEach(n => { const bi = I.namen.indexOf(n); if (bi < 0) return; [bi, I.ouder[bi], ...I.kind[bi]].forEach(j => { if (j >= 0) I.perBot[j].forEach(t => s.add(t)); }); }); kand = s; }
+      const doe = t => { if (K.weg[t]) return; if (test(I, t)){ K.weg[t] = 1; lijst.push(t); } };
+      if (kand) kand.forEach(doe); else for (let t=0;t<I.nt;t++) doe(t);
+      if (lijst.length){ this.s3dIndexOpnieuw(K); eruit.push({K, lijst}); } }
+    return eruit;
+  },
+  vleesMat(){ return this._vleesMat || (this._vleesMat = new this.T.MeshLambertMaterial({color:0x4a0707, emissive:0x120000, flatShading:true})); },
+  gloeiMat(){ return this._gloeiMat || (this._gloeiMat = new this.T.MeshBasicMaterial({color:0xff7a20})); },
+  s3dVlees(z, bi, pRust, r, soort){     // binnenkant in het gat: rood vlees (of een gloeiende rand bij de laser), hangt aan het bot
+    const T = this.T, S = z.s3d, K = S.knip[0], b = K.mesh.skeleton.bones[bi]; if (!b || (S.vlees.length > 24)) return;
+    const lok = pRust.clone().applyMatrix4(K.mesh.skeleton.boneInverses[bi]), ws = b.getWorldScale(new T.Vector3()).x || 1;
+    let m;
+    if (soort === 'gloei'){ m = new T.Mesh(new T.TorusGeometry(r, r*0.18, 6, 14), this.gloeiMat()); }
+    else if (soort === 'zwart'){ m = new T.Mesh(new T.SphereGeometry(r*0.9, 8, 6), new T.MeshBasicMaterial({color:0x140a06})); }
+    else m = new T.Mesh(new T.IcosahedronGeometry(r*0.62, 0), this.vleesMat());
+    m.scale.setScalar(1/ws); m.position.copy(lok); m.raycast = () => {}; m.lookAt(b.localToWorld(lok.clone().multiplyScalar(2))); b.add(m); S.vlees.push(m);
+    if (soort === 'gloei'){ const t0 = this.nu; m.userData.gloei = t0; }
+  },
+  s3dGat(z, botNaam, p, dir, r, soort){ // gat op de inslagplek (r in meter); soort: 'vlees' | 'gloei' (laser) | 'door' (je kijkt erdoorheen)
+    const R = this.s3dNaarRust(z, botNaam, p); if (!R) return 0; const c = R.p, r2 = r*r;
+    const eruit = this.s3dWeg(z, (I, t) => { const dx = I.cen[t*3] - c.x, dy = I.cen[t*3+1] - c.y, dz = I.cen[t*3+2] - c.z; return dx*dx + dy*dy + dz*dz < r2; }, [botNaam]);
+    if (!eruit.length) return 0;
+    if (soort !== 'door') this.s3dVlees(z, R.bi, c, r, soort === 'gloei' ? 'zwart' : 'vlees');
+    if (soort === 'gloei' || soort === 'door') this.s3dVlees(z, R.bi, c, r, 'gloei');
+    return eruit.reduce((a, e) => a + e.lijst.length, 0);
+  },
+  s3dStuk(z, eruit, dir, kracht){       // weggeknipte driehoeken → los 3D-stuk in de houding van nu, valt en rolt
+    const T = this.T, pos = [], uv = [];
+    let kl = null;
+    for (const {K, lijst} of eruit){ const m = K.mesh, g = m.geometry, U = g.attributes.uv, I = K.info, sk = m.skeleton, si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
+      kl = kl || m.material; sk.update(); const BM = sk.boneMatrices, P = I.P, klaar = new Map();
+      const zet = i => { let r = klaar.get(i); if (r) return r; const x = P[i*3], y = P[i*3+1], zz = P[i*3+2]; let ox = 0, oy = 0, oz = 0;
+        for (let k=0;k<4;k++){ const w = sw.getComponent(i, k); if (!w) continue; const o = si.getComponent(i, k)*16;
+          ox += w*(BM[o]*x + BM[o+4]*y + BM[o+8]*zz + BM[o+12]); oy += w*(BM[o+1]*x + BM[o+5]*y + BM[o+9]*zz + BM[o+13]); oz += w*(BM[o+2]*x + BM[o+6]*y + BM[o+10]*zz + BM[o+14]); }
+        r = [ox, oy, oz]; klaar.set(i, r); return r; };
+      for (const t of lijst) for (let a=0;a<3;a++){ const i = I.idx[t*3+a], r = zet(i); pos.push(r[0], r[1], r[2]); uv.push(U.getX(i), U.getY(i)); } }
+    if (pos.length < 9) return null;
+    const mid = new T.Vector3(); for (let i=0;i<pos.length;i+=3){ mid.x += pos[i]; mid.y += pos[i+1]; mid.z += pos[i+2]; } mid.multiplyScalar(3/pos.length);
+    let rmax = 0.05; for (let i=0;i<pos.length;i+=3){ pos[i] -= mid.x; pos[i+1] -= mid.y; pos[i+2] -= mid.z; rmax = Math.max(rmax, Math.hypot(pos[i], pos[i+1], pos[i+2])); }
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); g.computeVertexNormals();
+    let mat = kl && kl.userData.dubbel; if (kl && !mat){ mat = kl.userData.dubbel = kl.clone(); mat.side = T.DoubleSide; } mat = mat || new T.MeshLambertMaterial({color:0x555044, side:T.DoubleSide});
+    const me = new T.Mesh(g, mat); me.position.copy(mid); me.raycast = () => {}; this.sc.add(me);
     const d = (dir || new T.Vector3(0, 0, -1)).clone().setY(0).normalize();
-    this.los.push({o:me, v:new T.Vector3(d.x*2.5 + (Math.random()-0.5)*2, 2 + Math.random()*2*(kracht || 1), d.z*2.5 + (Math.random()-0.5)*2), w:new T.Vector3((Math.random()-0.5)*10, (Math.random()-0.5)*10, (Math.random()-0.5)*10), t:0, grond:false});
-    this.spat(wp, d, 45); this.nevel(wp, 0.6);
+    (this.stukken3d = this.stukken3d || []).push({o:me, v:new T.Vector3(d.x*2.2 + (Math.random()-0.5)*1.5, (1.5 + Math.random()*2)*(kracht || 1), d.z*2.2 + (Math.random()-0.5)*1.5),
+      w:new T.Vector3((Math.random()-0.5)*7, (Math.random()-0.5)*7, (Math.random()-0.5)*7), t:0, r:Math.min(0.35, rmax*0.45), grond:false, bloed:1.2});
+    return me;
+  },
+  stukken3dTick(s){
+    const L = this.stukken3d; if (!L || !L.length) return;
+    for (const p of L){ p.t += s; const o = p.o;
+      if (p.bloed > 0){ p.bloed -= s; if (Math.random() < s*14) this.spat(o.position.clone(), new this.T.Vector3((Math.random()-0.5), 0.3, (Math.random()-0.5)).normalize(), 6); }
+      if (!p.grond){ p.v.y -= ZWAARTE*0.85*s; o.position.addScaledVector(p.v, s); o.rotation.x += p.w.x*s; o.rotation.y += p.w.y*s; o.rotation.z += p.w.z*s;
+        if (o.position.y < p.r){ o.position.y = p.r; this.vlek(o.position.x, o.position.z, 0.2 + Math.random()*0.25);
+          if (Math.abs(p.v.y) > 1.6){ p.v.y *= -0.28; p.v.x *= 0.55; p.v.z *= 0.55; p.w.multiplyScalar(0.55); } else { p.grond = true; } } }
+      else if (p.t > LIJK_TIJD) o.position.y -= s*0.05;
+    }
+    this.stukken3d = L.filter(p => { if (p.t > LIJK_TIJD + 4){ p.o.removeFromParent(); p.o.geometry.dispose(); return false; } return true; });
+  },
+  s3dDoorknip(z, botNaam, p, dir, kracht){   // ledemaat doorknippen op de plek van de treffer (of bij het gewricht als p ontbreekt)
+    const S = z.s3d, K0 = S.knip && S.knip[0]; if (!K0) return false; const I0 = K0.info, bi0 = I0.namen.indexOf(botNaam); if (bi0 < 0) return false;
+    const T = this.T, kb = I0.kind[bi0][0], start = I0.boneP[bi0], eind = kb != null ? I0.boneP[kb] : start.clone().add(new T.Vector3(0, -0.15, 0.1));
+    const as = eind.clone().sub(start), len = as.length() || 0.2; as.normalize();
+    let sAf = 0.08*len;                                              // waar langs het bot: bij een treffer precies daar
+    if (p){ const R = this.s3dNaarRust(z, botNaam, p); if (R) sAf = Math.max(0.05*len, Math.min(0.95*len, R.p.clone().sub(start).dot(as))); }
+    const c = start.clone().addScaledVector(as, sAf);
+    const dichtbij = (I, i) => { const x = I.P[i*3] - c.x, y = I.P[i*3+1] - c.y, zz = I.P[i*3+2] - c.z; return x*as.x + y*as.y + zz*as.z; };
+    const cache = new Map(), info = I => { let c = cache.get(I); if (!c){ const bi = I.namen.indexOf(botNaam), set = I._onder || (I._onder = {}); c = {bi, ond:set[botNaam] || (set[botNaam] = I.onder(bi))}; cache.set(I, c); } return c; };
+    const eruit = this.s3dWeg(z, (I, t) => { const {bi, ond} = info(I);
+      let n = 0; for (let a=0;a<3;a++){ const i = I.idx[t*3+a]; if (!ond.has(I.dom[i])) return false; if (I.dom[i] !== bi || dichtbij(I, i) > 0) n++; } return n >= 2; },
+      [...I0.onder(bi0)].map(j => I0.namen[j]));
+    if (!eruit.length) return false;
+    const stuk = this.s3dStuk(z, eruit, dir, kracht);
+    // stomp: rood rafelrondje aan het bot, plus een paar seconden spuiten
+    const sk = K0.mesh.skeleton, b = sk.bones[bi0], lok = c.clone().applyMatrix4(sk.boneInverses[bi0]), ws = b.getWorldScale(new T.Vector3()).x || 1;
+    const dik = /thigh|calf/.test(botNaam) ? 0.075 : /Head|neck/.test(botNaam) ? 0.08 : 0.05;
+    const st = new T.Mesh(new T.SphereGeometry(dik, 8, 6), this.vleesMat()); st.scale.set(1/ws, 0.55/ws, 1/ws); st.position.copy(lok); st.raycast = () => {}; b.add(st);
+    (S.spuit = S.spuit || []).push({b, lok, t:2.2 + Math.random()});
+    // trefzones en uitrusting van wat eraf is: weg
+    const ond = I0.onder(bi0); ond.forEach(j => { const bn = sk.bones[j]; bn.children.slice().forEach(ch => { if (ch.userData && ch.userData.box){ ch.userData.box = false; ch.userData.z = null; } }); });
+    if (z.geweer && z.geweer.parent && ond.has(sk.bones.indexOf(z.geweer.parent))) this.geweerWeg(z);
+    if (S.helmMesh && S.helmMesh.parent && ond.has(sk.bones.indexOf(S.helmMesh.parent))) this.s3dHelmWeg(z, dir);
+    Object.entries(this.BOT3D).forEach(([d, bn]) => { if (ond.has(I0.namen.indexOf(bn)) && z.knoop[d]) z.knoop[d].userData.los = true; });
+    this.spat(b.getWorldPosition(new T.Vector3()), dir || new T.Vector3(0, 0, -1), 40); this.nevel(b.getWorldPosition(new T.Vector3()), 0.6);
+    return !!stuk;
+  },
+  s3dHelmWeg(z, dir){ const S = z.s3d, h = S.helmMesh; if (!h || !h.parent || S.helmAf) return; S.helmAf = true;
+    const T = this.T, wp = h.getWorldPosition(new T.Vector3()), ws = h.getWorldScale(new T.Vector3()); this.sc.add(h); h.position.copy(wp); h.scale.copy(ws);
+    this.los.push({o:h, v:new T.Vector3((dir ? dir.x : 0)*2, 2.5, (dir ? dir.z : 0)*2), w:new T.Vector3(4, 6, 3), t:0, grond:false}); },
+  s3dSpuitTick(z, s){                   // bloed uit de stompen
+    const S = z.s3d; if (!S.spuit || !S.spuit.length) return; const T = this.T;
+    for (const q of S.spuit){ q.t -= s; if (Math.random() < s*18){ const w = q.b.localToWorld(q.lok.clone()); this.spat(w, new T.Vector3((Math.random()-0.5)*0.6, 0.5 + Math.random()*0.5, (Math.random()-0.5)*0.6).normalize(), 5); } }
+    S.spuit = S.spuit.filter(q => q.t > 0);
+  },
+  s3dHoofd(z, p, dir, wapen){           // hoofd stap voor stap: 1 kogel door, 2 stuk eraf, 3 meer, soms half hoofd; zwaar: ontploft
+    const S = z.s3d, T = this.T; S.kop = (S.kop || 0) + 1; const n = S.kop;
+    const uit = p.clone().addScaledVector(dir, 0.22);
+    this.spat(uit, dir, 30); this.nevel(uit, 0.5);                                         // uitschot aan de achterkant
+    if (wapen === 'kanon' || (wapen === 'laser' && this.lv('laser') >= 4) || wapen === 'explosie'){ this.s3dKopWeg(z, dir); return; }
+    if (n === 1){ this.s3dGat(z, 'Head', p, dir, wapen === 'laser' ? 0.04 : 0.03, wapen === 'laser' ? 'gloei' : 'vlees'); this.s3dGat(z, 'Head', uit, dir, 0.05, 'vlees'); return; }
+    if (Math.random() < (n === 2 ? 0.25 : 0.45)){ this.s3dHalfHoofd(z, p, dir); return; }
+    const R = this.s3dNaarRust(z, 'Head', p); if (!R) return; const c = R.p, rr = n === 2 ? 0.07 : 0.1;
+    const eruit = this.s3dWeg(z, (I, t) => { const dx = I.cen[t*3] - c.x, dy = I.cen[t*3+1] - c.y, dz = I.cen[t*3+2] - c.z; return dx*dx + dy*dy + dz*dz < rr*rr; }, ['Head']);
+    if (eruit.length){ this.s3dStuk(z, eruit, dir, 0.8); this.s3dVlees(z, R.bi, c, rr*0.8, 'vlees'); }
+    if (n >= 4) this.s3dKopWeg(z, dir);
+  },
+  s3dHalfHoofd(z, p, dir){
+    const R = this.s3dNaarRust(z, 'Head', p); if (!R) return; const T = this.T, I = z.s3d.knip[0].info, hb = I.boneP[R.bi];
+    const mid = hb.clone().add(new T.Vector3(0, 0.1, 0)), nrm = R.p.clone().sub(mid).setY(R.p.y - mid.y + (Math.random()-0.3)*0.1).normalize();
+    const kb = new Map(), kop = I2 => { let v = kb.get(I2); if (v == null){ v = I2.namen.indexOf('Head'); kb.set(I2, v); } return v; };
+    const eruit = this.s3dWeg(z, (I2, t) => { const bi = kop(I2); for (let a=0;a<3;a++){ const i = I2.idx[t*3+a]; if (I2.dom[i] !== bi) return false; }
+      const x = I2.cen[t*3] - mid.x, y = I2.cen[t*3+1] - mid.y, zz = I2.cen[t*3+2] - mid.z; return x*nrm.x + y*nrm.y + zz*nrm.z > -0.01; }, ['Head']);
+    if (eruit.length){ this.s3dStuk(z, eruit, dir, 1.2); this.s3dVlees(z, R.bi, mid, 0.09, 'vlees'); }
+    if (z.s3d.helmMesh) this.s3dHelmWeg(z, dir);
+    (z.s3d.spuit = z.s3d.spuit || []).push({b:z.s3d.bot.Head, lok:new T.Vector3(0, 0.05/(z.s3d.bot.Head.getWorldScale(new T.Vector3()).x || 1), 0), t:2});
+  },
+  s3dKopWeg(z, dir){                    // hoofd ontploft: weg, brokken, fontein uit de nek
+    const T = this.T, S = z.s3d, hb = S.bot.Head; if (!hb || S.kopWeg) return; S.kopWeg = true;
+    const wp = hb.getWorldPosition(new T.Vector3()).add(new T.Vector3(0, 0.1, 0));
+    const kb = new Map(), kop = I => { let v = kb.get(I); if (v == null){ v = I.namen.indexOf('Head'); kb.set(I, v); } return v; };
+    const eruit = this.s3dWeg(z, (I, t) => { const bi = kop(I); for (let a=0;a<3;a++) if (I.dom[I.idx[t*3+a]] !== bi) return false; return true; }, ['Head']);
+    // in een paar brokken
+    for (const e of eruit){ const L = e.lijst.sort(() => Math.random() - 0.5), k = 4; for (let j=0;j<k;j++){ const deel = L.filter((_, i) => i % k === j); if (deel.length) this.s3dStuk(z, [{K:e.K, lijst:deel}], new T.Vector3((Math.random()-0.5)*2, 0, (Math.random()-0.5)*2).add(dir || new T.Vector3()), 1.6); } }
+    if (S.helmMesh) this.s3dHelmWeg(z, dir);
+    hb.children.slice().forEach(ch => { if (ch.userData && ch.userData.box){ ch.userData.box = false; ch.userData.z = null; } });
+    for (let i=0;i<4;i++) this.spat(wp, new T.Vector3((Math.random()-0.5)*2, 1, (Math.random()-0.5)*2).normalize(), 40); this.nevel(wp, 1); this.nevel(wp, 0.8);
+    const nb = S.bot.neck_01; if (nb) (S.spuit = S.spuit || []).push({b:nb, lok:new T.Vector3(0, 0.08/(nb.getWorldScale(new T.Vector3()).x || 1), 0), t:3.5});
+  },
+  s3dGrijp(z, botNaam, p, duur, hand){   // hand naar de wond (nek, dij, arm): eerste treffer, even vasthouden
+    const S = z.s3d, b = S && S.bot[botNaam]; if (!b || z.dood) return;
+    if (!hand){ hand = z.geweer && z.geweer.parent ? 'l' : (/_r$/.test(botNaam) ? 'r' : 'l'); if (/_l$/.test(botNaam) && /arm|hand/.test(botNaam)) hand = 'r'; if (/_r$/.test(botNaam) && /arm|hand/.test(botNaam)) hand = 'l'; }
+    S.grijp = {b, lok:b.worldToLocal(p.clone()), t:duur || 1.6, duur:duur || 1.6, hand};
+  },
+  s3dGrijpIK(z, s){                     // simpele IK: onder- en bovenarm draaien tot de hand bij de wond is
+    const S = z.s3d, G = S.grijp; if (!G) return; G.t -= s; if (G.t <= 0 || z.dood){ S.grijp = null; return; }
+    const T = this.T, w = Math.min(1, (G.duur - G.t)*5, G.t*3), eff = S.bot['hand_' + G.hand], keten = [S.bot['lowerarm_' + G.hand], S.bot['upperarm_' + G.hand]];
+    if (!eff || keten.some(b => !b)) return;
+    S.m.updateMatrixWorld(true); const doel = G.b.localToWorld(G.lok.clone()), a = new T.Vector3(), c = new T.Vector3(), q = new T.Quaternion(), pq = new T.Quaternion();
+    for (let it=0; it<4; it++) for (const b of keten){
+      const bp = b.getWorldPosition(new T.Vector3()); a.copy(eff.getWorldPosition(new T.Vector3())).sub(bp).normalize(); c.copy(doel).sub(bp).normalize();
+      q.setFromUnitVectors(a, c); b.parent.getWorldQuaternion(pq); const ql = pq.clone().invert().multiply(q).multiply(pq);
+      b.quaternion.premultiply(new T.Quaternion().slerp(ql, w)); b.updateMatrixWorld(true); }
+  },
+  s3dLos(z, deel, dir, kracht, p){      // (oude naam) ledemaat eraf → doorknippen
+    if (deel === 'hoofd') return this.s3dKopWeg(z, dir);
+    const bn = this.BOT3D[deel]; if (bn) this.s3dDoorknip(z, bn, p || null, dir, kracht);
   },
   raak3d(z, deel, p, dir, opt){
-    const T = this.T, S = z.s3d, wapen = opt.wapen || 'pistool';
-    if (z.dood){ this.spat(p, dir, 14); return; }
+    const T = this.T, S = z.s3d, wapen = opt.wapen || 'pistool', bn = this.BOT3D[deel] || 'spine_02';
+    const zwaar = wapen === 'kanon' || wapen === 'explosie', laser = wapen === 'laser', groteLaser = laser && this.lv('laser') >= 2;
+    const knipt = zwaar || groteLaser || (wapen === 'auto' && this.lv('auto') >= 3 && (z.deelT = z.deelT || {}, (z.deelT[deel] = (z.deelT[deel] || 0) + 1) >= 2));
     this.spat(p, dir, 26);
-    if (deel === 'hoofd'){
-      const kop = S.bot.Head ? S.bot.Head.getWorldPosition(new T.Vector3()) : p, nek = p.y < kop.y + 0.03;
-      if (S.helm && !S.helmAf && !nek && wapen !== 'kanon' && !(wapen === 'laser' && this.lv('laser') >= 2)){
+    // ---- op een lijk blijven schieten: het knippen gaat gewoon door
+    if (z.dood){
+      if (deel === 'hoofd' || deel === 'nek') this.s3dHoofd(z, p, dir, wapen);
+      else if (/arm|been|hand|voet/.test(deel) && knipt) this.s3dDoorknip(z, bn, p, dir, 1);
+      else this.s3dGat(z, bn, p, dir, zwaar ? 0.09 : groteLaser ? 0.08 : laser ? 0.045 : 0.035, groteLaser ? 'door' : laser ? 'gloei' : 'vlees');
+      if (S.vlieg == null && !zwaar) S.duw = (S.duw || 0) + 1;
+      return; }
+    // ---- hoofd en nek
+    if (deel === 'hoofd' || deel === 'nek'){
+      const nek = deel === 'nek';
+      if (S.helm && !S.helmAf && !nek && !zwaar && !groteLaser){
         this.ketst(p, dir, 16); this.klang(0.6);
-        if (Math.random() < (HELM_DOOD[wapen] || 0)){ this.omver(z, dir, {wapen, hoofd:true}); return; }
-        this.s3dHit(z, 'Hit_Head'); this.wankel(z, dir, 0.4);
-        if (Math.random() < 0.35 && S.helmMesh){ S.helmAf = true; const h = S.helmMesh, wp = h.getWorldPosition(new T.Vector3()), ws = h.getWorldScale(new T.Vector3());
-          this.sc.add(h); h.position.copy(wp); h.scale.copy(ws); this.los.push({o:h, v:new T.Vector3(dir.x*2, 2.5, dir.z*2), w:new T.Vector3(4, 6, 3), t:0, grond:false}); }
-        return; }
-      if (nek){ this.nekGrijp(z, dir); return; }
-      if (wapen === 'kanon' || (wapen === 'laser' && this.lv('laser') >= 4) || Math.random() < 0.25) this.s3dLos(z, 'hoofd', dir, 1);
-      else if (Math.random() < HOOFD_LEEFT){ this.s3dHit(z, 'Hit_Head'); return; }
+        if (Math.random() < (HELM_DOOD[wapen] || 0)){ this.s3dHoofd(z, p, dir, wapen); this.omver(z, dir, {wapen, hoofd:true}); return; }
+        this.s3dHit(z, 'Hit_Head'); this.wankel(z, dir, 0.4); if (Math.random() < 0.35) this.s3dHelmWeg(z, dir); return; }
+      if (nek && !zwaar){ this.s3dGat(z, 'neck_01', p, dir, 0.035, 'vlees'); this.nekGrijp(z, dir); this.s3dGrijp(z, 'neck_01', p, 3, z.geweer && z.geweer.parent ? 'l' : 'r'); return; }
+      this.s3dHoofd(z, p, dir, wapen);
+      if (!zwaar && Math.random() < HOOFD_LEEFT && S.kop === 1){ this.s3dHit(z, 'Hit_Head'); return; }
       this.omver(z, dir, {wapen, hoofd:true}); return; }
+    // ---- romp: gat (handkanon: ook een uitschot met een brok aan de achterkant)
     if (deel === 'borst' || deel === 'buik' || deel === 'bekken'){
-      if (z.vestHard && wapen !== 'kanon' && wapen !== 'laser' && (z.vestT = (z.vestT || 0) + 1) <= VEST_TREFFERS){
-        this.ketst(p, dir, 10); this.s3dHit(z, 'Hit_Chest'); this.wankel(z, dir, 0.3); return; }
+      if (z.vestHard && !zwaar && !laser && (z.vestT = (z.vestT || 0) + 1) <= VEST_TREFFERS){ this.ketst(p, dir, 10); this.s3dHit(z, 'Hit_Chest'); this.wankel(z, dir, 0.3); return; }
+      this.s3dGat(z, bn, p, dir, zwaar ? 0.08 : groteLaser ? 0.09 : laser ? 0.05 : 0.035, groteLaser ? 'door' : laser ? 'gloei' : 'vlees');
+      if (wapen === 'kanon'){ const uit = p.clone().addScaledVector(dir, 0.28); const R = this.s3dNaarRust(z, bn, uit);
+        if (R){ const c = R.p; const eruit = this.s3dWeg(z, (I, t) => { const dx = I.cen[t*3] - c.x, dy = I.cen[t*3+1] - c.y, dz = I.cen[t*3+2] - c.z; return dx*dx + dy*dy + dz*dz < 0.016; }, [bn]);
+          if (eruit.length) this.s3dStuk(z, eruit, dir, 1.3); this.s3dVlees(z, R.bi, c, 0.1, 'vlees'); }
+        for (let i=0;i<3;i++) this.spat(uit, dir, 30); this.nevel(uit, 0.8); }
       this.omver(z, dir, {wapen}); return; }
-    // arm of been
-    const lv = w => this.lv(w); z.deelT = z.deelT || {}; const n = z.deelT[deel] = (z.deelT[deel] || 0) + 1;
-    const eraf = wapen === 'kanon' || wapen === 'explosie' || (wapen === 'laser' && lv('laser') >= 2) || (wapen === 'auto' && lv('auto') >= 3 && n >= 2);
-    if (eraf){ const romp = /hand|voet/.test(deel) ? deel : deel.replace('onder', 'boven'); this.s3dLos(z, /hand|voet/.test(deel) ? deel : deel, dir, 1); this.omver(z, dir, {wapen}); return; }
+    // ---- arm of been
+    if (knipt){ this.s3dDoorknip(z, bn, p, dir, zwaar ? 1.3 : 1); this.omver(z, dir, {wapen}); return; }
+    this.s3dGat(z, bn, p, dir, laser ? 0.04 : 0.028, laser ? 'gloei' : 'vlees');
     z.ledT = (z.ledT || 0) + 1;
-    if (z.ledT >= 3 || (z.gewond && z.ledT >= 2) || this.inDeLucht(z)){ this.omver(z, dir, {wapen}); return; }
+    if (z.ledT >= 3 || this.inDeLucht(z)){ this.omver(z, dir, {wapen}); return; }
     const ai = z.ai, aan = deel.slice(-1);
     if (/arm|hand/.test(deel)){
       this.s3dHit(z, aan === 'L' ? 'Hit_Shoulder_L' : 'Hit_Shoulder_R');
       if (z.geweer) this.geweerWeg(z); this.wankel(z, dir, 0.5, aan); z.ongewapend = true; if (z.team) this.uitTeam(z);
-      if (!z.knieVast && !z.gewond){ this.zetGang(z, 'ren'); this.zoekDekking(z, 2); ai.armen = null; }
-    } else { this.s3dHit(z, 'Hit_Stomach'); this.beenRaak(z, aan, dir); }
+      this.s3dGrijp(z, bn, p, 2.2);
+      if (!z.knieVast){ this.zetGang(z, 'ren'); this.zoekDekking(z, 2); ai.armen = null; }
+    } else { this.s3dHit(z, 'Hit_Stomach'); this.beenRaak(z, aan, dir); this.s3dGrijp(z, bn, p, 1.8); }
   },
   s3dOntplof(z, dir, dicht){
-    const delen = ['bovenarmL','bovenarmR','onderarmL','onderarmR','bovenbeenL','bovenbeenR','onderbeenL','onderbeenR','hoofd'].sort(() => Math.random() - 0.5);
-    const n = Math.round(dicht*dicht*5 + (dicht > 0.6 ? 1 : 0));
-    delen.slice(0, n).forEach(d => this.s3dLos(z, d, dir, 1.3 + dicht));
+    const delen = ['bovenarmL','bovenarmR','onderarmL','onderarmR','bovenbeenL','bovenbeenR','onderbeenL','onderbeenR'].sort(() => Math.random() - 0.5);
+    const n = Math.round(dicht*dicht*4 + (dicht > 0.6 ? 1 : 0));
+    delen.slice(0, n).forEach(d => { const b = z.s3d.bot[this.BOT3D[d]]; const p = b ? b.localToWorld(new this.T.Vector3(0, 0.12/(b.getWorldScale(new this.T.Vector3()).x || 1), 0)) : null; this.s3dDoorknip(z, this.BOT3D[d], p, dir, 1.3 + dicht); });
+    if (dicht > 0.8 && Math.random() < 0.5) this.s3dKopWeg(z, dir);
     if (!z.dood && dicht > 0.18) this.omver(z, dir, {wapen:'explosie', dicht});
     else if (!z.dood){ this.wankel(z, dir, 0.6); this.s3dHit(z, 'Hit_Chest'); }
   },
