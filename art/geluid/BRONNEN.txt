@@ -1,0 +1,7 @@
+Geluiden (allemaal CC0 / publiek domein):
+- pistool, auto, geweer, mg, herlaad, droog: The Free Firearm Sound Library (Ben Jaszczak), mirror github.com/buddingmonkey/FreeFirearmsSFXLibrary — CC0 1.0
+  pistool = 1911 .45 (A_42P), auto = AK-47 (C_28P), geweer = AR-15 middenafstand (D_24P), mg = AK-47 middenafstand (C_31P),
+  herlaad = 1911 magazijn erin (A_4) + slede los (A_11), droog = 1911 trekker op lege slede (A_21). Ingekort en genormaliseerd.
+- motor_rij, motor_stil: Meta Open Sound / Oculus Audio Pack (github.com/facebookincubator/Meta-open-sound) — CC0 1.0
+  VEHCar_CarEngineHigh_LOOP_01, VEHCar_CarEngineSlow_LOOP_01.
+- helikopter: zelf gemaakt in code (geen bestand).
