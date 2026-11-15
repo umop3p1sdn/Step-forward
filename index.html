@@ -25,7 +25,7 @@
 
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v35";
+const VERSIE = "v36";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -319,6 +319,7 @@ const LVL_UITLEG = {pistool:['12-round mag', '17-round mag', 'Full auto — hold
                     raket:['Hand grenade', 'Bigger blast + shrapnel', 'Rockets — straight and fast', 'Huge blast'],
                     laser:['Laser', 'Bigger holes, double damage', 'Lightning jumps to 4 soldiers nearby', 'Lightning makes their heads pop']};
 const ELEKTRO_AFSTAND = 4;
+const KIST = 0.6, PARA_HOOGTE = 14, PARA_V = 1.5;   // ammo-kist aan een parachute: valhoogte en daalsnelheid
 const TANK_LOOP = 1.62;
 const TANK = {hp:150, schaal:0.9, draai:0.7, herlaad:4.5, granaatV:9};   // tank: kogels ketsen af, granaten/raketten/laser doen schade
 const PANEEL = {x:0.82, y:0.42, z:2.0, maat:0.6};    // wapenpaneel: opzij (kant van je vrije hand), iets boven ooghoogte, op 2 m                          // snel herladen (pistoolknop of omlaag wijzen)   // pistool: magazijn (omlaag richten = herladen), auto vult zich bij, raket/granaat: voorraad
@@ -619,6 +620,7 @@ AFRAME.registerComponent('zombies', {
     this.los.forEach(l => l.o.removeFromParent()); this.los = []; this.spuiters = []; this.vuren = [];
     (this.vliegt || []).forEach(p => p.g.removeFromParent()); this.vliegt = [];
     (this.blokken || []).forEach(b => b.g.removeFromParent()); this.blokken = [];
+    (this.losseKappen || []).forEach(b => b.hang.removeFromParent()); this.losseKappen = [];
     this.plas.count = 0; this.schroei.count = 0; this.wacht = 1.5;
   },
   /* ---------- schieten ---------- */
@@ -2402,49 +2404,81 @@ AFRAME.registerComponent('zombies', {
   },
   /* ---------- UPGRADEBLOKKEN: verschijnen om de zoveel tijd, schiet erop = upgrade (blijvend) ---------- */
   blokInhoud(){ return {soort:'ammo', tekst:this.upg.raket ? '+3 ROCKETS' : '+3 GRENADES', kleur:'#ff9a2a'}; },
+  kistTex(){   // houten ammo-kist: planken, kruisbalk, metalen hoeken, stencil
+    if (this.kistT) return this.kistT;
+    const T = this.T, c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d');
+    x.fillStyle = '#7a5a3a'; x.fillRect(0, 0, 256, 256);
+    for (let i=0;i<6;i++){ x.fillStyle = i % 2 ? '#6d4f33' : '#83613f'; x.fillRect(0, i*43, 256, 41); x.fillStyle = 'rgba(0,0,0,0.35)'; x.fillRect(0, i*43 + 41, 256, 2); }
+    for (let k=0;k<180;k++){ x.fillStyle = `rgba(40,25,10,${Math.random()*0.18})`; x.fillRect(Math.random()*256, Math.random()*256, 20 + Math.random()*60, 1); }   // nerf
+    x.strokeStyle = '#5a3f26'; x.lineWidth = 26; x.strokeRect(13, 13, 230, 230);
+    x.beginPath(); x.moveTo(26, 26); x.lineTo(230, 230); x.moveTo(230, 26); x.lineTo(26, 230); x.lineWidth = 20; x.stroke();
+    x.fillStyle = '#9aa0a4'; [[0,0],[214,0],[0,214],[214,214]].forEach(([a, b]) => { x.fillRect(a, b, 42, 42); x.fillStyle = '#6c7276';
+      [[8,8],[30,8],[8,30],[30,30]].forEach(([u, v]) => x.fillRect(a + u - 2, b + v - 2, 5, 5)); x.fillStyle = '#9aa0a4'; });
+    x.font = '900 54px Trebuchet MS, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = 'rgba(20,14,8,0.8)'; x.fillText('AMMO', 128, 132);
+    const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; return this.kistT = t;
+  },
   maakBlok(){
     const T = this.T, inh = this.blokInhoud(), g = new T.Group();
-    const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d');
-    x.fillStyle = '#2a2116'; x.fillRect(0,0,128,128); x.fillStyle = inh.kleur; x.fillRect(8,8,112,112); x.fillStyle = '#1b1510'; x.fillRect(18,18,92,92);
-    x.font = '900 84px Trebuchet MS, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = inh.kleur;
-    x.fillText('A', 64, 70);
-    const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace;
-    const kist = new T.Mesh(new T.BoxGeometry(0.5,0.5,0.5), new T.MeshBasicMaterial({map:t})); g.add(kist);
+    const kist = new T.Mesh(new T.BoxGeometry(KIST, KIST*0.85, KIST), new T.MeshLambertMaterial({map:this.kistTex()})); kist.position.y = KIST*0.425; g.add(kist);
     const straal = new T.Mesh(new T.CylinderGeometry(0.06,0.25,9,10,1,true), new T.MeshBasicMaterial({color:inh.kleur, transparent:true, opacity:0.22,
                     blending:T.AdditiveBlending, depthWrite:false, side:T.DoubleSide}));
-    straal.position.y = 4.5; g.add(straal);                                // lichtzuil: je ziet hem van ver
+    straal.position.y = 4.5; straal.visible = false; g.add(straal);         // lichtzuil: pas als hij geland is
     for (let poging = 0; poging < 20; poging++){                           // een plek die je vrij kunt zien en raken
       const a = (Math.random()*2-1)*BLOK_HOEK*Math.PI/180, r = BLOK_AFSTAND[0] + Math.random()*(BLOK_AFSTAND[1]-BLOK_AFSTAND[0]);
-      g.position.set(Math.sin(a)*r, 0.6, -Math.cos(a)*r); if (this.blokVrij(g.position)) break; }
-    this.sc.add(g);
-    this.blokken.push({g, kist, inh, t:BLOK_LEEF});
-    this.melding('AMMO  -  SHOOT THE CRATE', inh.kleur); this.pling(0.6);
+      g.position.set(Math.sin(a)*r, 0, -Math.cos(a)*r); if (this.blokVrij(g.position.clone().setY(0.4))) break; }
+    const st = this.el.components.stad, binnen = st && PLEKKEN[st.i] && PLEKKEN[st.i].binnen;
+    const b = {g, kist, straal, inh, t:BLOK_LEEF, grondY:0};
+    if (!binnen && this.props.parachute){                                   // aan een parachute uit de lucht
+      const P = this.props.parachute, kap = new T.Mesh(new T.PlaneGeometry(P.w, P.h), new T.MeshBasicMaterial({map:P.tex, alphaTest:0.5, alphaToCoverage:true, side:T.DoubleSide}));
+      const hang = new T.Group(); hang.position.y = KIST*0.85 + 2.3; g.add(hang); kap.position.y = P.h*0.42; hang.add(kap);
+      const pts = []; const rand = -P.h*0.08;                                // touwen: van de rand van het scherm naar de hoeken van de kist
+      [-0.92, -0.55, -0.18, 0.18, 0.55, 0.92].forEach((f, i) => { const hoek = [[-1,-1],[-1,1],[1,-1],[1,1]][i % 4];
+        pts.push(new T.Vector3(f*P.w/2, kap.position.y + rand, (i % 2 ? 0.25 : -0.25)), new T.Vector3(hoek[0]*KIST*0.45, -2.3, hoek[1]*KIST*0.45)); });
+      const touw = new T.LineSegments(new T.BufferGeometry().setFromPoints(pts), new T.LineBasicMaterial({color:0xc9b48a}));
+      hang.add(touw); b.hang = hang; b.kap = kap; b.touw = touw; b.y = PARA_HOOGTE; b.zweef = Math.random()*6;
+      g.position.y = PARA_HOOGTE; this.melding('AMMO DROP!', inh.kleur);
+    } else { g.position.y = 0; straal.visible = true; this.melding('AMMO  -  SHOOT THE CRATE', inh.kleur); }
+    this.sc.add(g); this.blokken.push(b); this.pling(0.6);
   },
   blokRaak(){
     let best = null;
-    for (const b of this.blokken){ const h = this.rc.intersectObject(b.kist, false)[0]; if (h && (!best || h.distance < best.d)) best = {blok:b, d:h.distance}; }
+    for (const b of this.blokken){ if (b.weg) continue; const h = this.rc.intersectObject(b.kist, false)[0]; if (h && (!best || h.distance < best.d)) best = {blok:b, d:h.distance}; }
     return best;
   },
   blokProjectiel(p){   // granaat/raket/molotov die door een blok vliegt pakt hem ook
-    for (const b of this.blokken) if (!b.weg && b.g.position.distanceTo(p) < 0.5) this.pakBlok(b);
+    for (const b of this.blokken) if (!b.weg && b.kist.getWorldPosition(new this.T.Vector3()).distanceTo(p) < 0.6) this.pakBlok(b);
   },
   pakBlok(b){
-    if (b.weg) return; b.weg = true; b.g.removeFromParent();
+    if (b.weg) return; b.weg = true; const kp = b.kist.getWorldPosition(new this.T.Vector3());
+    if (b.kap && !b.geland){ b.los = true; this.sc.attach(b.hang); b.hangV = 0.6; (this.losseKappen = this.losseKappen || []).push(b); }   // scherm zweeft leeg verder
+    b.g.removeFromParent();
     const i = b.inh;
     if (this.ammo){ this.ammo.raket += 3; this.hudVuil = true; }
-    this.melding(i.tekst, i.kleur); this.pling(1); this.vuurbal(b.g.position.clone(), 0.8);
+    this.melding(i.tekst, i.kleur); this.pling(1); this.vuurbal(kp, 0.8);
     ['handL','handR'].forEach(id => this.tril(id, 0.8, 120));
   },
   blokTick(s){
     this.blokWacht -= s;
     if (this.blokWacht <= 0){ this.blokWacht = BLOK_ELK; this.maakBlok(); }
     for (const b of this.blokken){
-      if (b.weg) continue; b.t -= s;
-      b.kist.rotation.y += s*1.4; b.kist.position.y = Math.sin(this.nu*2.5)*0.08;
+      if (b.weg) continue; if (!b.kap || b.geland) b.t -= s;            // levensduur telt pas na de landing
+      if (b.kap && !b.geland){                                           // zweeft naar beneden, zwaait een beetje
+        b.zweef += s; b.g.position.y = Math.max(0, b.g.position.y - PARA_V*s);
+        b.g.rotation.z = Math.sin(b.zweef*1.3)*0.07; b.g.rotation.x = Math.sin(b.zweef*0.9)*0.05;
+        const ik = this.el.camera.getWorldPosition(new this.T.Vector3()); b.hang.rotation.y = Math.atan2(ik.x - b.g.position.x, ik.z - b.g.position.z);   // scherm naar je toe
+        if (b.g.position.y <= 0){ b.geland = true; b.g.rotation.set(0, 0, 0); b.straal.visible = true; b.inklap = 1.2; this.tik(); this.fxStart('rook', b.g.position.clone().setY(0.1), 0.6, 0.6); }
+        continue; }
+      if (b.inklap > 0){ b.inklap -= s; const f = Math.max(0, b.inklap/1.2);              // scherm klapt in en valt om
+        b.hang.rotation.z = (1 - f)*1.4; b.hang.position.y = (KIST*0.85 + 2.3)*f + 0.2; b.kap.material.transparent = true; b.kap.material.opacity = f; b.touw.material.transparent = true; b.touw.material.opacity = f;
+        if (b.inklap <= 0){ b.hang.removeFromParent(); b.kap = null; } }
       if (b.t < 3) b.g.visible = Math.floor(b.t*8) % 2 === 0;           // knippert vlak voor het verdwijnt
       if (b.t <= 0){ b.weg = true; b.g.removeFromParent(); }
     }
     this.blokken = this.blokken.filter(b => !b.weg);
+    for (const b of this.losseKappen || []){ b.hangV = Math.min(3, b.hangV + s*2); b.hang.position.y -= b.hangV*s*0.5; b.hang.rotation.z += s*0.8;   // leeg scherm dwarrelt weg
+      b.kap.material.transparent = true; b.kap.material.opacity = Math.max(0, b.kap.material.opacity - s*0.5); b.touw.visible = false;
+      if (b.kap.material.opacity <= 0){ b.hang.removeFromParent(); b.kapWeg = true; } }
+    this.losseKappen = (this.losseKappen || []).filter(b => !b.kapWeg);
   },
   pling(k){ this.geluid((A,n) => { [880, 1320, 1760].forEach((f, i) => { const o = A.createOscillator(), g = A.createGain(); o.type = 'triangle';
     o.frequency.value = f; g.gain.setValueAtTime(0.001, n + i*0.07); g.gain.linearRampToValueAtTime(0.35*k, n + i*0.07 + 0.01);
