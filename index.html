@@ -12,7 +12,7 @@
 </style>
 </head>
 <body>
-<div id="info">Step Forward <span id="ver"></span> · menu: kies hand (L/R), dan START (Enter) of DEMO (D) · klik = schieten · 1-5 = wapen · G = bommenwerper · spatie = volgende plek · VR: joystick = wapen, A/B/X/Y = pistool (nog eens = herladen), R = herladen, grip = bommenwerper, joystick indrukken = volgende plek</div>
+<div id="info">Step Forward <span id="ver"></span> · menu: kies hand (L/R), dan START (Enter) of DEMO (D) of AUTO (A) · klik = schieten · 1-5 = wapen · G = bommenwerper · spatie = volgende plek · VR: joystick = wapen, A/B/X/Y = pistool (nog eens = herladen), R = herladen, grip = bommenwerper, joystick indrukken = volgende plek</div>
 
 <a-scene renderer="colorManagement:true; antialias:true" background="color:#0b0d10"
          xr-mode-ui="enabled:true" vr-mode-ui="enabled:true" stad zombies>
@@ -25,7 +25,7 @@
 
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v37";
+const VERSIE = "v38";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -476,11 +476,14 @@ AFRAME.registerComponent('zombies', {
     window.addEventListener('keydown', e => {
       const k = {Digit1:'pistool', Digit2:'raket', Digit3:'laser', Digit4:'auto', Digit5:'auto'}[e.code];
       if (!this.gestart){ if (e.code === 'KeyL') this.kiesHand('handL'); if (e.code === 'KeyR') this.kiesHand('handR');
-        if (e.code === 'Enter' || e.code === 'KeyS') this.startMet(this.menuHand || 'handR', 'lvl'); if (e.code === 'KeyD') this.startMet(this.menuHand || 'handR', 'demo'); return; }
+        if (e.code === 'Enter' || e.code === 'KeyS') this.startMet(this.menuHand || 'handR', 'lvl'); if (e.code === 'KeyD') this.startMet(this.menuHand || 'handR', 'demo'); if (e.code === 'KeyA') this.startMet('handR', 'auto'); return; }
       if (k) this.kies(this.gunHand, k); if (e.code === 'KeyG') this.ult(); if (e.code === 'KeyR') this.herladen(); });
     window.addEventListener('mouseup', () => { this.vuurt.muis = false; });
-    const muis = e => { if (e.button !== 0) return; this.muisE = e; if (!this.gestart){ this.menuKies('muis', e); return; } this.vuurt.muis = true; this.vuur('muis', e); };
+    const muis = e => { if (e.button !== 0) return; if (!this.gestart && performance.now() - (this.aanraakT || -9e9) < 700) return; this.muisE = e; if (!this.gestart){ this.menuKies('muis', e); return; } if (this.auto) return; this.vuurt.muis = true; this.vuur('muis', e); };
     this.el.addEventListener('loaded', () => this.maakEffecten());
+    const aanraak = e => { if (this.gestart || !e.touches || !e.touches[0]) return; this.aanraakT = performance.now();   // mobiel: menu met je vinger
+      const t = e.touches[0]; this.menuKies('muis', {button:0, clientX:t.clientX, clientY:t.clientY}); };
+    window.addEventListener('touchstart', aanraak, {passive:true});
     this.el.canvas ? this.el.canvas.addEventListener('mousedown', muis)
                    : this.el.addEventListener('render-target-loaded', () => this.el.canvas.addEventListener('mousedown', muis));
     this.el.addEventListener('plekwissel', () => this.leeg());
@@ -1278,6 +1281,7 @@ AFRAME.registerComponent('zombies', {
   },
   oorlogTick(s){
     if (!this.wave) return;
+    if (this.auto) this.autoTick(s);
     this.wagenTick(s); this.heliTick(s); this.vRaketTick(s); this.spoorTick(s); this.hudTick(s);
     this.ammoTick(s); this.vGranaatTick(s); this.touwTick(s); this.scheiden(); this.kogelTick(s); this.wrakTick(s); this.upgradeTick(s); this.bliksemTick(s); this.paneelTick(s); this.tankTick(s); this.teamTick(s);
     for (const z of this.lijst) if (z.ai && (z.dood || z.strk || z.kruip) && !((z.ai.y0 || 0) > 0.4) && !(z.dood && z.val > 3)) this.uitDekking(z, s);
@@ -1794,6 +1798,145 @@ AFRAME.registerComponent('zombies', {
         else if (ai.staat === 'vrij'){ ai.t = Math.min(ai.t, 0.3); ai.dekVuur = 3; }
       });
     }
+  },
+  /* ================= AUTO: de game speelt zichzelf (kijken op je mobiel) ================= */
+  autoStart(){
+    this.auto = {doel:null, t:0, keuzeT:0, wisselT:0, blok:new Map(), buk:0, bukWacht:0, tekst:'', yaw:0, pitch:0, schotT:0};
+    const cam = document.getElementById('cam');
+    if (cam){ cam.removeAttribute('look-controls'); cam.object3D.rotation.order = 'YXZ'; cam.object3D.rotation.set(0, 0, 0); cam.setAttribute('camera', 'fov', 62); }
+    const info = document.getElementById('info'); if (info) info.style.display = 'none';
+    if (!document.getElementById('autoKruis')){ const k = document.createElement('div'); k.id = 'autoKruis';     // richtkruis: waar de bot mikt
+      k.style.cssText = 'position:fixed;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;border:2px solid rgba(255,60,40,.9);border-radius:50%;z-index:19;pointer-events:none;box-shadow:0 0 0 1px rgba(0,0,0,.5)';
+      k.innerHTML = '<div style="position:absolute;left:11px;top:11px;width:4px;height:4px;background:#ff3a28;border-radius:2px"></div>'; document.body.appendChild(k); this.autoKruisEl = k; }
+    let d = document.getElementById('autoInfo');
+    if (!d){ d = document.createElement('div'); d.id = 'autoInfo';
+      d.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:20;padding:8px 14px;border-radius:10px;background:rgba(0,0,0,.62);color:#fff;font:700 17px Trebuchet MS,sans-serif;text-align:center;pointer-events:none;max-width:94vw;white-space:nowrap';
+      document.body.appendChild(d); }
+    this.autoDiv = d;
+  },
+  autoZeg(t, kl){ const A = this.auto; if (!A || (A.tekst === t)) return; A.tekst = t; if (this.autoDiv) this.autoDiv.innerHTML = `<span style="color:#7dff7a">AUTO</span> · <span style="color:${kl || '#fff'}">${t}</span>`; },
+  deelMidden(z, deel){                  // midden van het plaatje van een lichaamsdeel (wereld)
+    const kn = z.knoop[deel]; if (!kn || kn.userData.los) return null;
+    const m = kn.userData.bin && kn.userData.bin.children.find(c => c.isMesh && c.userData.D);
+    return (m || kn).getWorldPosition(new this.T.Vector3());
+  },
+  autoMikpunt(z){                       // waar raak je deze soldaat het best?
+    const j = this.soorten[z.n].j, helm = !!(z.helmSprite || (j.helm != null)) && !z.helmAf, vest = z.vestHard && !!j.vest && (z.vestT || 0) < VEST_TREFFERS;
+    if (z.handGranaat) return {p:z.handGranaat.getWorldPosition(new this.T.Vector3()), tekst:'GRENADE IN HAND → SHOOT IT', kl:'#ffd060', maat:0.12};
+    if (z.schild) return {p:this.deelMidden(z, 'hoofd'), tekst:'SHIELD → AIM OVER IT: HEAD', kl:'#9ad0ff', maat:0.07};
+    if (vest && helm && !z.knieVast) return {p:this.deelMidden(z, Math.random() < 0.5 ? 'bovenbeenL' : 'bovenbeenR'), tekst:'VEST + HELMET → LEGS', kl:'#ffb060', maat:0.08};
+    if (vest) return {p:this.deelMidden(z, 'hoofd'), tekst:'VEST → HEAD', kl:'#ffb060', maat:0.07};
+    if (z.gewond || z.knieVast) return {p:this.deelMidden(z, 'hoofd'), tekst:'WOUNDED → FINISH', kl:'#ff8080', maat:0.07};
+    return {p:this.deelMidden(z, 'buik') || this.deelMidden(z, 'borst'), tekst:'NO ARMOR → BODY', kl:'#ffffff', maat:0.11};
+  },
+  autoKeuze(){                          // wat is nu het belangrijkst?
+    const T = this.T, A = this.auto, ik = this.el.camera.getWorldPosition(new T.Vector3()), a = this.ammo || {}, nu = this.nu;
+    const vrij = d => !(A.blok.get(d) > nu);
+    const raket = this.upg.raket && (a.raket >= 1 || this.oneindigNu()), granaat = !this.upg.raket && (a.raket >= 1 || this.oneindigNu());
+    // 1. dreiging in de lucht: granaten en raketten van de vijand
+    for (const gr of this.vGranaten || []) if (!gr.grond && !gr.weg && gr.g.position.distanceTo(ik) < 22 && vrij(gr))
+      return {soort:'lucht', ding:gr, p:() => gr.g.position.clone().addScaledVector(gr.v || new T.Vector3(), 0.03), w:'pistool', tekst:'GRENADE IN THE AIR → SHOOT IT', kl:'#ffd060', maat:0.2};
+    for (const r of this.vRaketten || []) if (!r.weg && vrij(r))
+      return {soort:'lucht', ding:r, p:() => r.g.position.clone(), w:'auto', tekst:'INCOMING ROCKET → SHOOT IT', kl:'#ff6040', maat:0.25};
+    for (const z of this.lijst) if (!z.dood && z.handGranaat && vrij(z)) return {soort:'soldaat', ding:z, w:'pistool', vast:'granaat'};
+    // 2. voertuigen: raketten bewaren we hiervoor
+    const helis = (this.helis || []).filter(h => !h.kapot && !h.weggaan && vrij(h));
+    if (helis.length){ const h = helis[0];
+      return {soort:'ding', ding:h, p:() => (h.romp || h.g).getWorldPosition(new T.Vector3()), w:raket ? 'raket' : this.lv('laser') >= 2 ? 'laser' : 'auto',
+              tekst:raket ? 'CHOPPER → ROCKET' : 'CHOPPER → NO ROCKETS: ' + (this.lv('laser') >= 2 ? 'LASER' : 'AUTOMATIC'), kl:'#ff9040', maat:1.2, lood:raket}; }
+    const tanks = (this.tanks || []).filter(t => !t.kapot && vrij(t));
+    if (tanks.length && (raket || granaat || this.lv('laser') >= 1)){ const t = tanks[0];
+      return {soort:'ding', ding:t, p:() => t.g.position.clone().add(new T.Vector3(0, 1.1, 0)), w:(raket || granaat) ? 'raket' : 'laser',
+              tekst:'TANK → BULLETS BOUNCE OFF: ' + (raket ? 'ROCKET' : granaat ? 'GRENADE' : 'LASER'), kl:'#ff9040', maat:1.5, boog:!raket && granaat}; }
+    const wagens = (this.wagens || []).filter(w => !w.kapot && !w.weg && (w.lading > 0 || w.bak || w.staat === 'rijden') && vrij(w) && w.g.position.z < -3);
+    if (wagens.length && (raket || (granaat && wagens[0].staat !== 'rijden' && a.raket >= 2))){ const w = wagens[0];
+      return {soort:'ding', ding:w, p:() => w.g.position.clone().add(new T.Vector3(0, (w.hoog || 2)*0.45, 0)), w:'raket',
+              tekst:(w.naam === 'vracht_open' ? 'GUN TRUCK' : 'VEHICLE') + ' → ' + (raket ? 'ROCKET' : 'GRENADE'), kl:'#ff9040', maat:1.2, boog:!raket, lood:raket}; }
+    // 3. ammo-kist aan de parachute
+    for (const b of this.blokken || []) if (!b.weg && vrij(b) && b.kist){ const p = b.kist.getWorldPosition(new T.Vector3()); if (p.y > 1.2 && p.distanceTo(ik) < 20)
+      return {soort:'kist', ding:b, p:() => b.kist.getWorldPosition(new T.Vector3()), w:'pistool', tekst:'AMMO CRATE → SHOOT IT', kl:'#7dff7a', maat:0.25}; }
+    // 4. soldaten: wie schiet er nu op mij, wie is dichtbij
+    const zicht = z => z.ai && (z.ai.zak || 0) < 0.35;
+    const sold = this.lijst.filter(z => !z.dood && z.ai && vrij(z) && zicht(z) && z.grp.position.distanceTo(ik) < 32);
+    if (!sold.length) return null;
+    const score = z => { const d = z.grp.position.distanceTo(ik), ai = z.ai;
+      return d + (ai.mik ? -6 : 0) + (['rennen','storm','volg'].includes(ai.staat) ? -1 : 0) + (z.gewond ? 6 : 0) + (z.ongewapend ? 12 : 0) + (A.doel && A.doel.ding === z ? -3 : 0); };
+    sold.sort((x, y) => score(x) - score(y)); const z = sold[0];
+    // groepje bij elkaar? laser lvl 3+ (bliksem springt over) of een granaat
+    const buren = this.lijst.filter(q => !q.dood && q !== z && q.grp.position.distanceTo(z.grp.position) < ELEKTRO_AFSTAND).length;
+    if (buren >= 2 && this.lv('laser') >= 3 && (a.laser >= 10 || this.oneindigNu())) return {soort:'soldaat', ding:z, w:'laser', vast:'groepLaser'};
+    if (buren >= 2 && granaat && a.raket >= 3 && !wagens.length && !helis.length && z.grp.position.distanceTo(ik) > 6) return {soort:'groep', ding:z, p:() => z.grp.position.clone(), w:'raket', tekst:'GROUP OF 3 → GRENADE (KEEPING 2 FOR VEHICLES)', kl:'#ffd060', maat:0.8, boog:true};
+    const d = z.grp.position.distanceTo(ik);
+    return {soort:'soldaat', ding:z, w:(d < 9 || ['rennen','storm'].includes(z.ai.staat)) ? 'auto' : 'pistool'};
+  },
+  autoBoog(p){                          // handgranaat: onder welke hoek gooien zodat hij bij p landt?
+    const ik = this.el.camera.getWorldPosition(new this.T.Vector3()), D = Math.hypot(p.x - ik.x, p.z - ik.z)*0.9;
+    let beste = 0.2, fout = 1e9;
+    for (let th = -0.5; th <= 1.1; th += 0.02){
+      const vx = GRANAAT_SNEL*Math.cos(th), vy = GRANAAT_SNEL*Math.sin(th) + 3, y0 = ik.y, t = (vy + Math.sqrt(vy*vy + 2*ZWAARTE*Math.max(0.01, y0 - 0.05)))/ZWAARTE;
+      const f = Math.abs(vx*t - D); if (f < fout){ fout = f; beste = th; } if (f < 0.3) break; }
+    return beste;
+  },
+  autoTick(s){
+    const A = this.auto, T = this.T, cam = document.getElementById('cam'); if (!A || !cam) return;
+    const o = cam.object3D, ik = this.el.camera.getWorldPosition(new T.Vector3()), nu = this.nu, r = this.el.canvas && this.el.canvas.getBoundingClientRect();
+    const midden = r ? {button:0, clientX:r.left + r.width/2, clientY:r.top + r.height/2} : null;
+    if (this.overleden === 'continue'){ this.autoZeg('DOWN → SHOOT TO CONTINUE', '#ffd060'); if (midden && this.doodT < CONTINUE_TIJD - 1.5) this.vuur('muis', midden); return; }
+    if (this.overleden){ this.autoZeg('GAME OVER → STARTING AGAIN', '#ff6060'); return; }
+    // bukken achter je zandzakken als het te heet wordt
+    A.bukWacht -= s;
+    if (A.buk > 0){ A.buk -= s; o.position.y += (0.95 - o.position.y)*Math.min(1, s*8); this.autoZeg('TAKING HITS → DUCK BEHIND THE SANDBAGS', '#ff8080');
+      if (A.buk <= 0) A.bukWacht = 6; return; }
+    o.position.y += (1.6 - o.position.y)*Math.min(1, s*8);
+    if (this.speler && this.speler.hp < 40 && A.bukWacht <= 0 && this.muur && this.lijst.some(z => !z.dood && z.ai && z.ai.mik)){ A.buk = 1.6 + Math.random(); return; }
+    // nieuw doel kiezen
+    A.keuzeT -= s;
+    const dood = d => !d || d.dood || d.kapot || d.weg || d.weggaan || (d.grond && d.g) ;
+    if (A.doel && (dood(A.doel.ding) || (A.doel.soort === 'lucht' && A.doel.ding.grond))) A.doel = null;
+    if (!A.doel || A.keuzeT <= 0){ const k = this.autoKeuze(); A.keuzeT = 0.35;
+      if (k && (!A.doel || k.ding !== A.doel.ding)){ A.doel = k; A.richtT = 0; A.blokT = 0; } else if (!k) A.doel = null; }
+    let D = A.doel;
+    if (!D){ this.autoZeg('SCANNING…', '#a0a0a0'); const y = Math.sin(nu*0.4)*0.35; o.rotation.y += (y - o.rotation.y)*Math.min(1, s*2); o.rotation.x += (-0.05 - o.rotation.x)*Math.min(1, s*2); return; }
+    // wapen: wissel in plaats van herladen (wat in de holster zit laadt zichzelf)
+    let w = D.w, waarom = '';
+    if (D.vast === 'groepLaser') waarom = 'GROUP → LASER: LIGHTNING JUMPS OVER';
+    if (w === 'pistool' && !this.heeftAmmo('pistool')){ w = 'auto'; waarom = 'PISTOL EMPTY → SWITCH (IT RELOADS IN THE HOLSTER)'; }
+    if (w === 'auto' && !this.heeftAmmo('auto')){ w = this.heeftAmmo('pistool') ? 'pistool' : 'laser'; waarom = 'AUTOMATIC EMPTY → SWITCH'; }
+    if (w === 'laser' && !this.heeftAmmo('laser')){ w = this.heeftAmmo('pistool') ? 'pistool' : 'auto'; }
+    if (this.wapen[this.gunHand] !== w){ this.kies(this.gunHand, w); A.wisselT = 0.22; }
+    // mikpunt
+    let p, maat, tekst, kl;
+    if (D.soort === 'soldaat'){ const m = this.autoMikpunt(D.ding); if (!m.p){ A.doel = null; return; }
+      p = m.p; maat = m.maat; tekst = D.vast === 'groepLaser' ? waarom : m.tekst; kl = m.kl; if (D.vast === 'groepLaser') maat = 0.15; }
+    else { p = D.p(); maat = D.maat; tekst = D.tekst; kl = D.kl; }
+    if (waarom && D.vast !== 'groepLaser') tekst = waarom;
+    if (!A.ruis || A.ruisT <= nu){ A.ruis = new T.Vector3((Math.random()-0.5), (Math.random()-0.5), 0).multiplyScalar(maat*0.5); A.ruisT = nu + 0.4; }
+    p = p.clone().add(A.ruis);
+    if (D.lood && D.ding.g){                                    // raket: voorhouden op een bewegend doel
+      const vp = D.ding.g.position, oud = A.oud && A.oud.d === D.ding ? A.oud.p : null;
+      if (oud){ const v = vp.clone().sub(oud).multiplyScalar(1/Math.max(1e-3, s)); p.addScaledVector(v, p.distanceTo(ik)/RAKET_SNEL); }
+      A.oud = {d:D.ding, p:vp.clone()}; }
+    const dir = p.clone().sub(ik), hor = Math.hypot(dir.x, dir.z);
+    const yaw = Math.atan2(-dir.x, -dir.z); let pitch = Math.atan2(dir.y, hor);
+    if (D.boog) pitch = this.autoBoog(p);
+    let dy = yaw - o.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+    const draai = Math.min(1, s*9);
+    o.rotation.y += dy*draai; o.rotation.x += (pitch - o.rotation.x)*draai;
+    o.updateMatrixWorld(true);
+    this.autoZeg(tekst, kl);
+    const fout = Math.hypot(dy, pitch - o.rotation.x)*Math.max(1, dir.length());
+    A.wisselT -= s; A.richtT += s;
+    if (A.wisselT > 0 || fout > Math.max(0.05, maat*0.6) || !midden) return;
+    // kan ik hem zien? (niet in de dekking schieten)
+    if (D.soort === 'soldaat' && w !== 'raket'){
+      this.straal('muis', midden); const t = this.treffers(true)[0], pr = this.propRaak();
+      if (!t || (pr && pr.d < t.d) || t.z.dood){ A.blokT += s; if (A.blokT > 0.5){ A.blok.set(D.ding, nu + 1.5); A.doel = null; } return; }
+      A.blokT = 0; }
+    if ((w === 'raket' || D.boog) && A.schotT > nu) return;
+    this.vuur('muis', midden);
+    if (this.autoKruisEl){ this.autoKruisEl.style.transform = 'scale(1.5)'; clearTimeout(this.autoKruisT); this.autoKruisT = setTimeout(() => { if (this.autoKruisEl) this.autoKruisEl.style.transform = ''; }, 70); }
+    if (w === 'raket'){ A.schotT = nu + 1.6; if (D.soort === 'groep') A.blok.set(D.ding, nu + 3); }
+    if (D.soort === 'kist') A.blok.set(D.ding, nu + 0.6);
   },
   /* ---------- eigen zandzakmuurtje vóór je ---------- */
   zetMuur(){
@@ -2412,6 +2555,9 @@ AFRAME.registerComponent('zombies', {
         tekst(x, `${naam}: ${aan ? 'ON' : 'OFF'}`, h*0.52, 40, '#ffffff'); });
       k.position.set(x0, 0.56, -2.6); k.userData.optie = o; g.add(k); this.menuKnop[o] = k;
     });
+    { const k = bord(1.0, 0.36, (x, w, h) => { x.fillStyle = 'rgba(90,30,120,0.88)'; x.fillRect(0, 0, w, h); x.strokeStyle = '#e0b0ff'; x.lineWidth = 9; x.strokeRect(5, 5, w-10, h-10);
+        tekst(x, 'AUTO', h*0.4, 80, '#ffffff'); tekst(x, 'watch the game play itself', h*0.8, 28, '#f0d8ff'); });
+      k.position.set(0, 2.62, -2.6); k.userData.modus = 'auto'; g.add(k); this.menuKnop.auto = k; }
     this.sc.add(g); this.menu = g;
   },
   menuKies(bron, e){
@@ -2425,7 +2571,8 @@ AFRAME.registerComponent('zombies', {
     this.menuHand = id; if (this.menu){ this.menu.removeFromParent(); this.menu = null; } this.maakMenu(); this.tril(id, 0.4, 40); this.tik();
   },
   startMet(id, modus){
-    if (this.gestart) return; this.modus = modus || 'demo'; this.lvlNr = 1;
+    if (this.gestart) return; const auto = modus === 'auto'; if (auto) modus = 'lvl'; this.modus = modus || 'demo'; this.lvlNr = 1;
+    if (auto) this.autoStart();
     this.gunHand = id; this.gestart = true; try { localStorage.setItem('sf_hand', id); } catch(_){}
     if (this.menu){ this.menu.removeFromParent(); this.menu = null; }
     const ander = id === 'handL' ? 'handR' : 'handL', h = document.getElementById(ander), g = document.getElementById(id);
