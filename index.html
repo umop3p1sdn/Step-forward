@@ -25,7 +25,7 @@
 
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v32";
+const VERSIE = "v32.1";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -936,7 +936,7 @@ AFRAME.registerComponent('zombies', {
     x.fillStyle = hp > 50 ? '#3fbf4a' : hp > 25 ? '#e0a020' : '#d23a2a'; x.fillRect(220, 30, 270*hp/SPELER_HP, 36);
     x.fillStyle = '#fff'; x.font = '700 24px Trebuchet MS, sans-serif'; x.fillText(`HP ${Math.ceil(hp)}`, 232, 49);
     x.font = '700 28px Trebuchet MS, sans-serif'; x.fillStyle = this.herlaad > 0 || (this.ammo && this.ammo.pistool === 0 && this.wapen[this.gunHand] === 'pistool') ? '#ffd060' : '#e8f2ea';
-    x.fillText(this.ammoTekst(), 505, 40); x.font = '600 20px Trebuchet MS, sans-serif'; x.fillStyle = '#9fd0ff'; x.fillText(`CONTINUES ${this.continues ?? CONTINUES}   ${this.lvlTekst()}`, 505, 74);
+    x.fillText(this.ammoTekst(), 505, 40); x.font = '600 20px Trebuchet MS, sans-serif'; x.fillStyle = '#9fd0ff'; x.fillText(`CONTINUES ${this.continues ?? CONTINUES}   ${this.lvlTekst()}${this.fouten ? '   ERR ' + this.fouten : ''}`, 505, 74);
     this.hudT.needsUpdate = true;
   },
   /* ---------- voertuigen ---------- */
@@ -1254,20 +1254,24 @@ AFRAME.registerComponent('zombies', {
   doorgaan(){
     if (this.overleden !== 'continue') return;
     this.continues--; this.overleden = false; this.speler.hp = SPELER_HP; this.beschermd = 2.5; this.hudVuil = true; this.rood = 0;
+    this.upVast = false; if (this.upBord) this.upBord.visible = false;
     this.melding(`CONTINUE — ${this.continues} LEFT`, '#7dff7a'); this.pling(1);
   },
   eindeSpel(){
-    this.overleden = 'over'; this.doodT = 6; this.melding(`GAME OVER — WAVE ${this.waveNr}`, '#ff3a3a');
+    this.overleden = 'over'; this.doodT = 6; this.upVast = true;
+    this.bord('GAME OVER', `WAVE ${this.waveNr}`, 'Weapons reset — restarting at wave 1…', '#ff3a3a', 99, 0);
   },
   doodTick(s){
     this.doodT -= s;
     if (this.overleden === 'continue'){
       const sec = Math.ceil(this.doodT);
-      if (sec !== this.contSec){ this.contSec = sec; this.melding(`CONTINUE? (${this.continues})  SHOOT  ${Math.max(0, sec)}`, '#ffd060'); this.tik(); }
-      this.rood = 0.9;
+      if (sec !== this.contSec){ this.contSec = sec; this.upVast = true;
+        this.bord("YOU'RE DOWN", `SHOOT TO CONTINUE  ${Math.max(0, sec)}`, `${this.continues} continue${this.continues === 1 ? '' : 's'} left — you keep going where you were`, '#ffd060', 99, 0); this.tik(); }
+      this.rood = 0.55;
       if (this.doodT <= 0) this.eindeSpel();
     } else if (this.doodT <= 0){                                         // alles op: opnieuw vanaf wave 1
       this.continues = CONTINUES; this.speler.hp = SPELER_HP; this.lvlReset(); this.ammoReset();
+      this.upVast = false; if (this.upBord) this.upBord.visible = false;
       this.oorlogStart(1);
     }
   },
@@ -1731,26 +1735,33 @@ AFRAME.registerComponent('zombies', {
     this.toonUpgrade(w); this.pling(1); ['handL','handR'].forEach(id => this.tril(id, 0.8, 150)); this.hudVuil = true;
   },
   toonUpgrade(w){   // groot bord op ±2,6 m: wat er is geüpgraded
-    const T = this.T, l = this.lv(w);
+    const l = this.lv(w), kl = WAPENS[w].kleur;
+    this.bord('LEVEL UP!', LVL_NAAM[w][l - 1], LVL_UITLEG[w][l - 1], kl, 3.4, l);
+  },
+  bord(boven, groot, onder, kl, tijd, blokjes){
+    const T = this.T;
     if (!this.upBord){
       const c = document.createElement('canvas'); c.width = 1024; c.height = 400; this.upC = c;
       const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; this.upT = t;
       const m = new T.Mesh(new T.PlaneGeometry(2.0, 0.78), new T.MeshBasicMaterial({map:t, transparent:true, depthTest:false, depthWrite:false}));
       m.position.set(0, 0.25, -2.6); m.renderOrder = 1002; m.visible = false; this.el.camera.add(m); this.upBord = m; }
-    const x = this.upC.getContext('2d'), kl = WAPENS[w].kleur; x.clearRect(0, 0, 1024, 400);
+    const x = this.upC.getContext('2d'); x.clearRect(0, 0, 1024, 400);
     x.fillStyle = 'rgba(8,10,12,0.82)'; x.beginPath(); x.roundRect ? x.roundRect(8, 8, 1008, 384, 28) : x.rect(8, 8, 1008, 384); x.fill();
     x.lineWidth = 6; x.strokeStyle = kl; x.stroke();
     x.textAlign = 'center'; x.textBaseline = 'middle';
-    x.font = '900 64px Trebuchet MS, sans-serif'; x.fillStyle = '#ffd24a'; x.fillText('LEVEL UP!', 512, 70);
-    x.font = '900 92px Trebuchet MS, sans-serif'; x.fillStyle = kl === '#ffffff' ? '#e8f2ea' : kl; x.fillText(LVL_NAAM[w][l - 1], 512, 172);
-    x.font = '600 38px Trebuchet MS, sans-serif'; x.fillStyle = '#e8f2ea'; x.fillText(LVL_UITLEG[w][l - 1], 512, 262);
-    for (let i=0;i<4;i++){ x.fillStyle = i < l ? kl : '#3a3f44'; x.fillRect(512 - 150 + i*78, 312, 66, 40); }   // levelblokjes
-    this.upT.needsUpdate = true; this.upBord.visible = true; this.upTijd = 3.4; this.upBord.scale.setScalar(0.6);
+    const pas = (tekst, gewicht, px) => { x.font = `${gewicht} ${px}px Trebuchet MS, sans-serif`; const b = x.measureText(tekst).width;   // past altijd op het bord
+      if (b > 940) x.font = `${gewicht} ${Math.floor(px*940/b)}px Trebuchet MS, sans-serif`; };
+    pas(boven, 900, 64); x.fillStyle = '#ffd24a'; x.fillText(boven, 512, 70);
+    pas(groot, 900, 92); x.fillStyle = kl === '#ffffff' ? '#e8f2ea' : kl; x.fillText(groot, 512, 172);
+    pas(onder, 600, 38); x.fillStyle = '#e8f2ea'; x.fillText(onder, 512, 262);
+    if (blokjes) for (let i=0;i<4;i++){ x.fillStyle = i < blokjes ? kl : '#3a3f44'; x.fillRect(512 - 150 + i*78, 312, 66, 40); }   // levelblokjes
+    const nieuw = !this.upBord.visible;
+    this.upT.needsUpdate = true; this.upBord.visible = true; this.upTijd = tijd; this.upVol = tijd; if (nieuw) this.upBord.scale.setScalar(0.6);
   },
   upgradeTick(s){
-    if (!this.upBord || !this.upBord.visible) return;
+    if (!this.upBord || !this.upBord.visible || this.upVast) return;
     this.upTijd -= s; const a = this.upTijd;
-    this.upBord.scale.setScalar(Math.min(1, 0.6 + (3.4 - a)*3));                // ploept even op
+    this.upBord.scale.setScalar(Math.min(1, this.upBord.scale.x + s*3));       // ploept even op
     this.upBord.material.opacity = Math.min(1, a/0.5);
     if (a <= 0) this.upBord.visible = false;
   },
@@ -3648,7 +3659,12 @@ AFRAME.registerComponent('zombies', {
     } catch(_){}
   },
   /* ---------- elke beurt ---------- */
-  tick(t, dt){
+  tick(t, dt){ try { this.tickEcht(t, dt); } catch(e){ this.fout(e); } },   // vangnet: een fout laat de game nooit vastlopen
+  fout(e){
+    this.fouten = (this.fouten || 0) + 1; (window.__fouten = window.__fouten || []).push(String(e && e.stack || e));
+    if (this.fouten < 20) console.error('Step Forward fout:', e); this.hudVuil = true;
+  },
+  tickEcht(t, dt){
     const s = Math.min(dt/1000, 0.05), T = this.T, cam = this.el.camera;
     this.wapenTick(s);
     if (!this.klaar) return;
