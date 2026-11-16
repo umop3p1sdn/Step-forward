@@ -296,12 +296,12 @@ function kRij(B, R, o){
     let st; do { st = R()*pal.length|0; } while (st === vorig && pal.length > 1); vorig = st;
     const [mat, tint] = pal[st], fl = o.verd[0] + (R()*(o.verd[1] - o.verd[0] + 1)|0), H = 3.4 + 3.0*(fl - 1) + 0.5;
     const ns = Math.max(1, Math.round(w/2.5)), slot = k => a + (k + 0.5)*w/ns;
-    const gaten = [], deurK = (w > 3 && !o.geenDeur) ? (R()*ns|0) : -1;
+    const gaten = [], deurK = (w > 2.4 && !o.geenDeur) ? (R()*ns|0) : -1, deurK2 = (ns >= 3 && !o.geenDeur && R() < 0.6) ? (deurK + 1 + (R()*(ns - 1)|0)) % ns : -1;   // brede huizen: soms 2 deuren
     const raamTex = kKies(R, KAART_RAAM_B), deurTex = kKies(R, KAART_DEUR_B), luik = kKies(R, KAART_LUIK);
     const ra = B.maatVan(raamTex); let rw = Math.min(1.35, 1.45*ra), rh = rw/ra;
     for (let f=0; f<fl; f++){ const y = f === 0 ? 0 : 3.4 + 3.0*(f - 1);
       for (let k=0;k<ns;k++){ const c = slot(k), pc = P(c);
-        if (f === 0 && k === deurK){
+        if (f === 0 && (k === deurK || k === deurK2)){
           if (o.echteDeur && o.echteDeur(pc, R)){
             gaten.push({a0:c - 0.56, a1:c + 0.56, b0:0, b1:2.28});
             const d = B.deur(kKies(R, KAART_DEUR_I), pc[0], pc[1], nx, nz, 1.1, 2.26);
@@ -326,7 +326,7 @@ function kRij(B, R, o){
     const laatste = a + w >= L - 0.01;
     if (!(a === 0 && o.hoekA)){ const q = P(a), p2 = P(a, -D); B.vlakV(mat, q[0], q[1], p2[0], p2[1], 0, H, {tint, stap:3, f:0.92}); }
     if (!(laatste && o.hoekB)){ const q = P(a + w), p2 = P(a + w, -D); B.vlakV(mat, p2[0], p2[1], q[0], q[1], 0, H, {tint, stap:3, f:0.92}); }
-    if (o.deco !== false && KAART.mInfo && R() < 0.45){ const vrijK = [...Array(ns).keys()].filter(k => k !== deurK); if (vrijK.length){ const c = slot(kKies(R, vrijK)) + (R() - 0.5)*0.6, q = P(c, 0.5);
+    if (o.deco !== false && KAART.mInfo && R() < 0.45){ const vrijK = [...Array(ns).keys()].filter(k => k !== deurK && k !== deurK2); if (vrijK.length){ const c = slot(kKies(R, vrijK)) + (R() - 0.5)*0.6, q = P(c, 0.5);
       const id = R() < 0.55 ? kKies(R, KAART_PLANT) : kKies(R, [132, 132, 133, 134, 135, 136, 72]); const it = kItem(id); if (it) B.meubel(R, null, q[0], q[1], {item:it}); } }
     uit.huizen.push({a0:a, a1:a + w, H});
     a += w;
@@ -470,7 +470,7 @@ KWERELD.dorp = (T, R) => {
   B.vlakH(B.weg, XL, zK - 1.7, XR, zK, 0);
   // --- huizen hoofdstraat (links en rechts elk een steeg op een andere plek)
   const zaL = -10 - R()*8, zaR = -6 - R()*14, sA = [], sB = [];
-  const echtS1 = (p, Rr) => true, raamS1 = (p, f, Rr) => p[1] < 2 && Rr() < 0.75;
+  const echtS1 = (p, Rr) => true, raamS1 = (p, f, Rr) => Rr() < 0.92;
   const rows = [];
   rows.push(kRij(B, R, {x0:XL, z0:zM, x1:XL, z1:zaL, n:[1, 0], verd:vh, echteDeur:echtS1, raamOpen:raamS1}));
   rows.push(kRij(B, R, {x0:XL, z0:zaL - 3.2, x1:XL, z1:zK, n:[1, 0], verd:vh, hoekB:true, echteDeur:echtS1, raamOpen:raamS1}));
@@ -484,7 +484,7 @@ KWERELD.dorp = (T, R) => {
   kRij(B, R, {x0:XL, z0:zK, x1:-X, z1:zK, n:[0, -1], verd:vh, hoekA:true});
   kRij(B, R, {x0:X, z0:zK, x1:XR, z1:zK, n:[0, -1], verd:vh, hoekB:true});
   const zaF = 10 + R()*18, fs = R() < 0.5 ? -1 : 1;                  // steeg in de verre rij
-  const echtS2 = (p, Rr) => Math.abs(p[0]) < 30, raamS2 = (p, f, Rr) => Math.abs(p[0]) < 28 && Rr() < 0.75;
+  const echtS2 = (p, Rr) => true, raamS2 = (p, f, Rr) => Math.abs(p[0]) < 24 && Rr() < 0.92;
   const ver = [];
   if (fs < 0){ ver.push(kRij(B, R, {x0:-X, z0:zKv, x1:-zaF - 3, z1:zKv, n:[0, 1], verd:vh, echteDeur:echtS2, raamOpen:raamS2}));
                ver.push(kRij(B, R, {x0:-zaF, z0:zKv, x1:-hw, z1:zKv, n:[0, 1], verd:vh, hoekB:true, echteDeur:echtS2, raamOpen:raamS2}));
@@ -554,7 +554,7 @@ KWERELD.dorp = (T, R) => {
   // --- achterstraat met de overburen
   const zOv = zO - 12.5;
   kStraat(B, -40, zOv + 1.7, 40, zO - 1.6, {stoep:[[-40, zO - 1.6, 40, zO, [-40, zO - 1.75, 40, zO - 1.6]], [-40, zOv, 40, zOv + 1.7, [-40, zOv + 1.7, 40, zOv + 1.85]]]});
-  const echtS4 = (p, Rr) => Math.abs(p[0]) < 22, raamS4 = (p, f, Rr) => Math.abs(p[0]) < 18 && Rr() < 0.75;
+  const echtS4 = (p, Rr) => true, raamS4 = (p, f, Rr) => Math.abs(p[0]) < 22 && Rr() < 0.92;
   const over = kRij(B, R, {x0:-40, z0:zOv, x1:40, z1:zOv, n:[0, 1], verd:[2, 3], echteDeur:echtS4, raamOpen:raamS4});
   B.wand('baksteen', -40, zOv, -40, zO, 0, 8, {}); B.wand('baksteen2', 40, zO, 40, zOv, 0, 8, {});
   // --- dekking per stand
@@ -601,7 +601,7 @@ KWERELD.loods = (T, R) => {
   // steeg: hoge achtergevels, weinig ramen, achterdeuren
   const pal = [['baksteen', [1, 1, 1]], ['baksteen2', [0.9, 0.85, 0.82]], ['gevel_grijs', [0.9, 0.9, 0.95]], ['gevel_afbl', [0.95, 0.92, 0.86]], ['beton', [0.95, 0.95, 0.95]]];
   B.vlakH(kKies(R, ['beton', 'weg2', 'grind']), ax0, zE, ax1, zS, 0.005, {stap:1.2});
-  const echt = (p, Rr) => true, raam = (p, f, Rr) => p[1] < -4 && Rr() < (f >= 1 ? 0.6 : 0.4);
+  const echt = (p, Rr) => true, raam = (p, f, Rr) => Rr() < 0.85;
   const zij = R() < 0.5 ? -1 : 1, zG = -9 - R()*6;                                 // zijsteeg aan één kant
   const L1 = kRij(B, R, {x0:ax0, z0:zS, x1:ax0, z1:zij < 0 ? zG + 1.5 : zE, n:[1, 0], verd:[2, 3], gevels:pal, echteDeur:echt, raamOpen:raam, plat:true, bMin:3.5, bVar:3});
   const L2 = zij < 0 ? kRij(B, R, {x0:ax0, z0:zG - 1.5, x1:ax0, z1:zE, n:[1, 0], verd:[2, 3], gevels:pal, echteDeur:echt, raamOpen:raam, plat:true, bMin:3.5, bVar:3}) : {deuren:[], ramen:[]};
@@ -620,10 +620,12 @@ KWERELD.loods = (T, R) => {
   const lm = (x0, z0, x1, z1, gaten) => { B.wand('beton', x0, z0, x1, z1, 0, 1.2, {dik:0.3, gaten:(gaten || []).map(g => Object.assign({}, g, {b1:Math.min(g.b1, 1.2)}))});
     B.wand(muurL, x0, z0, x1, z1, 1.2, LH, {dik:0.3, gaten, grond:0, dagMat:'golf_grijs'}); };
   lm(-LW, zL, LW, zL, [{a0:LW - 2.6, a1:LW + 2.6, b0:0, b1:4.2}]);                // voorkant: open roldeur
-  lm(-LW, zL2, -LW, zL, [{a0:zL - zRd0, a1:zL - zRd1, b0:0, b1:4.6}].map(g => ({a0:(zL - zL2) - g.a1, a1:(zL - zL2) - g.a0, b0:g.b0, b1:g.b1})));
-  lm(LW, zL, LW, zL2, [{a0:zL - zRd0, a1:zL - zRd1, b0:0, b1:4.6}]);
+  const zZd = zL2 + 5.5 + R()*2;
+  lm(-LW, zL2, -LW, zL, [{a0:zL - zRd0, a1:zL - zRd1, b0:0, b1:4.6}, {a0:zL - zZd - 0.56, a1:zL - zZd + 0.56, b0:0, b1:2.3}].map(g => ({a0:(zL - zL2) - g.a1, a1:(zL - zL2) - g.a0, b0:g.b0, b1:g.b1})));
+  lm(LW, zL, LW, zL2, [{a0:zL - zRd0, a1:zL - zRd1, b0:0, b1:4.6}, {a0:zL - zZd - 0.56, a1:zL - zZd + 0.56, b0:0, b1:2.3}]);
   const achterDeur = (R() - 0.5)*8;
-  lm(LW, zL2, -LW, zL2, [{a0:LW - achterDeur - 0.6, a1:LW - achterDeur + 0.6, b0:0, b1:2.3}]);
+  const xA = [-LW*0.62, LW*0.62].filter(x => Math.abs(x - achterDeur) > 2.5), zZ = zL2 + 4 + R()*3;
+  lm(LW, zL2, -LW, zL2, [achterDeur].concat(xA).map(x => ({a0:LW - x - 0.6, a1:LW - x + 0.6, b0:0, b1:2.3})));
   // half opgerolde roldeuren
   [[-LW, 1], [LW, -1]].forEach(([x, s]) => B.doos('golf_grijs', x - 0.12, zRd1, x + 0.12, zRd0, 4.6, 5.0, {geenBots:true}));
   B.doos('golf_grijs', -2.6, zL - 0.12, 2.6, zL + 0.12, 4.2, 4.7, {geenBots:true});
@@ -634,9 +636,15 @@ KWERELD.loods = (T, R) => {
   for (let z = zL - 4; z > zL2 + 2; z -= 7){ B.doos('licht', -LW + 2, z - 1, LW - 2, z + 1, LH - 0.05, LH - 0.02, {geenBots:true, geenAo:true}); ruimte.lampen.push([0, LH - 1, z, 0.55, 9]);
     B.doos('kleur', -LW, z - 3.6, LW, z - 3.4, LH - 0.7, LH - 0.4, {tint:[0.3, 0.32, 0.34], geenBots:true, geenAo:true}); }
   ruimte.lampen.push([-LW, 2, (zRd0 + zRd1)/2, 0.5, 6], [LW, 2, (zRd0 + zRd1)/2, 0.5, 6], [0, 2, zL, 0.4, 5]);
-  B.deur(kKies(R, KAART_DEUR_I), achterDeur, zL2, 0, 1, 1.1, 2.26);
-  kInricht(B, R, {x0:-LW + 0.5, x1:-2, z0:zL2, z1:zL2 + 6, wanden:['N'], thema:'kantoor', vrij:{N:[[achterDeur - 1, achterDeur + 1]]}, kunst:false, H:LH, ruim:0.4});
-  kInricht(B, R, {x0:2, x1:LW - 0.5, z0:zL2, z1:zL2 + 6, wanden:['N'], thema:'kantoor', vrij:{N:[[achterDeur - 1, achterDeur + 1]]}, kunst:false, H:LH, ruim:0.4});
+  const dAchter = B.deur(kKies(R, KAART_DEUR_I), achterDeur, zL2, 0, 1, 1.1, 2.26);
+  const loodsD = [];
+  xA.forEach(x => { const d = B.deur(kKies(R, ['golf_grijs', 'golf_roest']), x, zL2, 0, 1, 1.1, 2.26); B.kamer(x, zL2 - 0.3, 0, 1, 2.6, 3.2, 0, 2.9, {f:0.3});
+    loodsD.push({d, buiten:[x, zL2 + 1.0], drempel:[x, zL2 + 0.15], binnen:[x, zL2 - 1.6]}); });
+  [-1, 1].forEach(s => { const x = s*LW, d = B.deur(kKies(R, ['golf_grijs', 'golf_roest']), x, zZd, -s, 0, 1.1, 2.26); B.kamer(x + s*0.3, zZd, -s, 0, 2.6, 3.2, 0, 2.9, {f:0.3});
+    loodsD.push({d, buiten:[x - s*1.0, zZd], drempel:[x - s*0.15, zZd], binnen:[x + s*1.6, zZd]}); });
+  const vrijN = [[achterDeur - 1, achterDeur + 1]].concat(xA.map(x => [x - 1, x + 1]));
+  kInricht(B, R, {x0:-LW + 0.5, x1:-2, z0:zL2, z1:zL2 + 6, wanden:['N'], thema:'kantoor', vrij:{N:vrijN}, kunst:false, H:LH, ruim:0.4});
+  kInricht(B, R, {x0:2, x1:LW - 0.5, z0:zL2, z1:zL2 + 6, wanden:['N'], thema:'kantoor', vrij:{N:vrijN}, kunst:false, H:LH, ruim:0.4});
   [-1, 1].forEach(s => { for (let z = zL - 2; z > zL2 + 2; z -= 2.5 + R()*2.5){ if (z < zRd0 + 1 && z > zRd1 - 1) continue; const it = kItem(kKies(R, [133, 134, 135, 136, 72, 133])); if (it) B.meubel(R, null, s*(LW - 0.5), z, {item:it}); } });
   // dekking in de steeg en in de loods
   const ps = [], pl = [];
@@ -652,9 +660,9 @@ KWERELD.loods = (T, R) => {
       {p:[-12, zE - 4], via:[[(ax0 + ax1)/2, zE - 2], [(ax0 + ax1)/2, zE + 0.5]]}, {p:[12, zE - 5], via:[[(ax0 + ax1)/2, zE - 2], [(ax0 + ax1)/2, zE + 0.5]]}])};
   S1.mg = [0, zE - 3];
   const S2 = {x:0, z:s2z, naam:'WAREHOUSE', breed:LW - 3, wagZ:[zRd0 - 1.2 - s2z, zRd1 + 1.2 - s2z], mg:[1.5, zL - 20 - s2z], props:pl, plek:[],
-    spawns:[{p:[achterDeur, zL2 - 2], via:[[achterDeur, zL2 + 1]], deur:B.deuren[B.deuren.length - 1]}, {p:[achterDeur + 0.5, zL2 - 3], via:[[achterDeur, zL2 + 1.2]]},
+    spawns:kDeurSpawns(loodsD, {x:0, z:s2z}, () => true).concat([{p:[achterDeur, zL2 - 2], via:[[achterDeur, zL2 + 1]], deur:dAchter}, {p:[achterDeur + 0.5, zL2 - 3], via:[[achterDeur, zL2 + 1.2]]},
       {p:[-LW - 8, (zRd0 + zRd1)/2], via:[[-LW + 1.5, (zRd0 + zRd1)/2]]}, {p:[LW + 8, (zRd0 + zRd1)/2 - 2], via:[[LW - 1.5, (zRd0 + zRd1)/2 - 2]]},
-      {p:[-LW - 6, zRd1 + 1], via:[[-LW + 1, zRd1 + 1]]}, {p:[LW + 6, zRd0 - 1], via:[[LW - 1, zRd0 - 1]]}]};
+      {p:[-LW - 6, zRd1 + 1], via:[[-LW + 1, zRd1 + 1]]}, {p:[LW + 6, zRd0 - 1], via:[[LW - 1, zRd0 - 1]]}])};
   B.standen.push(S1, S2);
   return B.maak();
 };
@@ -704,7 +712,7 @@ KWERELD.huis = (T, R) => {
   // straat en overburen
   const zO = zF - 0.3, zOv = zO - 12;
   kStraat(B, -40, zOv + 1.7, 40, zO - 1.6, {stoep:[[-40, zO - 1.6, 40, zO, [-40, zO - 1.75, 40, zO - 1.6]], [-40, zOv, 40, zOv + 1.7, [-40, zOv + 1.7, 40, zOv + 1.85]]]});
-  const over = kRij(B, R, {x0:-40, z0:zOv, x1:40, z1:zOv, n:[0, 1], verd:[2, 3], echteDeur:(p, Rr) => Math.abs(p[0]) < 22, raamOpen:(p, f, Rr) => Math.abs(p[0] - 1) < 18 && Rr() < 0.75});
+  const over = kRij(B, R, {x0:-40, z0:zOv, x1:40, z1:zOv, n:[0, 1], verd:[2, 3], echteDeur:(p, Rr) => true, raamOpen:(p, f, Rr) => Math.abs(p[0]) < 22 && Rr() < 0.92});
   B.wand('baksteen', -40, zOv, -40, zO, 0, 8, {}); B.wand('baksteen2', 40, zO, 40, zOv, 0, 8, {});
   const pS = []; kStraatDek(B, R, pS, -10, 10, {as:'x', a:zO - 2.65, b:zOv + 2.8, autoKant:'b'}, 2, 2);
   // spawns binnen: uit de verste kamers en de zijgang
@@ -728,7 +736,7 @@ KWERELD.kruis = (T, R) => {
     [XL, zE, XL + sl, zK2, [XL + sl - 0.15, zE, XL + sl, zK2]], [XR - sr, zE, XR, zK2, [XR - sr, zE, XR - sr + 0.15, zK2]]]});
   kStraat(B, -X, zK2 + 1.7, X, zK1 - 1.7, {stoep:[[-X, zK2, XL, zK2 + 1.7], [XR, zK2, X, zK2 + 1.7], [-X, zK1 - 1.7, XL, zK1], [XR, zK1 - 1.7, X, zK1]]});
   B.vlakH(B.weg, XL, zK1 - 1.7, XR, zK1, 0); B.vlakH(B.weg, XL, zK2, XR, zK2 + 1.7, 0);
-  const e1 = (p, Rr) => true, o1 = (p, f, Rr) => p[1] < 2 && Rr() < 0.7;
+  const e1 = (p, Rr) => true, o1 = (p, f, Rr) => Rr() < 0.92;
   const zaL = -8 - R()*10, zaR = zK2 - 8 - R()*14;
   const A = [];
   A.push(kRij(B, R, {x0:XL, z0:zM, x1:XL, z1:zaL, n:[1, 0], verd:vh, echteDeur:e1, raamOpen:o1}));
@@ -744,8 +752,8 @@ KWERELD.kruis = (T, R) => {
   B.zadel('dak_grijs', [XL - 4, zE], [XR + 4, zE], 0, 1, 14, 14, 6, kerk[0], kerk[1]);
   // dwarsstraat
   kRij(B, R, {x0:XL, z0:zK1, x1:-X, z1:zK1, n:[0, -1], verd:vh, hoekA:true}); kRij(B, R, {x0:X, z0:zK1, x1:XR, z1:zK1, n:[0, -1], verd:vh, hoekB:true});
-  const D1 = kRij(B, R, {x0:-X, z0:zK2, x1:XL, z1:zK2, n:[0, 1], verd:vh, hoekB:true, echteDeur:(p, Rr) => p[0] > -30, raamOpen:(p, f, Rr) => p[0] > -26 && Rr() < 0.7});
-  const D2 = kRij(B, R, {x0:XR, z0:zK2, x1:X, z1:zK2, n:[0, 1], verd:vh, hoekA:true, echteDeur:(p, Rr) => p[0] < 30, raamOpen:(p, f, Rr) => p[0] < 26 && Rr() < 0.7});
+  const D1 = kRij(B, R, {x0:-X, z0:zK2, x1:XL, z1:zK2, n:[0, 1], verd:vh, hoekB:true, echteDeur:(p, Rr) => true, raamOpen:(p, f, Rr) => Math.abs(p[0]) < 22 && Rr() < 0.92});
+  const D2 = kRij(B, R, {x0:XR, z0:zK2, x1:X, z1:zK2, n:[0, 1], verd:vh, hoekA:true, echteDeur:(p, Rr) => true, raamOpen:(p, f, Rr) => Math.abs(p[0]) < 22 && Rr() < 0.92});
   B.wand('baksteen2', -X, zK2, -X, zK1, 0, 9, {}); B.wand('gevel_grijs', X, zK1, X, zK2, 0, 9, {});
   [[XL, zaL, -1], [XR, zaR, 1]].forEach(([fx, za, s]) => { const x2 = fx + s*10; B.vlakH('grind', Math.min(fx, x2), za - 3, Math.max(fx, x2), za, 0.01); B.wand('baksteen', x2, za - 3, x2, za, 0, 4, {}); });
   const pr = {a:[], b:[], c:[]}, lijn = (l, so, z0, z1, xa, xb, n, rand) => { for (let i=0;i<n;i++){ const s = kKies(R, so); let x = xa + (xb - xa)*R(), z = z0 + (z1 - z0)*(i + 0.2 + R()*0.6)/n, as = R() < 0.5 ? 'x' : 'z';
@@ -842,7 +850,7 @@ KWERELD.bunker = (T, R) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v67";
+const VERSIE = "v68";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -1229,14 +1237,14 @@ const HERLAAD_TIJD = 1.0;
 const WAPEN_LVL = {pistool:[12, 30, 60], auto:[18, 45, 83], raket:[9, 24, 48], laser:[15, 38, 68], shotgun:[10, 26, 50]};   // 50% trager dan v38
 const AANVAL_X = 2, MAX_X = 1.5;
 const GEWEER3D = {rx:-Math.PI/2, ry:0, rz:Math.PI};   // stand van het 3D-geweer in de rechterhand   // aantal aanvallers ×2, tegelijk in beeld ×1,5
-const CLIP = {pistool:[12, 17, 17, 32], auto:[60, 90, 150, 100], shotgun:[6, 6, 4, 4]};
+const CLIP = {pistool:[12, 17, 17, 32], auto:[60, 90, 150, 100], shotgun:[2, 6, 8, 12]};
 const LVL_NAAM = {pistool:['PISTOL', 'PISTOL 17', 'AUTO PISTOL', 'UZI'], auto:['AUTOMATIC', 'BIG MAG', 'SUPER MAG', 'AUTO HAND CANNON'],
-                  raket:['HAND GRENADE', 'FRAG GRENADE', 'ROCKET LAUNCHER', 'HEAVY ROCKET'], laser:['LASER', 'BIG LASER', 'CHAIN LASER', 'HEAD-POP LASER'], shotgun:['SHOTGUN', 'BUCKSHOT 20', 'BLAST SLUG', 'CLUSTER SLUGS']};
+                  raket:['HAND GRENADE', 'FRAG GRENADE', 'ROCKET LAUNCHER', 'HEAVY ROCKET'], laser:['LASER', 'BIG LASER', 'CHAIN LASER', 'HEAD-POP LASER'], shotgun:['DOUBLE BARREL', 'PUMP ACTION', 'SEMI-AUTO SHOTGUN', 'AUTO SHOTGUN']};
 const LVL_UITLEG = {pistool:['12-round mag', '17-round mag', 'Full auto — hold the trigger', '32-round mag, full auto'],
                     auto:['60 rounds', '90 rounds', '150 rounds', 'Heavy rounds — straight through helmets'],
                     raket:['Hand grenade', 'Bigger blast + shrapnel', 'Rockets — straight and fast', 'Huge blast'],
                     laser:['Laser', 'Bigger holes, double damage', 'Lightning jumps to 4 soldiers nearby', 'Lightning makes their heads pop'],
-                    shotgun:['12 pellets', '20 pellets', 'One heavy slug — small blast', '5 heavy slugs — 5 blasts']};
+                    shotgun:['2 shells — bam bam', '6 shells, one per second', '8 shells — as fast as you pull', '12 shells — hold: bam every 0.7 s']};
 const ELEKTRO_AFSTAND = 4;
 const KIST = 0.6, PARA_HOOGTE = 14, PARA_V = 1.5;   // ammo-kist aan een parachute: valhoogte en daalsnelheid
 const TANK_LOOP = 1.62;
@@ -1244,7 +1252,7 @@ const TANK = {hp:150, schaal:0.9, draai:0.7, herlaad:4.5, granaatV:9};   // tank
 const PANEEL = {x:0.82, y:0.42, z:2.0, maat:0.6};    // wapenpaneel: opzij (kant van je vrije hand), iets boven ooghoogte, op 2 m                          // snel herladen (pistoolknop of omlaag wijzen)   // pistool: magazijn (omlaag richten = herladen), auto vult zich bij, raket/granaat: voorraad
 const CONTINUES = 3, CONTINUE_TIJD = 10;
 const VGRAN_VLUCHT = 4, VGRAN_G = 3.6, VGRAN_LONT = 1.5, VGRAN_STRAAL = 2.8, VGRAN_SCHADE = 35;
-const ZLENGTE   = 1.87;   // hoe lang een soldaat is (m) — Sjoerd is 1.80, soldaten 1.85–1.90
+const ZLENGTE   = 2.0;    // hoe lang een soldaat is (m) — Sjoerd is 1.80, soldaten 1.85–1.90
 const ZTEGELIJK = 14;     // maximaal zoveel tegelijk in beeld
 const ZAFSTAND  = [15, 24];  // waar ze verschijnen (m vóór je)
 const ZHOEK     = 38;     // hoe ver links/rechts ze mogen verschijnen (graden)
@@ -1383,8 +1391,8 @@ AFRAME.registerComponent('zombies', {
         if (st) return;                                           // één duw = één keus
         if (Math.abs(x) < 0.7 && Math.abs(y) < 0.7) return;
         this.stik[id] = 1;
-        if (Math.abs(x) > 0.5 && Math.abs(y) > 0.5){ this.kies(id, 'shotgun'); return; }                 // schuin = shotgun
-        this.kies(id, Math.abs(y) > Math.abs(x) ? (y < 0 ? 'raket' : 'laser') : (x < 0 ? 'pistool' : 'auto'));
+        if (Math.abs(x) > 0.5 && Math.abs(y) > 0.5){ this.kies(id, 'pistool'); return; }                 // schuin = pistool
+        this.kies(id, Math.abs(y) > Math.abs(x) ? (y < 0 ? 'raket' : 'laser') : (x < 0 ? 'shotgun' : 'auto'));
       });
     });
     window.addEventListener('keydown', e => {
@@ -1666,7 +1674,7 @@ AFRAME.registerComponent('zombies', {
     const z = this.maak(n); z.grp.position.copy(pos); this.wortel.object3D.add(z.grp); this.lijst.push(z);
     const j = this.soorten[n].j;
     if (j.helm == null && n !== 5 && Math.random() < (W.helm || 0)) this.zetHelm(z);
-    z.vestHard = !!j.vest && (opt.vest || Math.random() < (W.vest ?? 0.5));     // kogelvrij of gewoon stof
+    z.vestHard = !!j.vest;     // draagt hij een vest, dan houdt het kleine kalibers tegen
     if (opt.schild) this.zetSchild(z); else this.zetGeweer(z);
     z.ai = {soort:opt.soort || 'dekking', staat:'rennen', doel:null, plek:null, zak:0, zakDoel:0, t:0, stil:false, mik:false, schoten:0};
     if (z.loop) { z.loop.tempo *= 1.15; }
@@ -2396,7 +2404,7 @@ AFRAME.registerComponent('zombies', {
     if (Math.random() < 0.3){ z.rol = {t:0, dur:0.65}; ai.strafe = {dir:zij, v:3.2, t:0.65, schot:0.7, kniel:true}; }
     else ai.strafe = {dir:zij, v:2.1 + Math.random()*0.8, t:0.7 + Math.random()*0.6, schot:0.12 + Math.random()*0.15, kniel:Math.random() < 0.3}; },
   shotgunSchot(bron, o, d){             // hagel: per soldaat tellen hoeveel korrels raken; slug: kleine explosie op de inslag
-    const T = this.T, l = this.lv('shotgun'), slug = l >= 3, n = l === 1 ? 12 : l === 2 ? 20 : l === 3 ? 1 : 5, sp = slug ? 0.022 : l === 2 ? 0.038 : 0.032;   // strakke groep
+    const T = this.T, l = this.lv('shotgun'), slug = false, n = 12, sp = 0.032;   // strakke groep
     this.knal(1.5); this.boem && this.geluid((A, t) => this.speel(A, this.ruisBuf(A, 0.35, 3), 'lowpass', 900, 1.1)); this.tril(bron, 1, 110);
     const rechts = new T.Vector3().crossVectors(d, new T.Vector3(0, 1, 0)).normalize(), op = new T.Vector3().crossVectors(rechts, d).normalize(), per = new Map();
     for (let i=0;i<n;i++){ const a = Math.random()*6.283, r = (n === 1 ? 0 : Math.sqrt(Math.random()))*sp;
@@ -2410,6 +2418,7 @@ AFRAME.registerComponent('zombies', {
       if (t){ const q = per.get(t.z) || {n:0, t, d:dk}; q.n++; if (t.deel === 'hoofd' && !q.hoofd) q.hoofd = t; per.set(t.z, q); } }
     for (const [z, q] of per){ if (z.dood){ this.raak(z, q.t.deel, q.t.p, q.d, {wapen:'auto', uv:q.t.uv}); continue; }
       if (q.hoofd || q.n >= 3) this.raak(z, (q.hoofd || q.t).deel, (q.hoofd || q.t).p, q.d, {wapen:q.n >= 7 ? 'kanon' : 'pistool', uv:(q.hoofd || q.t).uv});   // dichtbij: alles raakt → dodelijk
+      else if (z.s3d && z.vestHard && /borst|buik|bekken/.test(q.t.deel)){ this.ketst(q.t.p, q.d, 8); this.s3dHit(z, 'Hit_Chest', q.t.p, q.d, 1.0); }   // hagel op het vest: ketst af
       else if (z.s3d){ const bn = this.BOT3D[q.t.deel] || 'spine_02'; this.spat(q.t.p, q.d, 8); this.s3dGat(z, bn, q.t.p, q.d, 0.02, 'vlees'); this.s3dHit(z, 'Hit_Chest', q.t.p, q.d, 0.9); this.s3dTreffer(z, q.t.p, q.d, bn); }
       else this.raak(z, q.t.deel, q.t.p, q.d, {wapen:'pistool', uv:q.t.uv}); } },
   arcadeDeur(z, s){                     // gluurt vanuit de deuropening: schuilen binnen, uitstappen tot net buiten de deur
@@ -2723,7 +2732,7 @@ AFRAME.registerComponent('zombies', {
   gebruik(w){
     const a = this.ammo; if (!a || this.oneindigNu()) return;
     if (w === 'pistool'){ a.pistool--; if (a.pistool <= 0) setTimeout(() => this.herladen(), 120); }                     // leeg: vanzelf herladen
-    else if (w === 'shotgun'){ a.shotgun = (a.shotgun ?? 0) - 1; if (a.shotgun <= 0){ this.herlaadS = 1.7; this.herlaadGeluid && this.herlaadGeluid(); } }
+    else if (w === 'shotgun'){ a.shotgun = (a.shotgun ?? 0) - 1; if (a.shotgun <= 0){ this.herlaadS = 2.0; this.herlaadGeluid && this.herlaadGeluid(); } }
     else if (w === 'auto'){ a.auto--; this.autoRust = 0; } else if (w === 'raket') a.raket--; else if (w === 'laser'){ a.laser -= 10; this.laserRust = 0; }
     this.hudVuil = true;
   },
@@ -4687,10 +4696,11 @@ AFRAME.registerComponent('zombies', {
   syncUpg(){ this.upg.kanon = false; this.upg.raket = (this.lvl && this.lvl.raket >= 3) || false; },
   lv(w){ return (this.lvl && this.lvl[w]) || 1; },
   clip(w){ const c = CLIP[w]; return c ? c[this.lv(w) - 1] : (AMMO[w] || 0); },
-  isAuto(w){ return w === 'auto' || (w === 'pistool' && this.lv('pistool') >= 3); },
+  isAuto(w){ return w === 'auto' || (w === 'pistool' && this.lv('pistool') >= 3) || (w === 'shotgun' && this.lv('shotgun') >= 4); },
   wachtTijd(w){ const l = this.lv(w);
     if (w === 'pistool') return l >= 4 ? 0.075 : l >= 3 ? 0.12 : WAPENS.pistool.wacht;
     if (w === 'auto') return l >= 4 ? 0.16 : WAPENS.auto.wacht;
+    if (w === 'shotgun') return [0.22, 1.0, 0.15, 0.7][l - 1];        // dubbelloops bam-bam, pomp 1/s, semi zo snel je trekt, auto 0,7 s
     return WAPENS[w].wacht; },
   kill(w){
     if (this.onwLijst && this.onwLijst.length) this.alarm();
