@@ -12,7 +12,7 @@
 </style>
 </head>
 <body>
-<div id="info">Step Forward <span id="ver"></span> · menu: kies hand (L/R), dan START (Enter) of DEMO (D) of AUTO (A) · klik = schieten · 1/4/5 = wapen · G = granaat · B = bommenwerper · spatie = volgende plek · VR: joystick = wapen, A/B/X/Y = pistool (nog eens = herladen), R = herladen, vrije hand: trekker = granaat met boog (loslaten = gooien), grip = granaat zwaaien, X/Y = bommenwerper, joystick indrukken = logboek kopiëren</div>
+<div id="info">Step Forward <span id="ver"></span> · menu: kies hand (L/R), dan START (Enter) of DEMO (D) of AUTO (A) · klik = schieten · 1/4/5 = wapen · G = granaat · B = bommenwerper · spatie = volgende plek · VR: joystick = wapen, A/B/X/Y = pistool (nog eens = herladen), R = herladen, vrije hand: trekker = granaat met boog (loslaten = gooien), grip = granaat zwaaien · linker joystick indrukken = pauze, rechter = menu · P = pauze, M = menu, COPY LOG = logboek</div>
 
 <a-scene renderer="colorManagement:true; antialias:true" background="color:#0b0d10"
          xr-mode-ui="enabled:true" vr-mode-ui="enabled:true" stad zombies>
@@ -867,7 +867,7 @@ KWERELD.bunker = (T, R) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v79";
+const VERSIE = "v80";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -1427,13 +1427,13 @@ AFRAME.registerComponent('zombies', {
     try { this.god = !!localStorage.getItem('sf_god'); this.oneindig = !!localStorage.getItem('sf_oneindig'); this.drieD = localStorage.getItem('sf_drieD') !== ''; this.startLvl = Math.max(1, +(localStorage.getItem('sf_lvl') || 1)); } catch(_){ this.drieD = true; } this.blokken = []; this.blokWacht = BLOK_EERST;
     this.logInit();
     ['handL','handR'].forEach(id => { const h = document.getElementById(id);
-      h.addEventListener('thumbstickdown', () => this.logTonen());               // joystick indrukken = logboek kopiëren
-      h.addEventListener('triggerdown', () => { if (!this.gestart){ this.menuKies(id); return; } if (id !== this.gunHand){ this.granPak(id, 'boog'); return; } this.vuurt[id] = true; this.vuur(id); });   // vrije hand: trekker = granaat met boog
+      h.addEventListener('thumbstickdown', () => { if (!this.gestart) return; if (id === 'handL') this.pauzeWissel(); else this.pauzeMenuWissel(); });   // links indrukken = pauze, rechts = menu
+      h.addEventListener('triggerdown', () => { if (!this.gestart){ this.menuKies(id); return; } if (this.pauzeM){ this.pauzeKies(id); return; } if (this.pauze) return; if (id !== this.gunHand){ this.granPak(id, 'boog'); return; } this.vuurt[id] = true; this.vuur(id); });   // vrije hand: trekker = granaat met boog
       h.addEventListener('triggerup',   () => { this.vuurt[id] = false; if (this.gestart) this.granLos(id, 'boog'); });   // loslaten = gooien langs de boog
       ['abuttondown','bbuttondown','xbuttondown','ybuttondown'].forEach(k => h.addEventListener(k, () => { if (!this.gestart) return;
-        if (id !== this.gunHand){ this.ult(); return; }                    // knop op je vrije hand = bommenwerper
+        if (this.pauze || id !== this.gunHand) return;                      // knoppen op je vrije hand: niets
         if (this.wapen[this.gunHand] === 'pistool') this.herladen(); else this.kies(this.gunHand, 'pistool'); }));   // pistool in de hand: knop = snel herladen
-      h.addEventListener('gripdown', () => { if (this.gestart && id !== this.gunHand) this.granPak(id, 'zwaai'); });   // vrije hand: granaat pakken
+      h.addEventListener('gripdown', () => { if (this.gestart && !this.pauze && id !== this.gunHand) this.granPak(id, 'zwaai'); });   // vrije hand: granaat pakken
       h.addEventListener('gripup', () => { if (this.gestart) this.granLos(id, 'zwaai'); });                               // zwaaien en loslaten = gooien
       h.addEventListener('thumbstickmoved', e => {
         if (!this.gestart) return;
@@ -1452,9 +1452,9 @@ AFRAME.registerComponent('zombies', {
       const k = {Digit1:'pistool', Digit4:'auto', Digit5:'shotgun'}[e.code];
       if (!this.gestart){ if (e.code === 'KeyL') this.kiesHand('handL'); if (e.code === 'KeyR') this.kiesHand('handR');
         if (e.code === 'Enter' || e.code === 'KeyS') this.startMet(this.menuHand || 'handR', 'lvl'); if (e.code === 'KeyD') this.startMet(this.menuHand || 'handR', 'demo'); if (e.code === 'KeyA') this.startMet('handR', 'auto'); if (e.code === 'KeyT') this.startMet(this.menuHand || 'handR', 'test'); return; }
-      if (k) this.kies(this.gunHand, k); if (e.code === 'KeyG') this.granDesk(); if (e.code === 'KeyB') this.ult(); if (e.code === 'KeyR') this.herladen(); });
+      if (k) this.kies(this.gunHand, k); if (e.code === 'KeyG' && !this.pauze) this.granDesk(); if (e.code === 'KeyP') this.pauzeWissel(); if (e.code === 'KeyM') this.pauzeMenuWissel(); if (e.code === 'KeyB') this.ult(); if (e.code === 'KeyR') this.herladen(); });
     window.addEventListener('mouseup', () => { this.vuurt.muis = false; });
-    const muis = e => { if (e.button !== 0) return; if (!this.gestart && performance.now() - (this.aanraakT || -9e9) < 700) return; this.muisE = e; if (!this.gestart){ this.menuKies('muis', e); return; } if (this.auto) return; this.vuurt.muis = true; this.vuur('muis', e); };
+    const muis = e => { if (e.button !== 0) return; if (!this.gestart && performance.now() - (this.aanraakT || -9e9) < 700) return; this.muisE = e; if (!this.gestart){ this.menuKies('muis', e); return; } if (this.pauzeM){ this.pauzeKies('muis', e); return; } if (this.pauze) return; if (this.auto) return; this.vuurt.muis = true; this.vuur('muis', e); };
     this.el.addEventListener('loaded', () => this.maakEffecten());
     const aanraak = e => { if (this.gestart || !e.touches || !e.touches[0]) return; this.aanraakT = performance.now();   // mobiel: menu met je vinger
       const t = e.touches[0]; this.menuKies('muis', {button:0, clientX:t.clientX, clientY:t.clientY}); };
@@ -2113,7 +2113,7 @@ AFRAME.registerComponent('zombies', {
     this.hudVuil = true;
   },
   hudTick(s){
-    if (!this.hud) this.maakHud();
+    if (!this.hud) this.maakHud(); this.hud.visible = true;
     this.rood = Math.max(0, (this.rood || 0) - s*1.4);
     const laag = this.speler && this.speler.hp < 35 ? 0.18 + 0.12*Math.sin(this.nu*5) : 0;
     this.vignet.material.opacity = Math.min(0.85, this.rood + laag);
@@ -4420,7 +4420,7 @@ AFRAME.registerComponent('zombies', {
     this.perf = {n:0, som:0, max:0, js:0, jsMax:0, t:0};
     const b = document.createElement('button'); b.textContent = '📋 COPY LOG'; b.id = 'logKnop';
     b.style.cssText = 'position:fixed;right:10px;top:10px;z-index:30;padding:8px 12px;border-radius:8px;border:0;background:#1f3a24;color:#cfe;font:700 13px sans-serif';
-    b.onclick = () => this.kopieerLog(); document.body.appendChild(b);
+    b.onclick = () => this.logVenster(); document.body.appendChild(b);
     this.logboek('start · ' + VERSIE + ' · ' + navigator.userAgent.slice(0, 120));
   },
   logboek(t){
@@ -4470,6 +4470,67 @@ AFRAME.registerComponent('zombies', {
       d.querySelector('#logDicht').onclick = () => { d.style.display = 'none'; }; }
     d.style.display = 'flex'; d.querySelector('#logKop').textContent = 'COPY'; const a = d.querySelector('#logTxt'); a.value = t; try { a.select(); } catch(_){}
   },
+  logVenster(){ const t = this.logTekst(); try { localStorage.setItem('sf_log', t); } catch(_){}
+    let d = document.getElementById('logVak2');
+    if (!d){ d = document.createElement('div'); d.id = 'logVak2'; d.style.cssText = 'position:fixed;inset:8px;z-index:99999;background:rgba(10,14,18,.97);border:2px solid #7dff7a;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px';
+      const k = (id, tekst, kl) => `<button id="${id}" style="flex:1;font:700 18px sans-serif;padding:14px 6px;background:${kl};color:#fff;border:0;border-radius:8px">${tekst}</button>`;
+      d.innerHTML = '<div style="display:flex;gap:8px">' + k('lvKop', 'COPY', '#2a7a2a') + k('lvDeel', 'SHARE', '#2a4a7a') + k('lvDown', 'DOWNLOAD .txt', '#6a4a1a') + k('lvDicht', 'CLOSE', '#553') + '</div>' +
+        '<div id="lvMeld" style="font:600 15px sans-serif;color:#cfe">Tip: COPY werkt niet altijd op de Quest — dan SHARE of DOWNLOAD, of houd je vinger in de tekst en kies Alles selecteren → Kopiëren.</div>' +
+        '<textarea id="lvTxt" style="flex:1;width:100%;font:12px monospace;background:#0c1014;color:#e8f2ea;border:1px solid #345;border-radius:6px"></textarea>';
+      document.body.appendChild(d);
+      const meld = m => { d.querySelector('#lvMeld').textContent = m; };
+      d.querySelector('#lvKop').onclick = () => { const a = d.querySelector('#lvTxt'); a.focus(); a.select(); a.setSelectionRange(0, a.value.length);
+        const oud = () => { let ok = false; try { ok = document.execCommand('copy'); } catch(_){} meld(ok ? 'GEKOPIEERD ✓ — plak het in de chat' : 'Kopiëren lukte niet: probeer SHARE of DOWNLOAD'); };
+        try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(a.value).then(() => meld('GEKOPIEERD ✓ — plak het in de chat'), oud); else oud(); } catch(_){ oud(); } };
+      d.querySelector('#lvDeel').onclick = () => { const a = d.querySelector('#lvTxt'); if (navigator.share) navigator.share({title:'Step Forward log', text:a.value}).then(() => meld('GEDEELD ✓'), () => meld('Delen afgebroken of niet mogelijk')); else meld('Delen kan niet in deze browser: gebruik DOWNLOAD'); };
+      d.querySelector('#lvDown').onclick = () => { const a = d.querySelector('#lvTxt'), u = URL.createObjectURL(new Blob([a.value], {type:'text/plain'})), l = document.createElement('a');
+        l.href = u; l.download = 'step-forward-log-' + VERSIE + '.txt'; document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); meld('Gedownload ✓ — staat in je Downloads'); };
+      d.querySelector('#lvDicht').onclick = () => { d.style.display = 'none'; }; }
+    d.style.display = 'flex'; const a = d.querySelector('#lvTxt'); a.value = t; d.querySelector('#lvMeld').textContent = 'Tip: COPY werkt niet altijd op de Quest — dan SHARE of DOWNLOAD, of houd je vinger in de tekst en kies Alles selecteren → Kopiëren.'; },
+  /* ================= PAUZE + MENU ================= */
+  pauzeWissel(){ if (!this.gestart) return; if (this.pauzeM){ this.pauzeMenuWeg(); this.pauze = false; } else this.pauze = !this.pauze; this.pauzeBord(this.pauze); this.tik(); },
+  pauzeMenuWissel(){ if (!this.gestart) return; if (this.pauzeM){ this.pauzeMenuWeg(); this.pauze = false; this.pauzeBord(false); } else { this.pauze = true; this.pauzeBord(false); this.pauzeMenuToon(); } this.tik(); },
+  pauzeBord(aan){ const T = this.T;
+    if (!this.pzBord){ const c = document.createElement('canvas'); c.width = 1024; c.height = 256; const x = c.getContext('2d');
+      x.fillStyle = 'rgba(8,10,12,0.8)'; x.fillRect(0, 0, 1024, 256); x.textAlign = 'center'; x.textBaseline = 'middle';
+      x.font = '900 120px Trebuchet MS, sans-serif'; x.fillStyle = '#ffd24a'; x.fillText('PAUSED', 512, 105); x.font = '600 38px Trebuchet MS, sans-serif'; x.fillStyle = '#e8f2ea'; x.fillText('click LEFT stick to continue · RIGHT stick = menu', 512, 205);
+      const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace;
+      this.pzBord = new T.Mesh(new T.PlaneGeometry(1.2, 0.3), new T.MeshBasicMaterial({map:t, transparent:true, depthTest:false, depthWrite:false})); this.pzBord.renderOrder = 2900; this.pzBord.position.set(0, 0.1, -1.6); this.el.camera.add(this.pzBord); }
+    this.pzBord.visible = !!aan; },
+  pauzeMenuToon(){ const T = this.T; this.pauzeMenuWeg();
+    const g = new T.Group(), cam = this.el.camera, ik = cam.getWorldPosition(new T.Vector3()), v = new T.Vector3(0, 0, -1).applyQuaternion(cam.getWorldQuaternion(new T.Quaternion())); v.y = 0; v.normalize();
+    g.position.copy(ik).addScaledVector(v, 1.7); g.position.y = ik.y - 0.15; g.lookAt(ik.x, g.position.y, ik.z);
+    const bord = (w, h, teken) => { const c = document.createElement('canvas'); c.width = 512; c.height = Math.round(512*h/w); const x = c.getContext('2d'); teken(x, c.width, c.height);
+      const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; const m = new T.Mesh(new T.PlaneGeometry(w, h), new T.MeshBasicMaterial({map:t, transparent:true, depthTest:false, depthWrite:false})); m.renderOrder = 2950; return m; };
+    const tekst = (x, t, X, y, px, kl) => { x.font = `800 ${px}px Trebuchet MS, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = kl; x.fillText(t, X, y); };
+    const kop = bord(1.2, 0.26, (x, W, H) => { x.fillStyle = 'rgba(8,10,12,0.85)'; x.fillRect(0, 0, W, H); tekst(x, 'MENU', W/2, H*0.42, 70, '#ffd24a'); tekst(x, 'game paused', W/2, H*0.82, 24, '#e8f2ea'); });
+    kop.position.set(0, 0.5, 0); g.add(kop); this.pzKnop = [];
+    [['verder', 'RESUME', '#2a7a2a'], ['hoofd', 'MAIN MENU', '#7a2a2a'], ['log', 'COPY LOG', '#2a4a7a']].forEach(([actie, naam, kl], i) => {
+      const k = bord(0.9, 0.24, (x, W, H) => { x.fillStyle = kl; x.globalAlpha = 0.92; x.fillRect(0, 0, W, H); x.globalAlpha = 1; x.strokeStyle = '#e8f2ea'; x.lineWidth = 8; x.strokeRect(4, 4, W - 8, H - 8); tekst(x, naam, W/2, H/2, 60, '#ffffff'); });
+      k.position.set(0, 0.18 - i*0.3, 0.01); k.userData.pauze = actie; g.add(k); this.pzKnop.push(k); });
+    this.sc.add(g); this.pauzeM = g;
+    ['handL', 'handR'].forEach(id => { const h = document.getElementById(id); h && h.setAttribute('raycaster', 'showLine', true); }); },
+  pauzeMenuWeg(){ if (this.pauzeM){ this.pauzeM.traverse(o => { if (o.material){ if (o.material.map) o.material.map.dispose(); o.material.dispose(); } if (o.geometry) o.geometry.dispose(); }); this.pauzeM.removeFromParent(); this.pauzeM = null; }
+    if (this.gestart) ['handL', 'handR'].forEach(id => { const h = document.getElementById(id); h && h.setAttribute('raycaster', 'showLine', id === this.gunHand); }); },
+  pauzeKies(bron, e){ if (!this.straal(bron, e)) return; const hit = this.rc.intersectObjects(this.pzKnop || [], false)[0]; if (!hit) return; const a = hit.object.userData.pauze; this.tik();
+    if (a === 'verder'){ this.pauzeMenuWeg(); this.pauze = false; this.pauzeBord(false); }
+    else if (a === 'log'){ this.logTonen(); }
+    else if (a === 'hoofd') this.terugMenu(); },
+  terugMenu(){                           // terug naar het hoofdmenu, zonder herladen (je blijft in VR)
+    this.logboek('terug naar hoofdmenu · ' + this.staatKort()); this.pauzeMenuWeg(); this.pauze = false; this.pauzeBord(false);
+    if (this.vastG && this.vastG.m) this.vastG.m.removeFromParent(); this.vastG = null; this.boogZie && this.boogZie(false);
+    this.leegOorlog(true); this.wq = [];
+    (this.vliegt || []).forEach(p => p.g && p.g.removeFromParent()); this.vliegt = [];
+    (this.bom || []).forEach(b => b.b.removeFromParent()); this.bom = []; if (this.vliegtuig){ this.vliegtuig.g.removeFromParent(); this.vliegtuig = null; }
+    (this.drones || []).forEach(d => d.g.removeFromParent()); this.drones = [];
+    (this.blokken || []).forEach(b => b.g.removeFromParent()); this.blokken = [];
+    this.gVuren = []; this.gWolken = []; if (this.logPaneel) this.logPaneel.visible = false;
+    if (this.muur){ this.muur.m.removeFromParent(); this.muur = null; }
+    if (this.upBord) this.upBord.visible = false; this.upVast = false; if (this.vlieger) this.vlieger.visible = false; if (this.mbord) this.mbord.visible = false;
+    this.overleden = false; this.auto = null; this.gestart = false; this.vuurt = {}; this.rood = 0; if (this.vignet) this.vignet.material.opacity = 0;
+    const st = this.el.components.stad; if (st){ st.kaartWeg(); st.i = -1; st.doel = 0; st.fase = 'dicht'; }   // zwart, dan het menubeeld; nieuw spel bouwt de wereld opnieuw
+    if (this.menu){ this.menu.removeFromParent(); this.menu = null; } this.maakMenu();
+    ['handL', 'handR'].forEach(id => { const h = document.getElementById(id); h && h.setAttribute('raycaster', 'showLine', true); }); },
   kopieerLog(){
     const t = this.logTekst(); try { localStorage.setItem('sf_log', t); } catch(_){}
     const ok = () => { this.melding('LOG COPIED — paste it in the chat', '#7dff7a'); this.logboek('log gekopieerd'); };
@@ -7375,7 +7436,8 @@ AFRAME.registerComponent('zombies', {
     this.wapenTick(s);
     if (!this.klaar) return;
     if (!this.fx) this.maakEffecten();
-    if (!this.gestart){ this.maakMenu(); this.effectTick(s); return; }   // eerst je hand kiezen
+    if (!this.gestart){ this.maakMenu(); this.effectTick(s); if (this.hud) this.hud.visible = false; return; }   // eerst je hand kiezen
+    if (this.pauze){ this.boogZie && this.boogZie(false); return; }                // pauze: alles staat stil
     this.wapenUpdate(s);
     const ik = new T.Vector3(); cam.getWorldPosition(ik); ik.y = 0;
     // nieuwe zombies
