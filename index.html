@@ -956,7 +956,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v83";
+const VERSIE = "v84";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -1435,7 +1435,7 @@ for (const w in WAPEN_STAT){
   LVL_NAAM[w] = WAPEN_STAT[w].map(s => s.naam); CLIP[w] = WAPEN_STAT[w].map(s => s.mag);
   LVL_UITLEG[w] = WAPEN_STAT[w].map((s, i) => `${s.mag} rounds · ${w === 'auto' || (AUTO_LV[w] || []).includes(i + 1) ? 'full auto' : w === 'shotgun' && i < 2 ? 'pump action' : 'semi-auto'}` +
     ((w === 'shotgun' ? s.dmg >= 80 : s.dmg >= DOOR_VEST) ? ' · through vests' : '')); }
-WAPEN_LVL.pistool = [20, 50, 95, 150, 215, 290, 375]; WAPEN_LVL.shotgun = [18, 45, 85, 135, 195, 265, 345]; WAPEN_LVL.auto = [30, 70, 125, 190, 265, 350, 445, 550, 665];   // v83: trager
+WAPEN_LVL.pistool = [100, 200, 300, 400, 500, 600, 700]; WAPEN_LVL.shotgun = [100, 200, 300, 400, 500, 600, 700]; WAPEN_LVL.auto = [100, 200, 300, 400, 500, 600, 700, 800, 900];   // v84: elke 100 kills
 const GRANATEN = [                                                      // r = straal-stat, duur = effect-stat; vrij = kills nodig
   {naam:'M67 FRAG',         kort:'FRAG',  kleur:'#a8d060', dmg:60,  r:35,  kracht:40,  bereik:65, lont:3.5, stun:20,  vrij:0,   uitleg:'Blast + shrapnel'},
   {naam:'MK3A2 CONCUSSION', kort:'CONC',  kleur:'#d8d8d8', dmg:45,  r:45,  kracht:60,  bereik:65, lont:3.0, stun:75,  vrij:20,  uitleg:'Knocks them flat — stunned'},
