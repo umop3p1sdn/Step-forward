@@ -823,7 +823,7 @@ KWERELD.bunker = (T, R) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v64";
+const VERSIE = "v65";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2363,7 +2363,7 @@ AFRAME.registerComponent('zombies', {
     if (Math.random() < 0.3){ z.rol = {t:0, dur:0.65}; ai.strafe = {dir:zij, v:3.2, t:0.65, schot:0.7, kniel:true}; }
     else ai.strafe = {dir:zij, v:2.1 + Math.random()*0.8, t:0.7 + Math.random()*0.6, schot:0.12 + Math.random()*0.15, kniel:Math.random() < 0.3}; },
   shotgunSchot(bron, o, d){             // hagel: per soldaat tellen hoeveel korrels raken; slug: kleine explosie op de inslag
-    const T = this.T, l = this.lv('shotgun'), slug = l >= 3, n = l === 1 ? 12 : l === 2 ? 20 : l === 3 ? 1 : 5, sp = slug ? 0.06 : 0.085;
+    const T = this.T, l = this.lv('shotgun'), slug = l >= 3, n = l === 1 ? 12 : l === 2 ? 20 : l === 3 ? 1 : 5, sp = slug ? 0.022 : l === 2 ? 0.038 : 0.032;   // strakke groep
     this.knal(1.5); this.boem && this.geluid((A, t) => this.speel(A, this.ruisBuf(A, 0.35, 3), 'lowpass', 900, 1.1)); this.tril(bron, 1, 110);
     const rechts = new T.Vector3().crossVectors(d, new T.Vector3(0, 1, 0)).normalize(), op = new T.Vector3().crossVectors(rechts, d).normalize(), per = new Map();
     for (let i=0;i<n;i++){ const a = Math.random()*6.283, r = (n === 1 ? 0 : Math.sqrt(Math.random()))*sp;
