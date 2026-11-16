@@ -79,6 +79,7 @@ const KAART = {
     const t0 = performance.now(), W = KWERELD[soort](T, kRng(seed), seed); W.ms = Math.round(performance.now() - t0); W.soort = soort; W.seed = seed;
     kCentreer(T, W);
     kSpawnCheck(T, W);
+    kDichtbij(W);
     return this.werelden[k] = W; }
 };
 
@@ -284,6 +285,19 @@ function kSpawnCheck(T, W){
     S.spawnsWeg = weg; });
 }
 
+// arcade-afstand: vijanden verschijnen op 5-12 m (overkant van de straat is de grens). Verder weg valt af,
+// tenzij er dan te weinig over is (minstens 3 deuren en 5 plekken, de dichtstbijzijnde).
+function kDichtbij(W){ const MAX = 12.5;
+  (W.standen || []).forEach(S => {
+    const aan = s => s.deur && s.via && s.via.length ? s.via[0] : (s.via && s.via.length ? s.via[s.via.length - 1] : s.p), d = s => Math.hypot(aan(s)[0] - S.x, aan(s)[1] - S.z);
+    const alle = (S.spawns || []).slice().sort((a, b) => d(a) - d(b)), hou = alle.filter(s => d(s) <= MAX);
+    alle.filter(s => s.deur).slice(0, 3).forEach(s => { if (!hou.includes(s)) hou.push(s); });
+    alle.slice(0, 5).forEach(s => { if (!hou.includes(s)) hou.push(s); });
+    S.spawnsVer = alle.length - hou.length; S.spawns = hou;
+    if (S.plek){ const dp = q => Math.hypot(q.p[0] - S.x, q.p[1] - S.z), pl = S.plek.slice().sort((a, b) => dp(a) - dp(b));
+      S.plek = pl.filter((q, i) => dp(q) <= MAX + 1 || i < 4); } });
+}
+
 /* ---------- huizenrij langs een straat: gevels met ramen/deuren, echte deuren en open ramen waar soldaten uit komen ---------- */
 // x0,z0 → x1,z1 = buitenkant gevel van links naar rechts (gezien vanaf de straat), n = naar de straat
 function kRij(B, R, o){
@@ -461,15 +475,15 @@ function kRaamPlekken(ramen, filter){ return ramen.filter(r => filter(r.c)).map(
 /* === DORP: hoofdstraat → T-splitsing (vrachtwagens) → door de voordeur een lange gang in → kamer met raam op een achterstraat === */
 KWERELD.dorp = (T, R) => {
   const B = new KBouw(T); B.lucht(); B.weg = kKies(R, ['asfalt', 'asfalt2', 'asfalt']); B.stoep = kKies(R, ['stoep', 'stoep2']);
-  const Ws = 9.5 + R()*2.5, XL = -Ws/2 - (R() - 0.5)*0.8, XR = XL + Ws, sl = 1.5 + R()*0.7, sr = 1.5 + R()*0.7;
-  const zM = 12, zK = -34 - (R()*3|0), zKv = zK - 12.5, hw = 6.2, X = 52;
+  const Ws = 7.2 + R()*1.2, XL = -Ws/2 - (R() - 0.5)*0.4, XR = XL + Ws, sl = 1.2 + R()*0.3, sr = 1.2 + R()*0.3;      // smalle straat: overkant op 7-8 m
+  const zM = 12, zK = -20 - (R()*2|0), zKv = zK - 8.5, hw = 6.2, X = 52;
   const vh = R() < 0.5 ? [2, 3] : [1, 3];
   // --- grond
   kStraat(B, XL + sl, zK, XR - sr, zM, {stoep:[[XL, zK, XL + sl, zM, [XL + sl - 0.15, zK, XL + sl, zM]], [XR - sr, zK, XR, zM, [XR - sr, zK, XR - sr + 0.15, zM]]]});
   kStraat(B, -X, zKv + 1.7, X, zK - 1.7, {stoep:[[-X, zKv, X, zKv + 1.7, [-X, zKv + 1.7, X, zKv + 1.85]], [-X, zK - 1.7, XL, zK], [XR, zK - 1.7, X, zK]]});
   B.vlakH(B.weg, XL, zK - 1.7, XR, zK, 0);
   // --- huizen hoofdstraat (links en rechts elk een steeg op een andere plek)
-  const zaL = -10 - R()*8, zaR = -6 - R()*14, sA = [], sB = [];
+  const zaL = -7 - R()*4, zaR = -6 - R()*5, sA = [], sB = [];
   const echtS1 = (p, Rr) => true, raamS1 = (p, f, Rr) => Rr() < 0.92;
   const rows = [];
   rows.push(kRij(B, R, {x0:XL, z0:zM, x1:XL, z1:zaL, n:[1, 0], verd:vh, echteDeur:echtS1, raamOpen:raamS1}));
@@ -504,17 +518,17 @@ KWERELD.dorp = (T, R) => {
   B.doos('beton', -hw, zKv + 0.2, hw, zKv, Hh - 0.3, Hh, {geenBots:true, geenAo:true});
   B.zadel(kKies(R, KAART_DAK), [-hw, zKv], [hw, zKv], 0, 1, Hh, 12, 3.2, gv[0], gv[1]);
   // --- binnen: gang met zijkamers, een zijgang, een hal, eindkamer met raam
-  const cw = 1.25 + R()*0.2, zA = zKv - 0.3, zB = zA - 30, zH0 = zA - 17 - R()*3, zH1 = zH0 - 6, xh0 = -3 - R()*0.6, xh1 = 3 + R()*0.6;
+  const cw = 1.25 + R()*0.2, zA = zKv - 0.3, zB = zA - 19, zH0 = zA - 10 - R()*1.5, zH1 = zH0 - 4.5, xh0 = -3 - R()*0.6, xh1 = 3 + R()*0.6;
   const zEind = zB - 4.6, zO = zEind - 0.3;
   const ruimte = B.ruimte(-hw, zO, hw, zA, H, 0.3);
   ruimte.lampen.push([0, 1.8, zO + 0.3, 1.1, 3.2]);                          // daglicht van het eindraam
   for (let z = zA - 2.5; z > zB - 2; z -= 5.5 + R()*1.5) B.lamp(ruimte, 0, H - 0.02, z, 0.9);
   B.lamp(ruimte, (xh0 + xh1)/2, H - 0.02, (zH0 + zH1)/2, 0.8); B.lamp(ruimte, 0, H - 0.02, zEind + 2.2, 0.5);
-  const zijKant = R() < 0.5 ? -1 : 1, zZij = zA - 8 - R()*5;                 // zijgang aan één kant
+  const zijKant = R() < 0.5 ? -1 : 1, zZij = zA - 4.5 - R()*2;                 // zijgang aan één kant
   // deuren langs de gang (niet gespiegeld: per kant eigen ritme)
-  const deurenG = []; [-1, 1].forEach(s => { let z = zA - 2.6 - R()*2.5;
-    while (z > zB + 1.5){ const vrij = !(z < zH0 + 2.1 && z > zH1 - 2.1) && !(s === zijKant && Math.abs(z - zZij) < 3.1);
-      if (vrij && R() < 0.8) deurenG.push({s, z}); z -= 4.4 + R()*3; } });
+  const deurenG = []; [-1, 1].forEach(s => { let z = zA - 3.6 - R()*1.5;
+    while (z > zB + 1.5){ const vrij = !(z < zH0 + 1.3 && z > zH1 - 1.3) && !(s === zijKant && Math.abs(z - zZij) < 2.6);
+      if (vrij && R() < 0.9) deurenG.push({s, z}); z -= 3.0 + R()*1.6; } });
   const gatenVan = s => { const g = []; deurenG.filter(d => d.s === s).forEach(d => g.push({a0:(zA - d.z) - 0.52, a1:(zA - d.z) + 0.52, b0:0, b1:2.2}));
     g.push({a0:zA - zH0, a1:zA - zH1, b0:0, b1:H}); if (s === zijKant) g.push({a0:zA - zZij - 1.1, a1:zA - zZij + 1.1, b0:0, b1:2.6}); return g; };
   [-1, 1].forEach(s => B.scheid.push({as:'x', w:s*cw, a0:zB, a1:zA, open:deurenG.filter(d => d.s === s).map(d => [d.z - 0.5, d.z + 0.5]).concat([[zH1, zH0]], s === zijKant ? [[zZij - 1.1, zZij + 1.1]] : [])}));
@@ -552,7 +566,7 @@ KWERELD.dorp = (T, R) => {
   B.wand(st.muur, ex1, zEind - 0.15, ex0, zEind - 0.15, 0, H, {dik:0.3, tint:st.mt, plaf:H, dagMat:'plank', gaten:[{a0:ex1 - 1.3, a1:ex1 + 1.3, b0:0.92, b1:2.25}]});
   B.doos('plank', -1.35, zEind + 0.12, 1.35, zEind - 0.42, 0.86, 0.92, {geenBots:true, tint:[0.6, 0.45, 0.35]});
   // --- achterstraat met de overburen
-  const zOv = zO - 12.5;
+  const zOv = zO - 9;
   kStraat(B, -40, zOv + 1.7, 40, zO - 1.6, {stoep:[[-40, zO - 1.6, 40, zO, [-40, zO - 1.75, 40, zO - 1.6]], [-40, zOv, 40, zOv + 1.7, [-40, zOv + 1.7, 40, zOv + 1.85]]]});
   const echtS4 = (p, Rr) => true, raamS4 = (p, f, Rr) => Math.abs(p[0]) < 22 && Rr() < 0.92;
   const over = kRij(B, R, {x0:-40, z0:zOv, x1:40, z1:zOv, n:[0, 1], verd:[2, 3], echteDeur:echtS4, raamOpen:raamS4});
@@ -562,33 +576,34 @@ KWERELD.dorp = (T, R) => {
   const lijn = (lijst, soorten, z0, z1, xa, xb, n, rand) => { for (let i=0;i<n;i++){ let z = z0 + (z1 - z0)*(i + 0.2 + R()*0.6)/n, x = xa + (xb - xa)*R(); const so = kKies(R, soorten); let as = R() < 0.6 ? 'x' : 'z';
       if (so === 'auto' && rand){ if (rand.as === 'z'){ x = R() < 0.5 ? rand.a : rand.b; as = 'z'; } else { z = R() < 0.5 ? rand.a : rand.b; as = 'x'; } }   // geparkeerd langs de stoeprand
       const pr = kProp(B, R, so, x, z, {as}); if (pr) lijst.push(pr); } };
-  kStraatDek(B, R, props.s1, -6, zK + 10, {as:'z', a:XL + sl + 1.05, b:XR - sr - 1.05}, 2 + (R()*2|0), 3);
+  kStraatDek(B, R, props.s1, -4, zK + 6, {as:'z', a:XL + sl + 1.05, b:XR - sr - 1.05}, 2 + (R()*2|0), 3);
   kStraatDek(B, R, props.s2, -10, 10, {as:'x', a:zK - 2.8, b:zKv + 2.8, gat:[5, 0]}, 2, 2);
-  kStraatDek(B, R, props.s4, -11, 11, {as:'x', a:zO - 2.65, b:zOv + 2.8, autoKant:'b'}, 2, 2);
+  kStraatDek(B, R, props.s4, -8, 8, {as:'x', a:zO - 2.65, b:zOv + 2.8, autoKant:'b'}, 2, 2);
   const deurAlle = rows.flatMap(r => r.deuren), raamAlle = rows.flatMap(r => r.ramen), verD = ver.flatMap(r => r.deuren), verR = ver.flatMap(r => r.ramen);
   // --- standen
-  const S1 = {x:0, z:0, naam:'MAIN STREET', geenWagens:true, lucht:true, tank:true, breed:Ws/2 - 0.9, mg:[-1.6, -17.5], props:props.s1,
-    plek:kRaamPlekken(raamAlle, c => c[1] < -5 && c[1] > zK + 2).concat([kHoek([XL - 0.8, zK - 1.2], [XL + 0.5, zK - 1.2]), kHoek([XR + 0.8, zK - 1.2], [XR - 0.5, zK - 1.2])]),
-    spawns:kDeurSpawns(deurAlle, {x:0, z:0}, p => p[1] < -5).concat([
+  const S1 = {x:0, z:0, naam:'MAIN STREET', geenWagens:true, lucht:true, tank:true, breed:Ws/2 - 0.9, mg:[-1.6, -11], props:props.s1,
+    plek:kRaamPlekken(raamAlle, c => c[1] < -3 && c[1] > zK + 2).concat([kHoek([XL - 0.8, zK - 1.2], [XL + 0.5, zK - 1.2]), kHoek([XR + 0.8, zK - 1.2], [XR - 0.5, zK - 1.2])]),
+    spawns:kDeurSpawns(deurAlle, {x:0, z:0}, p => p[1] < -3).concat([
       {p:[XL - 6, zaL - 1.6], via:[[XL + 1, zaL - 1.6]]}, {p:[XR + 6, zaR - 1.6], via:[[XR - 1, zaR - 1.6]]},
       {p:[XL - 6, zK - 6], via:[[XL + 1.2, zK - 2.5]]}, {p:[XR + 6, zK - 6], via:[[XR - 1.2, zK - 2.5]]}])};
-  const s2z = zK + 8.5;
+  const s2z = zK + 0.8;
   const S2 = {x:0, z:s2z, naam:'T-JUNCTION', lucht:true, breed:Ws/2 - 0.9, wagZ:[zK - 2.8 - s2z, zKv + 3 - s2z], mg:[1.8, zK - 4 - s2z], props:props.s2,
     plek:kRaamPlekken(verR, c => Math.abs(c[0]) < 16).concat([kHoek([XL - 1, zK - 1.4], [XL + 0.4, zK - 1.4]), kHoek([XR + 1, zK - 1.4], [XR - 0.4, zK - 1.4])]),
     spawns:kDeurSpawns(verD, {x:0, z:s2z}, p => Math.abs(p[0]) < 20).concat([
       {p:[fs*(zaF + 1.5), zKv - 8], via:[[fs*(zaF + 1.5), zKv + 1]]},
       {p:[XL - 7, zK - 6.5], via:[[XL + 0.8, zK - 6.5]]}, {p:[XR + 7, zK - 6.5], via:[[XR - 0.8, zK - 6.5]]},
-      {p:[XL - 9, zK - 9], via:[[XL + 0.6, zK - 9]]}, {p:[XR + 9, zK - 9], via:[[XR - 0.6, zK - 9]]}])};
+      {p:[XL - 9, zK - 3.6], via:[[XL + 0.6, zK - 3.6]]}, {p:[XR + 9, zK - 3.6], via:[[XR - 0.6, zK - 3.6]]}])};
   const s3z = zA - 2.2;
   const S3 = {x:0, z:s3z, naam:'THE HOUSE', binnen:true, geenWagens:true, geenMuur:true, breed:cw - 0.4, mg:[0, (zH0 + zH1)/2 - s3z], props:props.s3, plek:[],
-    spawns:kDeurSpawns(gDeuren, {x:0, z:s3z}, p => p[1] < s3z - 2.5).concat([
+    spawns:kDeurSpawns(gDeuren, {x:0, z:s3z}, p => p[1] < s3z - 1.8).concat([
       {p:[zx - zijKant*0.5, zZij], via:[[zijKant*0.2, zZij]]}, {p:[zx - zijKant*0.5, zZij + 0.3], via:[[zijKant*0.2, zZij - 0.4]]},
-      {p:[-2.4, zEind + 1.2], via:[[0, zB - 0.5]]}, {p:[2.2, zEind + 0.8], via:[[0, zB - 0.6]]}])};
+      {p:[-2.4, zEind + 1.2], via:[[0, zB - 0.5]]}, {p:[2.2, zEind + 0.8], via:[[0, zB - 0.6]]},
+      ...[-1, 1].flatMap(s => { const xw = s < 0 ? xh0 + 0.6 : xh1 - 0.6; return [{p:[xw, (zH0 + zH1)/2], via:[[s*(cw - 0.35), zH0 - 0.5]]}, {p:[xw, zH1 + 0.8], via:[[s*(cw + 0.4), zH1 + 0.6], [s*(cw - 0.35), zH1 + 0.4]]}]; })])};
   const s4z = zEind + 1.25;
   const S4 = {x:0, z:s4z, naam:'BACK WINDOW', geenMuur:true, breed:8.5, wagZ:[zO - 2.8 - s4z, zOv + 2.8 - s4z], mg:[-3, zOv + 3 - s4z], props:props.s4,
     plek:kRaamPlekken(over.ramen, c => Math.abs(c[0]) < 11),
     spawns:kDeurSpawns(over.deuren, {x:0, z:s4z}, p => Math.abs(p[0]) < 14).concat([
-      {p:[-24, zO - 6], via:[[-12, zO - 6]]}, {p:[24, zO - 8], via:[[12, zO - 8]]}, {p:[-26, zOv + 3], via:[[-13, zOv + 3]]}, {p:[26, zO - 4], via:[[13, zO - 4]]}])};
+      {p:[-16, zO - 4.5], via:[[-6.5, zO - 4.5]]}, {p:[16, zO - 5.5], via:[[6.5, zO - 5.5]]}, {p:[-17, zOv + 2.6], via:[[-7, zOv + 2.6]]}, {p:[17, zO - 3.4], via:[[7.5, zO - 3.4]]}])};
   B.standen.push(S1, S2, S3, S4);
   B.voordeur = voordeur;
   return B.maak();
@@ -597,12 +612,12 @@ KWERELD.dorp = (T, R) => {
 /* === STEEG → LOODS: smalle steeg met achterdeuren, dan een grote loods waar vrachtwagens door de roldeuren naar binnen rijden === */
 KWERELD.loods = (T, R) => {
   const B = new KBouw(T); B.lucht(); B.weg = kKies(R, ['asfalt', 'asfalt2', 'asfalt']); B.stoep = kKies(R, ['stoep', 'stoep2']);
-  const aw = 2.8 + R()*0.8, ax0 = -aw/2 + (R() - 0.5)*0.6, ax1 = ax0 + aw, zS = 5, zE = -22 - (R()*3|0);
+  const aw = 2.8 + R()*0.8, ax0 = -aw/2 + (R() - 0.5)*0.6, ax1 = ax0 + aw, zS = 5, zE = -13 - (R()*2|0);
   // steeg: hoge achtergevels, weinig ramen, achterdeuren
   const pal = [['baksteen', [1, 1, 1]], ['baksteen2', [0.9, 0.85, 0.82]], ['gevel_grijs', [0.9, 0.9, 0.95]], ['gevel_afbl', [0.95, 0.92, 0.86]], ['beton', [0.95, 0.95, 0.95]]];
   B.vlakH(kKies(R, ['beton', 'weg2', 'grind']), ax0, zE, ax1, zS, 0.005, {stap:1.2});
   const echt = (p, Rr) => true, raam = (p, f, Rr) => Rr() < 0.85;
-  const zij = R() < 0.5 ? -1 : 1, zG = -9 - R()*6;                                 // zijsteeg aan één kant
+  const zij = R() < 0.5 ? -1 : 1, zG = -5 - R()*3;                                 // zijsteeg aan één kant
   const L1 = kRij(B, R, {x0:ax0, z0:zS, x1:ax0, z1:zij < 0 ? zG + 1.5 : zE, n:[1, 0], verd:[2, 3], gevels:pal, echteDeur:echt, raamOpen:raam, plat:true, bMin:3.5, bVar:3});
   const L2 = zij < 0 ? kRij(B, R, {x0:ax0, z0:zG - 1.5, x1:ax0, z1:zE, n:[1, 0], verd:[2, 3], gevels:pal, echteDeur:echt, raamOpen:raam, plat:true, bMin:3.5, bVar:3}) : {deuren:[], ramen:[]};
   const R1 = kRij(B, R, {x0:ax1, z0:zE, x1:ax1, z1:zij > 0 ? zG - 1.5 : zS, n:[-1, 0], verd:[2, 3], gevels:pal, echteDeur:echt, raamOpen:raam, plat:true, bMin:3.5, bVar:3});
@@ -612,7 +627,7 @@ KWERELD.loods = (T, R) => {
   // leidingen en een lamp boven de steeg
   for (let z = zS - 3; z > zE; z -= 6 + R()*3){ const s = R() < 0.5 ? ax0 + 0.08 : ax1 - 0.08; B.cilinder('kleur', s, z, 0.06, 0, 6.5, {tint:[0.25, 0.27, 0.28], geenBots:true}); }
   // binnenplaats + loods
-  const zL = zE - 8, LW = 14 + (R()*3|0), LD = 32, LH = 7.5, zL2 = zL - LD, zRd0 = zL - 12, zRd1 = zL - 22;
+  const zL = zE - 6, LW = 7 + (R()*2|0), LD = 15, LH = 6.5, zL2 = zL - LD, zRd0 = zL - 5.5, zRd1 = zL - 10.5;     // compacte loods: alles op 5-12 m
   B.vlakH('grind', -30, zL, 30, zE, 0.004, {stap:3}); B.wand('golf_grijs', -30, zE, ax0 - 9, zE, 0, 2.4, {}); B.wand('golf_grijs', ax1 + 9, zE, 30, zE, 0, 2.4, {});
   B.vlakH('grind', -60, zL2 - 20, -LW, zL, 0.004, {stap:4}); B.vlakH('grind', LW, zL2 - 20, 60, zL, 0.004, {stap:4});
   [[-1, -58], [1, 58]].forEach(([s, x]) => { B.wand(kKies(R, ['golf_roest', 'golf_grijs', 'baksteen']), x, zL + 5, x, zL2 - 18, 0, 5, {}); });
@@ -620,10 +635,10 @@ KWERELD.loods = (T, R) => {
   const lm = (x0, z0, x1, z1, gaten) => { B.wand('beton', x0, z0, x1, z1, 0, 1.2, {dik:0.3, gaten:(gaten || []).map(g => Object.assign({}, g, {b1:Math.min(g.b1, 1.2)}))});
     B.wand(muurL, x0, z0, x1, z1, 1.2, LH, {dik:0.3, gaten, grond:0, dagMat:'golf_grijs'}); };
   lm(-LW, zL, LW, zL, [{a0:LW - 2.6, a1:LW + 2.6, b0:0, b1:4.2}]);                // voorkant: open roldeur
-  const zZd = zL2 + 5.5 + R()*2;
+  const zZd = zL2 + 1.6 + R()*0.8;
   lm(-LW, zL2, -LW, zL, [{a0:zL - zRd0, a1:zL - zRd1, b0:0, b1:4.6}, {a0:zL - zZd - 0.56, a1:zL - zZd + 0.56, b0:0, b1:2.3}].map(g => ({a0:(zL - zL2) - g.a1, a1:(zL - zL2) - g.a0, b0:g.b0, b1:g.b1})));
   lm(LW, zL, LW, zL2, [{a0:zL - zRd0, a1:zL - zRd1, b0:0, b1:4.6}, {a0:zL - zZd - 0.56, a1:zL - zZd + 0.56, b0:0, b1:2.3}]);
-  const achterDeur = (R() - 0.5)*8;
+  const achterDeur = (R() - 0.5)*5;
   const xA = [-LW*0.62, LW*0.62].filter(x => Math.abs(x - achterDeur) > 2.5), zZ = zL2 + 4 + R()*3;
   lm(LW, zL2, -LW, zL2, [achterDeur].concat(xA).map(x => ({a0:LW - x - 0.6, a1:LW - x + 0.6, b0:0, b1:2.3})));
   // half opgerolde roldeuren
@@ -643,21 +658,20 @@ KWERELD.loods = (T, R) => {
   [-1, 1].forEach(s => { const x = s*LW, d = B.deur(kKies(R, ['golf_grijs', 'golf_roest']), x, zZd, -s, 0, 1.1, 2.26); B.kamer(x + s*0.3, zZd, -s, 0, 2.6, 3.2, 0, 2.9, {f:0.3});
     loodsD.push({d, buiten:[x - s*1.0, zZd], drempel:[x - s*0.15, zZd], binnen:[x + s*1.6, zZd]}); });
   const vrijN = [[achterDeur - 1, achterDeur + 1]].concat(xA.map(x => [x - 1, x + 1]));
-  kInricht(B, R, {x0:-LW + 0.5, x1:-2, z0:zL2, z1:zL2 + 6, wanden:['N'], thema:'kantoor', vrij:{N:vrijN}, kunst:false, H:LH, ruim:0.4});
-  kInricht(B, R, {x0:2, x1:LW - 0.5, z0:zL2, z1:zL2 + 6, wanden:['N'], thema:'kantoor', vrij:{N:vrijN}, kunst:false, H:LH, ruim:0.4});
-  [-1, 1].forEach(s => { for (let z = zL - 2; z > zL2 + 2; z -= 2.5 + R()*2.5){ if (z < zRd0 + 1 && z > zRd1 - 1) continue; const it = kItem(kKies(R, [133, 134, 135, 136, 72, 133])); if (it) B.meubel(R, null, s*(LW - 0.5), z, {item:it}); } });
+  kInricht(B, R, {x0:-LW + 0.5, x1:-2, z0:zL2, z1:zL2 + 2, wanden:['N'], thema:'kantoor', vrij:{N:vrijN}, kunst:false, H:LH, ruim:0.4});
+  kInricht(B, R, {x0:2, x1:LW - 0.5, z0:zL2, z1:zL2 + 2, wanden:['N'], thema:'kantoor', vrij:{N:vrijN}, kunst:false, H:LH, ruim:0.4});
+  [-1, 1].forEach(s => { for (let z = zL - 2; z > zL2 + 2; z -= 2.5 + R()*2.5){ if ((z < zRd0 + 1 && z > zRd1 - 1) || Math.abs(z - zZd) < 1.3) continue; const it = kItem(kKies(R, [133, 134, 135, 136, 72, 133])); if (it) B.meubel(R, null, s*(LW - 0.5), z, {item:it}); } });
   // dekking in de steeg en in de loods
   const ps = [], pl = [];
   for (let z = -4 - R()*2; z > zE + 2; z -= 4 + R()*3){ const so = kKies(R, ['kratten', 'vaten', 'pallets']); const pr = kProp(B, R, so, (R() < 0.5 ? ax0 + 0.65 : ax1 - 0.65), z, {as:'z'}); if (pr) ps.push(pr); }
   const plek = (x, z, so, as) => { const pr = kProp(B, R, so, x, z, {as}); if (pr) pl.push(pr); };
-  plek(-6 - R()*3, zL - 9, 'container', 'z'); plek(5 + R()*3, zL - 7, 'kratten', 'x'); plek(-2 + R()*3, zL - 6.5, 'pallets', 'x');
-  plek(2 + R()*4, zL - 24, 'container', 'x'); plek(-4 - R()*4, zL - 25, 'vaten', 'x'); plek(-1 + R()*2, zL - 15, kKies(R, ['kratten', 'pallets']), 'x');
-  plek(7 + R()*3, zL - 17, 'pallets', 'z'); plek(-9 + R()*2, zL - 18, 'kratten', 'z');
-  const s2z = zL - 2.2;
+  plek(-LW*0.45 - R(), zL - 12, 'kratten', 'x'); plek(LW*0.4 + R(), zL - 12.3, 'vaten', 'x'); plek(-0.8 + R()*1.6, zL - 11.8, 'pallets', 'x');   // achter de rijbaan
+  plek(-LW + 1.6, zL - 2.6, 'kratten', 'z'); plek(LW - 1.6, zL - 3, 'pallets', 'z');                                                                // zijkanten vooraan
+  const s2z = zL - 4;
   const S1 = {x:0, z:0, naam:'BACK ALLEY', geenWagens:true, breed:aw/2 - 0.5, props:ps, plek:kRaamPlekken(L1.ramen.concat(L2.ramen, R1.ramen, R2.ramen), c => c[1] < -4),
     spawns:kDeurSpawns(L1.deuren.concat(L2.deuren, R1.deuren, R2.deuren), {x:0, z:0}, p => p[1] < -3).concat([
       {p:[(zij < 0 ? ax0 : ax1) + zij*7, zG], via:[[(ax0 + ax1)/2, zG]]}, {p:[(zij < 0 ? ax0 : ax1) + zij*6, zG + 0.4], via:[[(ax0 + ax1)/2 - zij*0.4, zG]]},
-      {p:[-12, zE - 4], via:[[(ax0 + ax1)/2, zE - 2], [(ax0 + ax1)/2, zE + 0.5]]}, {p:[12, zE - 5], via:[[(ax0 + ax1)/2, zE - 2], [(ax0 + ax1)/2, zE + 0.5]]}])};
+      {p:[-12, zE - 4], via:[[(ax0 + ax1)/2, zE - 2], [(ax0 + ax1)/2, zE + 2.2]]}, {p:[12, zE - 5], via:[[(ax0 + ax1)/2, zE - 2], [(ax0 + ax1)/2, zE + 2.2]]}])};
   S1.mg = [0, zE - 3];
   const S2 = {x:0, z:s2z, naam:'WAREHOUSE', breed:LW - 3, wagZ:[zRd0 - 1.2 - s2z, zRd1 + 1.2 - s2z], mg:[1.5, zL - 20 - s2z], props:pl, plek:[],
     spawns:kDeurSpawns(loodsD, {x:0, z:s2z}, () => true).concat([{p:[achterDeur, zL2 - 2], via:[[achterDeur, zL2 + 1]], deur:dAchter}, {p:[achterDeur + 0.5, zL2 - 3], via:[[achterDeur, zL2 + 1.2]]},
@@ -671,13 +685,13 @@ KWERELD.loods = (T, R) => {
 KWERELD.huis = (T, R) => {
   const B = new KBouw(T); B.lucht(); B.weg = kKies(R, ['asfalt', 'asfalt2', 'asfalt']); B.stoep = kKies(R, ['stoep', 'stoep2']);
   const st = kBinnenStijl(R), H = 3.1, xa = -6.5 - R()*1.5, xb = 5.5 + R()*1.5, gx = xb - 2.2;   // zijgang langs de oostkant
-  const rijen = [3.5, -4.5 - R(), -11.5 - R(), -18.5 - R()*0.6], zF = -25.5;                     // scheidingen tussen kamerrijen
+  const rijen = [3.5, -3 - R()*0.6, -7.5 - R()*0.6, -12 - R()*0.5], zF = -16.5;      // kamers van ~4,5 m                     // scheidingen tussen kamerrijen
   const ruimte = B.ruimte(xa, zF - 0.4, xb, 3.6, H, 0.3);
   // buitenmuren
   kBinnenWand(B, xa, 3.5, xa, zF, H, st); kBinnenWand(B, xb, zF, xb, 3.5, H, st); kBinnenWand(B, xb, 3.5, xa, 3.5, H, st);
   // zijgang: muur op gx met deuren naar de kamers
   const zijDeuren = [];
-  const gangGaten = []; for (let i=0;i<3;i++){ const z = rijen[i + 1] + 2 + R()*2.5; zijDeuren.push(z); gangGaten.push({a0:z - zF - 0.52, a1:z - zF + 0.52, b0:0, b1:2.2}); }
+  const gangGaten = []; for (let i=0;i<3;i++){ const z = rijen[i + 1] + 1.2 + R()*2; zijDeuren.push(z); gangGaten.push({a0:z - zF - 0.52, a1:z - zF + 0.52, b0:0, b1:2.2}); }
   kBinnenWand(B, gx, zF, gx, rijen[0] - 1.5, H, st, gangGaten);
   // dwarswanden met 1-2 doorgangen op willekeurige plekken (niet in het midden gespiegeld)
   const scheid = [];
@@ -710,19 +724,22 @@ KWERELD.huis = (T, R) => {
   // meubels (dekking)
   const pl = [];
   // straat en overburen
-  const zO = zF - 0.3, zOv = zO - 12;
+  const zO = zF - 0.3, zOv = zO - 9;
   kStraat(B, -40, zOv + 1.7, 40, zO - 1.6, {stoep:[[-40, zO - 1.6, 40, zO, [-40, zO - 1.75, 40, zO - 1.6]], [-40, zOv, 40, zOv + 1.7, [-40, zOv + 1.7, 40, zOv + 1.85]]]});
   const over = kRij(B, R, {x0:-40, z0:zOv, x1:40, z1:zOv, n:[0, 1], verd:[2, 3], echteDeur:(p, Rr) => true, raamOpen:(p, f, Rr) => Math.abs(p[0]) < 22 && Rr() < 0.92});
   B.wand('baksteen', -40, zOv, -40, zO, 0, 8, {}); B.wand('baksteen2', 40, zO, 40, zOv, 0, 8, {});
-  const pS = []; kStraatDek(B, R, pS, -10, 10, {as:'x', a:zO - 2.65, b:zOv + 2.8, autoKant:'b'}, 2, 2);
+  const pS = []; kStraatDek(B, R, pS, -8, 8, {as:'x', a:zO - 2.65, b:zOv + 2.8, autoKant:'b'}, 2, 2);
   // spawns binnen: uit de verste kamers en de zijgang
   const S1 = {x:-0.5, z:0, naam:'OLD HOUSE', binnen:true, geenWagens:true, geenMuur:true, breed:2.4, mg:[-2, rijen[2] - 3.5], props:pl, plek:[],
     spawns:[{p:[(gx + xb)/2, zF + 1.2], via:[[(gx + xb)/2, rijen[1] - 0.5]]}, {p:[(gx + xb)/2, zF + 2], via:[[(gx + xb)/2, rijen[2]], [gx - 1, zijDeuren[1]]]},
-      {p:[xa + 1.5, zF + 1.5], via:[[xa + 1.5, zF + 2]]}, {p:[0, zF + 1.4], via:[[0, zF + 2]]}, {p:[xa + 2, rijen[3] - 2], via:[[xa + 2.2, rijen[3] - 1]]},
+      ...[0, 1].flatMap(k => { const o3 = scheid[2].open[k === 0 ? 0 : Math.max(0, scheid[2].open.length - 2)], o2 = scheid[1].open[k === 0 ? 0 : Math.max(0, scheid[1].open.length - 2)];
+        const x3 = (o3[0] + o3[1])/2, x2 = (o2[0] + o2[1])/2;                                   // door de verre deuropening tot in de volgende: daar gluren
+        return [{p:[x3, zF + 1.5], via:[[x3, rijen[3] - 0.6], [x3, rijen[3] + 0.6], [x2, rijen[2] - 0.5]]}, {p:[x3 + 0.4, zF + 1.2], via:[[x3, rijen[3] - 0.5], [x3, rijen[3] + 0.4]]}]; }),
+      {p:[xa + 2, rijen[3] - 2], via:[[xa + 2.2, rijen[3] - 1]]},
       {p:[(gx + xb)/2, rijen[1] - 2], via:[[gx + 0.6, zijDeuren[0]], [gx - 0.8, zijDeuren[0]]], dicht:true}]};
   const s2z = zF + 1.25;
   const S2 = {x:0, z:s2z, naam:'FRONT WINDOW', geenMuur:true, breed:8.5, wagZ:[zO - 2.8 - s2z, zOv + 2.8 - s2z], mg:[2.5, zOv + 3 - s2z], props:pS, plek:kRaamPlekken(over.ramen, c => Math.abs(c[0] - 1) < 12),
-    spawns:kDeurSpawns(over.deuren, {x:0, z:s2z}, p => Math.abs(p[0]) < 14).concat([{p:[-24, zO - 6], via:[[-12, zO - 6]]}, {p:[25, zO - 8], via:[[12, zO - 8]]}, {p:[-26, zOv + 3], via:[[-13, zOv + 3]]}])};
+    spawns:kDeurSpawns(over.deuren, {x:0, z:s2z}, p => Math.abs(p[0]) < 14).concat([{p:[-16, zO - 4.5], via:[[-6.5, zO - 4.5]]}, {p:[16, zO - 5.5], via:[[6.5, zO - 5.5]]}, {p:[-17, zOv + 2.6], via:[[-7, zOv + 2.6]]}])};
   B.standen.push(S1, S2);
   return B.maak();
 };
@@ -730,14 +747,14 @@ KWERELD.huis = (T, R) => {
 /* === KRUISPUNT: lange straat met een kruising; vrachtwagens in de dwarsstraat, tank komt de straat af === */
 KWERELD.kruis = (T, R) => {
   const B = new KBouw(T); B.lucht(); B.weg = kKies(R, ['asfalt', 'asfalt2', 'asfalt']); B.stoep = kKies(R, ['stoep', 'stoep2']);
-  const Ws = 10 + R()*3, XL = -Ws/2 + (R() - 0.5)*0.8, XR = XL + Ws, sl = 1.6 + R()*0.6, sr = 1.6 + R()*0.6;
-  const zM = 12, zK1 = -28 - (R()*3|0), zK2 = zK1 - 12, zE = zK2 - 44, X = 50, vh = [2, 3];
+  const Ws = 7.5 + R()*1.2, XL = -Ws/2 + (R() - 0.5)*0.4, XR = XL + Ws, sl = 1.2 + R()*0.3, sr = 1.2 + R()*0.3;
+  const zM = 12, zK1 = -18 - (R()*2|0), zK2 = zK1 - 8.5, zE = zK2 - 22, X = 50, vh = [2, 3];
   kStraat(B, XL + sl, zE, XR - sr, zM, {stoep:[[XL, zK1, XL + sl, zM, [XL + sl - 0.15, zK1, XL + sl, zM]], [XR - sr, zK1, XR, zM, [XR - sr, zK1, XR - sr + 0.15, zM]],
     [XL, zE, XL + sl, zK2, [XL + sl - 0.15, zE, XL + sl, zK2]], [XR - sr, zE, XR, zK2, [XR - sr, zE, XR - sr + 0.15, zK2]]]});
   kStraat(B, -X, zK2 + 1.7, X, zK1 - 1.7, {stoep:[[-X, zK2, XL, zK2 + 1.7], [XR, zK2, X, zK2 + 1.7], [-X, zK1 - 1.7, XL, zK1], [XR, zK1 - 1.7, X, zK1]]});
   B.vlakH(B.weg, XL, zK1 - 1.7, XR, zK1, 0); B.vlakH(B.weg, XL, zK2, XR, zK2 + 1.7, 0);
   const e1 = (p, Rr) => true, o1 = (p, f, Rr) => Rr() < 0.92;
-  const zaL = -8 - R()*10, zaR = zK2 - 8 - R()*14;
+  const zaL = -6 - R()*5, zaR = zK2 - 6 - R()*6;
   const A = [];
   A.push(kRij(B, R, {x0:XL, z0:zM, x1:XL, z1:zaL, n:[1, 0], verd:vh, echteDeur:e1, raamOpen:o1}));
   A.push(kRij(B, R, {x0:XL, z0:zaL - 3, x1:XL, z1:zK1, n:[1, 0], verd:vh, hoekB:true, echteDeur:e1, raamOpen:o1}));
@@ -759,19 +776,19 @@ KWERELD.kruis = (T, R) => {
   const pr = {a:[], b:[], c:[]}, lijn = (l, so, z0, z1, xa, xb, n, rand) => { for (let i=0;i<n;i++){ const s = kKies(R, so); let x = xa + (xb - xa)*R(), z = z0 + (z1 - z0)*(i + 0.2 + R()*0.6)/n, as = R() < 0.5 ? 'x' : 'z';
     if (s === 'auto' && rand){ if (rand.as === 'z'){ x = R() < 0.5 ? rand.a : rand.b; as = 'z'; } else { z = R() < 0.5 ? rand.a : rand.b; as = 'x'; } }
     const p = kProp(B, R, s, x, z, {as}); if (p) l.push(p); } };
-  kStraatDek(B, R, pr.a, -6, zK1 + 6, {as:'z', a:XL + sl + 1.05, b:XR - sr - 1.05}, 2, 3);
+  kStraatDek(B, R, pr.a, -4, zK1 + 4, {as:'z', a:XL + sl + 1.05, b:XR - sr - 1.05}, 2, 3);
   kStraatDek(B, R, pr.b, -10, 10, {as:'x', a:zK1 - 2.8, b:zK2 + 2.8, gat:[5, 5]}, 2, 2);
-  kStraatDek(B, R, pr.c, zK2 - 10, zK2 - 32, {as:'z', a:XL + sl + 1.05, b:XR - sr - 1.05}, 2 + (R()*2|0), 3);
+  kStraatDek(B, R, pr.c, zK2 - 6, zK2 - 16, {as:'z', a:XL + sl + 1.05, b:XR - sr - 1.05}, 2 + (R()*2|0), 3);
   const al = A.flatMap(r => r.deuren), ar = A.flatMap(r => r.ramen), dw = D1.deuren.concat(D2.deuren), dr = D1.ramen.concat(D2.ramen);
-  const S1 = {x:0, z:0, naam:'HIGH STREET', geenWagens:true, lucht:true, tank:true, breed:Ws/2 - 0.9, mg:[1.5, -16], props:pr.a,
-    plek:kRaamPlekken(ar, c => c[1] < -5 && c[1] > zK1).concat([kHoek([XL - 0.8, zK1 - 1.2], [XL + 0.5, zK1 - 1.2]), kHoek([XR + 0.8, zK1 - 1.2], [XR - 0.5, zK1 - 1.2])]),
-    spawns:kDeurSpawns(al, {x:0, z:0}, p => p[1] < -5 && p[1] > zK1).concat([{p:[XL - 6, zaL - 1.5], via:[[XL + 1, zaL - 1.5]]}, {p:[XL - 6, zK1 - 6], via:[[XL + 1.2, zK1 - 2]]}, {p:[XR + 6, zK1 - 6], via:[[XR - 1.2, zK1 - 2]]}, {p:[0, zK2 - 6]}])};
-  const s2z = zK1 + 8;
+  const S1 = {x:0, z:0, naam:'HIGH STREET', geenWagens:true, lucht:true, tank:true, breed:Ws/2 - 0.9, mg:[1.5, -11], props:pr.a,
+    plek:kRaamPlekken(ar, c => c[1] < -3 && c[1] > zK1).concat([kHoek([XL - 0.8, zK1 - 1.2], [XL + 0.5, zK1 - 1.2]), kHoek([XR + 0.8, zK1 - 1.2], [XR - 0.5, zK1 - 1.2])]),
+    spawns:kDeurSpawns(al, {x:0, z:0}, p => p[1] < -3 && p[1] > zK1).concat([{p:[XL - 6, zaL - 1.5], via:[[XL + 1, zaL - 1.5]]}, {p:[XL - 6, zK1 - 6], via:[[XL + 1.2, zK1 - 2]]}, {p:[XR + 6, zK1 - 6], via:[[XR - 1.2, zK1 - 2]]}, {p:[0, zK2 - 6]}])};
+  const s2z = zK1 + 0.8;
   const S2 = {x:0, z:s2z, naam:'CROSSROADS', lucht:true, breed:Ws/2 - 0.9, wagZ:[zK1 - 2.6 - s2z, zK2 + 2.6 - s2z], mg:[-1.6, zK2 + 3 - s2z], props:pr.b,
     plek:kRaamPlekken(dr, c => true).concat([kHoek([XL - 1, zK1 - 1.3], [XL + 0.4, zK1 - 1.3]), kHoek([XR + 1, zK1 - 1.3], [XR - 0.4, zK1 - 1.3])]),
-    spawns:kDeurSpawns(dw, {x:0, z:s2z}, p => true).concat([{p:[XL - 8, zK1 - 6], via:[[XL + 0.7, zK1 - 6]]}, {p:[XR + 8, zK1 - 7], via:[[XR - 0.7, zK1 - 7]]}, {p:[0.5, zK2 - 9]}, {p:[-1, zK2 - 12]}])};
+    spawns:kDeurSpawns(dw, {x:0, z:s2z}, p => true).concat([{p:[XL - 8, zK1 - 4], via:[[XL + 0.7, zK1 - 4]]}, {p:[XR + 8, zK1 - 5], via:[[XR - 0.7, zK1 - 5]]}, {p:[0.5, zK2 - 9]}, {p:[-1, zK2 - 12]}])};
   const s3z = zK2 - 3;
-  const S3 = {x:0, z:s3z, naam:'CHURCH ROAD', geenWagens:true, lucht:true, tank:true, breed:Ws/2 - 0.9, mg:[-1.5, -18], props:pr.c,
+  const S3 = {x:0, z:s3z, naam:'CHURCH ROAD', geenWagens:true, lucht:true, tank:true, breed:Ws/2 - 0.9, mg:[-1.5, -11], props:pr.c,
     plek:kRaamPlekken(ar, c => c[1] < s3z - 5),
     spawns:kDeurSpawns(al, {x:0, z:s3z}, p => p[1] < s3z - 5).concat([{p:[XR + 6, zaR - 1.5], via:[[XR - 1, zaR - 1.5]]}, {p:[(XL + XR)/2 - 1, zE + 2]}, {p:[(XL + XR)/2 + 1.5, zE + 2.5]}])};
   B.standen.push(S1, S2, S3);
@@ -780,7 +797,7 @@ KWERELD.kruis = (T, R) => {
 
 /* === BUNKER: lange betonnen gang met zijdeuren en geheime wandpanelen → commandokamer → smalle vluchttunnel === */
 KWERELD.bunker = (T, R) => {
-  const B = new KBouw(T), H = 2.8, cw = 1.5, zE = -34 - (R()*3|0), tO = [0.5, 0.56, 0.46], tB = [0.8, 0.81, 0.78];
+  const B = new KBouw(T), H = 2.8, cw = 1.5, zE = -20 - (R()*2|0), tO = [0.5, 0.56, 0.46], tB = [0.8, 0.81, 0.78];
   const muur = (x0, z0, x1, z1, gaten, h) => { h = h || H;                                                     // groene band onder, grijs beton erboven
     B.wand('beton', x0, z0, x1, z1, 0, 1.25, {dik:0.4, gaten:(gaten || []).map(g => Object.assign({}, g, {b1:Math.min(g.b1, 1.25)})), tint:tO});
     B.wand('beton', x0, z0, x1, z1, 1.25, h, {dik:0.4, gaten, grond:0, tint:tB}); };
@@ -791,8 +808,8 @@ KWERELD.bunker = (T, R) => {
     lijst.push({d, buiten:[x - s*1.0, z], drempel:[x - s*0.12, z], binnen:[x + s*1.6, z], geheim}); };
   const gat = (a) => ({a0:a - 0.56, a1:a + 0.56, b0:0, b1:2.26});
   // --- hoofdgang
-  const zDeur = [-7 - R()*1.5, -14 - R()*1.5, -21 - R()*1.5, -28 - R()*1.5].filter(z => z > zE + 2.5), kant = zDeur.map((_, i) => (i + (R() < 0.5 ? 0 : 1)) % 2 ? 1 : -1);
-  const geheimZ = [-11 - R()*1.5, zE + 6], geheimK = [R() < 0.5 ? -1 : 1, 0]; geheimK[1] = -geheimK[0];
+  const zDeur = [-4.5 - R()*0.8, -10.3 - R()*0.8, -14.5 - R()*0.8].filter(z => z > zE + 2.5), kant = zDeur.map((_, i) => (i + (R() < 0.5 ? 0 : 1)) % 2 ? 1 : -1);
+  const geheimZ = [-7.5 - R()*0.3, zE + 3.2], geheimK = [-kant[0], -kant[kant.length - 1]];
   const gL = [], gR = [];
   zDeur.forEach((z, i) => (kant[i] < 0 ? gL : gR).push(gat(3 - z)));
   geheimZ.forEach((z, i) => (geheimK[i] < 0 ? gL : gR).push(gat(3 - z)));
@@ -804,32 +821,32 @@ KWERELD.bunker = (T, R) => {
   geheimZ.forEach((z, i) => zijDeur(deuren.g1, geheimK[i]*cw, z, geheimK[i], true));
   for (let z = 2; z > zE + 1; z -= 3 + R()*3){ const s = R() < 0.5 ? -1 : 1; B.doos('kleur', s*cw - s*0.22, z - 2.5, s*cw - s*0.1, z, 2.35, 2.48, {tint:[0.32, 0.3, 0.26], geenBots:true, geenAo:true}); }   // leidingen
   // --- dwarsgang
-  const X = 14, zK = zE - 3, H2 = 3.6, Rx = 9, zC = zK - 15 - (R()*2|0);
+  const X = 9, zK = zE - 3, H2 = 3.6, Rx = 6.5, zC = zK - 11;
   B.vlakH('beton', -X, zK, X, zE, 0.005, {stap:1.5, tint:[0.7, 0.72, 0.68]}); B._vlakH('beton', -X, zK, X, zE, H, {f:0.4, stap:2, tint:[0.75, 0.76, 0.74]});
   muur(-X, zE, -cw, zE); muur(cw, zE, X, zE);
   muur(-X, zK, X, zK, [{a0:X - 1.25, a1:X + 1.25, b0:0, b1:2.5}]);
-  const r2 = B.ruimte(-X, zK, X, zE, H, 0.24); [-9, -4, 4, 9].forEach(x => B.lamp(r2, x, H, zE - 1.5, 0.6));
+  const r2 = B.ruimte(-X, zK, X, zE, H, 0.24); [-6, -2.5, 2.5, 6].forEach(x => B.lamp(r2, x, H, zE - 1.5, 0.6));
   [-1, 1].forEach(s => { B.kamer(s*X, (zE + zK)/2, -s, 0, 3, 4, 0, H, {f:0.2, mat:'beton', vloer:'beton', tint:[0.55, 0.57, 0.53]}); });
   // --- commandokamer
   const zDK = zC + 0; B.vlakH('tegels', -Rx, zC, Rx, zK, 0.006, {stap:2, tint:[0.62, 0.66, 0.62]}); B._vlakH('beton', -Rx, zC, Rx, zK, H2, {f:0.45, stap:3});
-  const sL = [gat(zK - (zK - 5)), gat(zK - (zK - 10.5))], sR = [gat(zK - (zK - 5)), gat(zK - (zK - 10.5))];
+  const sL = [gat(3.5), gat(8)], sR = [gat(3.5), gat(8)];
   muur(-Rx, zK, -Rx, zC, sL, H2); muur(Rx, zK, Rx, zC, sR, H2);
   muur(Rx, zC, -Rx, zC, [{a0:Rx - 0.6, a1:Rx + 0.6, b0:0, b1:2.3}], H2);
   B.wand('beton', -X, zK, X, zK, H, H2, {dik:0.4, tint:tB});                                                       // boven de dwarsgang dicht tot het kamerplafond
-  const r3 = B.ruimte(-Rx, zC, Rx, zK, H2, 0.28); [[-4.5, zK - 4], [4.5, zK - 4], [-4.5, zK - 11], [4.5, zK - 11], [0, zK - 7.5]].forEach(([x, z]) => B.lamp(r3, x, H2, z, 0.75));
+  const r3 = B.ruimte(-Rx, zC, Rx, zK, H2, 0.28); [[-3.2, zK - 3], [3.2, zK - 3], [-3.2, zK - 8.5], [3.2, zK - 8.5], [0, zK - 5.8]].forEach(([x, z]) => B.lamp(r3, x, H2, z, 0.75));
   const pl = [];
-  [[-4.6, zK - 6], [4.6, zK - 6], [-4.6, zK - 11.5], [4.6, zK - 11.5]].forEach(([x, z]) => { B.cilinder('beton', x, z, 0.38, 0, H2, {tint:tB}); pl.push({x, z, w:0.76, d:0.76, h:H2}); });   // pilaren
-  B.doos('plank', -1.1, zK - 8.1, 1.1, zK - 6.9, 0, 0.92, {tint:[0.45, 0.4, 0.34]}); pl.push({x:0, z:zK - 7.5, w:2.2, d:1.2, h:0.92});          // kaartentafel
-  [[-6.5, -2.3], [2.3, 6.5]].forEach(([a, b]) => { B.doos('kleur', a, zC + 0.25, b, zC + 1.05, 0, 1.05, {tint:[0.2, 0.22, 0.2]}); pl.push({x:(a + b)/2, z:zC + 0.65, w:b - a, d:0.8, h:1.05});
+  [[-3.3, zK - 4.6], [3.3, zK - 4.6], [-3.3, zK - 8.6], [3.3, zK - 8.6]].forEach(([x, z]) => { B.cilinder('beton', x, z, 0.38, 0, H2, {tint:tB}); pl.push({x, z, w:0.76, d:0.76, h:H2}); });   // pilaren
+  B.doos('plank', -1.1, zK - 7.2, 1.1, zK - 6.0, 0, 0.92, {tint:[0.45, 0.4, 0.34]}); pl.push({x:0, z:zK - 6.6, w:2.2, d:1.2, h:0.92});          // kaartentafel
+  [[-5, -1.6], [1.6, 5]].forEach(([a, b]) => { B.doos('kleur', a, zC + 0.25, b, zC + 1.05, 0, 1.05, {tint:[0.2, 0.22, 0.2]}); pl.push({x:(a + b)/2, z:zC + 0.65, w:b - a, d:0.8, h:1.05});
     for (let x = a + 0.3; x < b - 0.5; x += 0.9) B.doos('licht', x, zC + 0.24, x + 0.6, zC + 0.27, 1.1, 1.5, {geenBots:true, geenAo:true}); });   // consoles met schermen
-  kInricht(B, R, {x0:-Rx + 0.4, x1:-Rx + 1.6, z0:zC + 2, z1:zK - 1, wanden:['W'], thema:'kantoor', vrij:{W:[[zK - 6, zK - 4], [zK - 11.5, zK - 9.5]]}, kunst:false, H:H2, ruim:0.4});
-  [-1, 1].forEach(s => { zijDeur(deuren.g2, s*Rx, zK - 5, s, false, H2 - 0.6); zijDeur(deuren.g2, s*Rx, zK - 10.5, s, true, H2 - 0.6); });
+  kInricht(B, R, {x0:-Rx + 0.4, x1:-Rx + 1.6, z0:zC + 2, z1:zK - 1, wanden:['W'], thema:'kantoor', vrij:{W:[[zK - 4.5, zK - 2.5], [zK - 9, zK - 7]]}, kunst:false, H:H2, ruim:0.4});
+  [-1, 1].forEach(s => { zijDeur(deuren.g2, s*Rx, zK - 3.5, s, false, H2 - 0.6); zijDeur(deuren.g2, s*Rx, zK - 8, s, true, H2 - 0.6); });
   // --- vluchttunnel
-  const tw = 1.0, H3 = 2.45, zT = zC - 28;
+  const tw = 1.0, H3 = 2.45, zT = zC - 17;
   B.vlakH('beton', -tw, zT, tw, zC, 0.005, {stap:1.2, tint:[0.6, 0.62, 0.58]}); B._vlakH('beton', -tw, zT, tw, zC, H3, {f:0.35, stap:1.5});
-  const tZ = [zC - 6 - R()*2, zC - 13 - R()*2, zC - 20 - R()*2], tK = tZ.map(() => R() < 0.5 ? -1 : 1), tL = [], tR = [];
+  const tZ = [zC - 4.5 - R()*0.8, zC - 10.3 - R()*0.8, zC - 13.5 - R()*0.6], tK = tZ.map(() => R() < 0.5 ? -1 : 1), tL = [], tR = [];
   tZ.forEach((z, i) => (tK[i] < 0 ? tL : tR).push(gat(zC - z)));
-  const tg = zC - 16, tgK = R() < 0.5 ? -1 : 1; (tgK < 0 ? tL : tR).push(gat(zC - tg));
+  const tg = zC - 7.5, tgK = -tK[0]; (tgK < 0 ? tL : tR).push(gat(zC - tg));
   muur(-tw, zC, -tw, zT, tL, H3); muur(tw, zC, tw, zT, tR, H3); muur(tw, zT, -tw, zT, [gat(tw)], H3);
   const r4 = B.ruimte(-tw, zT, tw, zC, H3, 0.16); for (let z = zC - 3; z > zT; z -= 6) B.lamp(r4, 0, H3, z, 0.5);
   [-1, 1].forEach(s => { B.doos('kleur', s*(tw - 0.12), zT, s*(tw - 0.02), zC, 1.9, 2.0, {tint:[0.42, 0.3, 0.2], geenBots:true, geenAo:true}); B.doos('kleur', s*(tw - 0.14), zT, s*(tw - 0.02), zC, 2.12, 2.24, {tint:[0.3, 0.32, 0.33], geenBots:true, geenAo:true}); });
@@ -850,7 +867,7 @@ KWERELD.bunker = (T, R) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v68";
+const VERSIE = "v69";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -1391,7 +1408,7 @@ AFRAME.registerComponent('zombies', {
         if (st) return;                                           // één duw = één keus
         if (Math.abs(x) < 0.7 && Math.abs(y) < 0.7) return;
         this.stik[id] = 1;
-        if (Math.abs(x) > 0.5 && Math.abs(y) > 0.5){ this.kies(id, 'pistool'); return; }                 // schuin = pistool
+        // schuin: geen apart wapen meer (pistool zit op de knop) — de sterkste richting telt
         this.kies(id, Math.abs(y) > Math.abs(x) ? (y < 0 ? 'raket' : 'laser') : (x < 0 ? 'shotgun' : 'auto'));
       });
     });
