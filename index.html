@@ -12,7 +12,7 @@
 </style>
 </head>
 <body>
-<div id="info">Step Forward <span id="ver"></span> · menu: kies hand (L/R), dan START (Enter) of DEMO (D) of AUTO (A) · klik = schieten · 1/4/5 = wapen · G = granaat · Q = andere granaat · B = bommenwerper · spatie = volgende plek · VR: joystick = wapen, A/B/X/Y = pistool (nog eens = herladen), R = herladen, vrije hand: grip = granaat (zwaai en loslaten), joystick = granaat kiezen, trekker = bommenwerper, joystick indrukken = logboek kopiëren</div>
+<div id="info">Step Forward <span id="ver"></span> · menu: kies hand (L/R), dan START (Enter) of DEMO (D) of AUTO (A) · klik = schieten · 1/4/5 = wapen · G = granaat · B = bommenwerper · spatie = volgende plek · VR: joystick = wapen, A/B/X/Y = pistool (nog eens = herladen), R = herladen, vrije hand: grip = granaat (zwaai en loslaten), trekker = bommenwerper, joystick indrukken = logboek kopiëren</div>
 
 <a-scene renderer="colorManagement:true; antialias:true" background="color:#0b0d10"
          xr-mode-ui="enabled:true" vr-mode-ui="enabled:true" stad zombies>
@@ -867,7 +867,7 @@ KWERELD.bunker = (T, R) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v71";
+const VERSIE = "v72";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -1351,12 +1351,14 @@ const GRANATEN = [                                                      // r = s
   {naam:'EMP GRENADE',      kort:'EMP',   kleur:'#5ad0ff', dmg:10,  r:65,  duur:75,    bereik:70, lont:2.5, stun:90,  vrij:200, uitleg:'Drones fall, vehicles stall'},
   {naam:'HEAVY EXPLOSIVE',  kort:'HEAVY', kleur:'#ff4a3a', dmg:100, r:100, kracht:100, bereik:55, lont:3.5, stun:100, vrij:270, uitleg:'Massive blast and knockback'}];
 const GRAN_MAX = 3, GRAN_HERVUL = 20;                                   // voorraad, elke 20 s eentje erbij
+LVL_NAAM.granaat = GRANATEN.map(G => G.naam); LVL_UITLEG.granaat = GRANATEN.map(G => G.uitleg); WAPEN_LVL.granaat = [5, 12, 22, 35, 50, 70];   // granaat: level omhoog met granaatkills, net als de wapens
 const WAPENS = {   // kleur = kleur van de richtlijn
   pistool:{naam:'PISTOL',          kleur:'#ff3a3a', wacht:0.0},
   raket:  {naam:'ROCKET LAUNCHER', kleur:'#ff9a2a', wacht:0.9},
   laser:  {naam:'LASER',           kleur:'#3ad8ff', wacht:0.30},
   auto:   {naam:'AUTOMATIC',       kleur:'#ffffff', wacht:0.09},
   shotgun:{naam:'SHOTGUN',         kleur:'#ffd040', wacht:0.85},
+  granaat:{naam:'GRENADE',         kleur:'#a8d060', wacht:0},
 };
 const RAKET_SNEL = 28, RAKET_STRAAL = 3.2;     // m/s, ontploffingsstraal (m)
 const GRANAAT_SNEL = 12, GRANAAT_LONT = 1.8, GRANAAT_STRAAL = 2.8;   // handgranaat: worp (m/s), lont (s), straal (m)
@@ -1430,7 +1432,7 @@ AFRAME.registerComponent('zombies', {
       h.addEventListener('gripup', () => { if (this.gestart) this.granLos(id); });                               // loslaten = gooien
       h.addEventListener('thumbstickmoved', e => {
         if (!this.gestart) return;
-        if (id !== this.gunHand){ const gx = e.detail.x; if (Math.abs(gx) < 0.3){ this.stikG = 0; return; } if (this.stikG || Math.abs(gx) < 0.7) return; this.stikG = 1; this.granKies(gx < 0 ? -1 : 1); return; }   // vrije hand: granaat kiezen               // wapens wisselen met de joystick van je gun-hand
+        if (id !== this.gunHand) return;                                   // vrije hand: joystick doet niets (granaat gaat per level)               // wapens wisselen met de joystick van je gun-hand
         const {x, y} = e.detail, st = this.stik[id] || 0;
         if (Math.hypot(x, y) < 0.3){ this.stik[id] = 0; return; }
         if (st) return;                                           // één duw = één keus
@@ -1445,7 +1447,7 @@ AFRAME.registerComponent('zombies', {
       const k = {Digit1:'pistool', Digit4:'auto', Digit5:'shotgun'}[e.code];
       if (!this.gestart){ if (e.code === 'KeyL') this.kiesHand('handL'); if (e.code === 'KeyR') this.kiesHand('handR');
         if (e.code === 'Enter' || e.code === 'KeyS') this.startMet(this.menuHand || 'handR', 'lvl'); if (e.code === 'KeyD') this.startMet(this.menuHand || 'handR', 'demo'); if (e.code === 'KeyA') this.startMet('handR', 'auto'); if (e.code === 'KeyT') this.startMet(this.menuHand || 'handR', 'test'); return; }
-      if (k) this.kies(this.gunHand, k); if (e.code === 'KeyG') this.granDesk(); if (e.code === 'KeyB') this.ult(); if (e.code === 'KeyQ') this.granKies(1); if (e.code === 'KeyR') this.herladen(); });
+      if (k) this.kies(this.gunHand, k); if (e.code === 'KeyG') this.granDesk(); if (e.code === 'KeyB') this.ult(); if (e.code === 'KeyR') this.herladen(); });
     window.addEventListener('mouseup', () => { this.vuurt.muis = false; });
     const muis = e => { if (e.button !== 0) return; if (!this.gestart && performance.now() - (this.aanraakT || -9e9) < 700) return; this.muisE = e; if (!this.gestart){ this.menuKies('muis', e); return; } if (this.auto) return; this.vuurt.muis = true; this.vuur('muis', e); };
     this.el.addEventListener('loaded', () => this.maakEffecten());
@@ -4744,7 +4746,7 @@ AFRAME.registerComponent('zombies', {
     return true;
   },
   /* ================= WAPEN-LEVELS: kills met een wapen → volgend level ================= */
-  lvlReset(){ this.lvl = {pistool:1, auto:1, raket:1, laser:1, shotgun:1}; this.kills = {pistool:0, auto:0, raket:0, laser:0, shotgun:0, granaat:0}; this.syncUpg(); this.paneelVuil = true; this.granReset && this.granReset(); },
+  lvlReset(){ this.lvl = {pistool:1, auto:1, raket:1, laser:1, shotgun:1, granaat:1}; this.kills = {pistool:0, auto:0, raket:0, laser:0, shotgun:0, granaat:0}; this.syncUpg(); this.paneelVuil = true; this.granReset && this.granReset(); },
   syncUpg(){ this.upg.kanon = false; this.upg.raket = (this.lvl && this.lvl.raket >= 3) || false; },
   lv(w){ return (this.lvl && this.lvl[w]) || 1; },
   clip(w){ const c = CLIP[w]; return c ? c[this.lv(w) - 1] : (AMMO[w] || 0); },
@@ -4770,6 +4772,7 @@ AFRAME.registerComponent('zombies', {
   },
   levelUp(w){
     this.lvl[w]++; this.syncUpg();
+    if (w === 'granaat' && this.gran){ this.gran.sel = this.lv('granaat') - 1; this.gran.n = Math.max(this.gran.n, GRAN_MAX); this.granHud && this.granHud(); }   // nieuwe granaat: vervangt de vorige, voorraad vol
     if (this.ammo && w !== 'raket') this.ammo[w] = this.clip(w);                  // nieuw level: vol
     if (w === 'raket' && this.ammo) this.ammo.raket += 2;
     if (this.wapen[this.gunHand] === w){ const h = document.getElementById(this.gunHand); h && h.components.raycaster && h.setAttribute('raycaster', 'lineColor', WAPENS[w].kleur); }
@@ -4781,8 +4784,8 @@ AFRAME.registerComponent('zombies', {
     x.font = '900 46px Trebuchet MS, sans-serif'; x.fillStyle = '#ffd24a'; x.fillText('LEVEL UP', 512, 40);
     let px = 120; x.font = `900 ${px}px Trebuchet MS, sans-serif`; const b = x.measureText(LVL_NAAM[w][l - 1]).width; if (b > 980) x.font = `900 ${Math.floor(px*980/b)}px Trebuchet MS, sans-serif`;
     x.lineWidth = 8; x.strokeStyle = 'rgba(0,0,0,0.6)'; x.strokeText(LVL_NAAM[w][l - 1], 512, 140); x.fillStyle = kl; x.fillText(LVL_NAAM[w][l - 1], 512, 140);
-    { const S = this.wStat(w); if (S){ x.font = '700 34px Trebuchet MS, sans-serif'; x.fillStyle = '#e8f2ea'; x.fillText(`DMG ${S.dmg} · RATE ${S.fr} · MAG ${S.mag} · IMPACT ${S.imp}`, 512, 205); } }
-    this.vlT.needsUpdate = true; this.vlieger.visible = true; this.vlA = {t:0, w, rij:['pistool', 'auto', 'shotgun'].indexOf(w)};
+    { const S = this.wStat(w); if (S){ x.font = '700 34px Trebuchet MS, sans-serif'; x.fillStyle = '#e8f2ea'; x.fillText(`DMG ${S.dmg} · RATE ${S.fr} · MAG ${S.mag} · IMPACT ${S.imp}`, 512, 205); } else if (w === 'granaat'){ x.font = '700 34px Trebuchet MS, sans-serif'; x.fillStyle = '#e8f2ea'; x.fillText(LVL_UITLEG.granaat[l - 1], 512, 205); } }
+    this.vlT.needsUpdate = true; this.vlieger.visible = true; this.vlA = {t:0, w, rij:['pistool', 'auto', 'shotgun', 'granaat'].indexOf(w)};
     this.paneelVuil = true;
   },
   bord(boven, groot, onder, kl, tijd, blokjes){
@@ -4888,7 +4891,7 @@ AFRAME.registerComponent('zombies', {
       if (f >= 1){ v.visible = false; this.vlA = null; this.knipper = 1.2; this.knipWapen = a.w; } }
   },
   tekenPaneel(){
-    const x = this.pnC.getContext('2d'), ws = ['pistool', 'auto', 'shotgun'], nu = this.wapen[this.gunHand];
+    const x = this.pnC.getContext('2d'), ws = ['pistool', 'auto', 'shotgun', 'granaat'], nu = this.wapen[this.gunHand];
     x.clearRect(0, 0, 512, 512);
     x.fillStyle = 'rgba(8,10,12,0.45)'; x.beginPath(); x.roundRect ? x.roundRect(4, 4, 504, 504, 22) : x.rect(4, 4, 504, 504); x.fill();
     x.textBaseline = 'middle'; x.textAlign = 'left';
@@ -5712,11 +5715,8 @@ AFRAME.registerComponent('zombies', {
   },
   /* ================= HANDGRANATEN: 7 soorten, gooien met de grip van je vrije hand ================= */
   vrijeHand(){ return this.gunHand === 'handL' ? 'handR' : 'handL'; },
-  granReset(){ this.gran = {sel:0, n:GRAN_MAX, t:0, vrij:1}; if (this.vastG && this.vastG.m) this.vastG.m.removeFromParent(); this.vastG = null; this.gVuren = []; this.gWolken = []; this.granHud(); },
-  granVrij(){ const k = Object.values(this.kills || {}).reduce((a, b) => a + b, 0); let n = 1; GRANATEN.forEach((G, i) => { if (k >= G.vrij) n = Math.max(n, i + 1); }); return n; },
-  granVrijCheck(){ const g = this.gran; if (!g) return; const n = this.granVrij(); if (n <= g.vrij) return; g.vrij = n; g.sel = n - 1; const G = GRANATEN[n - 1];
-    this.bord('NEW GRENADE', G.naam, G.uitleg, G.kleur, 3.2); this.pling(1); this.granHud(); },
-  granKies(r){ const g = this.gran; if (!g || g.vrij <= 1) return; g.sel = (g.sel + r + g.vrij) % g.vrij; const G = GRANATEN[g.sel]; this.melding(G.naam, G.kleur); this.tik(); this.granHud(); },
+  granReset(){ this.gran = {sel:this.lv('granaat') - 1, n:GRAN_MAX, t:0, vrij:1}; if (this.vastG && this.vastG.m) this.vastG.m.removeFromParent(); this.vastG = null; this.gVuren = []; this.gWolken = []; this.granHud(); },
+  granVrijCheck(){ const g = this.gran; if (g) g.sel = this.lv('granaat') - 1; },          // granaat = granaatlevel (zoals de wapens)
   granMesh(i){ const T = this.T, g = new T.Group(), M = c => new T.MeshLambertMaterial({color:c});
     const kl = [0x4a5a2c, 0x26292b, 0x8a8f94, 0x7a2a1e, 0x5c6460, 0x2a4a7a, 0x2a2a26][i] || 0x4a5a2c;
     if (i === 0 || i === 6){ const b = new T.Mesh(new T.SphereGeometry(i === 6 ? 0.06 : 0.045, 10, 8), M(kl)); b.scale.set(1, 1.25, 1); g.add(b);
