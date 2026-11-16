@@ -12,7 +12,7 @@
 </style>
 </head>
 <body>
-<div id="info">Step Forward <span id="ver"></span> · menu: kies hand (L/R), dan START (Enter) of DEMO (D) of AUTO (A) · klik = schieten · 1/2/4/5 = wapen · G = granaat · Q = andere granaat · B = bommenwerper · spatie = volgende plek · VR: joystick = wapen, A/B/X/Y = pistool (nog eens = herladen), R = herladen, vrije hand: grip = granaat (zwaai en loslaten), joystick = granaat kiezen, trekker = bommenwerper, joystick indrukken = logboek kopiëren</div>
+<div id="info">Step Forward <span id="ver"></span> · menu: kies hand (L/R), dan START (Enter) of DEMO (D) of AUTO (A) · klik = schieten · 1/4/5 = wapen · G = granaat · Q = andere granaat · B = bommenwerper · spatie = volgende plek · VR: joystick = wapen, A/B/X/Y = pistool (nog eens = herladen), R = herladen, vrije hand: grip = granaat (zwaai en loslaten), joystick = granaat kiezen, trekker = bommenwerper, joystick indrukken = logboek kopiëren</div>
 
 <a-scene renderer="colorManagement:true; antialias:true" background="color:#0b0d10"
          xr-mode-ui="enabled:true" vr-mode-ui="enabled:true" stad zombies>
@@ -867,7 +867,7 @@ KWERELD.bunker = (T, R) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v70";
+const VERSIE = "v71";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -1437,11 +1437,12 @@ AFRAME.registerComponent('zombies', {
         if (Math.abs(x) < 0.7 && Math.abs(y) < 0.7) return;
         this.stik[id] = 1;
         // schuin: geen apart wapen meer (pistool zit op de knop) — de sterkste richting telt
-        this.kies(id, Math.abs(y) > Math.abs(x) ? (y < 0 ? 'raket' : 'pistool') : (x < 0 ? 'shotgun' : 'auto'));
+        if (Math.abs(y) > Math.abs(x) && y < 0) return;                  // omhoog: niets (raket is eruit, granaten zitten op je vrije hand)
+        this.kies(id, Math.abs(y) > Math.abs(x) ? (y < 0 ? 'pistool' : 'pistool') : (x < 0 ? 'shotgun' : 'auto'));
       });
     });
     window.addEventListener('keydown', e => {
-      const k = {Digit1:'pistool', Digit2:'raket', Digit4:'auto', Digit5:'shotgun'}[e.code];
+      const k = {Digit1:'pistool', Digit4:'auto', Digit5:'shotgun'}[e.code];
       if (!this.gestart){ if (e.code === 'KeyL') this.kiesHand('handL'); if (e.code === 'KeyR') this.kiesHand('handR');
         if (e.code === 'Enter' || e.code === 'KeyS') this.startMet(this.menuHand || 'handR', 'lvl'); if (e.code === 'KeyD') this.startMet(this.menuHand || 'handR', 'demo'); if (e.code === 'KeyA') this.startMet('handR', 'auto'); if (e.code === 'KeyT') this.startMet(this.menuHand || 'handR', 'test'); return; }
       if (k) this.kies(this.gunHand, k); if (e.code === 'KeyG') this.granDesk(); if (e.code === 'KeyB') this.ult(); if (e.code === 'KeyQ') this.granKies(1); if (e.code === 'KeyR') this.herladen(); });
@@ -4781,7 +4782,7 @@ AFRAME.registerComponent('zombies', {
     let px = 120; x.font = `900 ${px}px Trebuchet MS, sans-serif`; const b = x.measureText(LVL_NAAM[w][l - 1]).width; if (b > 980) x.font = `900 ${Math.floor(px*980/b)}px Trebuchet MS, sans-serif`;
     x.lineWidth = 8; x.strokeStyle = 'rgba(0,0,0,0.6)'; x.strokeText(LVL_NAAM[w][l - 1], 512, 140); x.fillStyle = kl; x.fillText(LVL_NAAM[w][l - 1], 512, 140);
     { const S = this.wStat(w); if (S){ x.font = '700 34px Trebuchet MS, sans-serif'; x.fillStyle = '#e8f2ea'; x.fillText(`DMG ${S.dmg} · RATE ${S.fr} · MAG ${S.mag} · IMPACT ${S.imp}`, 512, 205); } }
-    this.vlT.needsUpdate = true; this.vlieger.visible = true; this.vlA = {t:0, w, rij:['pistool', 'auto', 'shotgun', 'raket'].indexOf(w)};
+    this.vlT.needsUpdate = true; this.vlieger.visible = true; this.vlA = {t:0, w, rij:['pistool', 'auto', 'shotgun'].indexOf(w)};
     this.paneelVuil = true;
   },
   bord(boven, groot, onder, kl, tijd, blokjes){
@@ -4887,7 +4888,7 @@ AFRAME.registerComponent('zombies', {
       if (f >= 1){ v.visible = false; this.vlA = null; this.knipper = 1.2; this.knipWapen = a.w; } }
   },
   tekenPaneel(){
-    const x = this.pnC.getContext('2d'), ws = ['pistool', 'auto', 'shotgun', 'raket'], nu = this.wapen[this.gunHand];
+    const x = this.pnC.getContext('2d'), ws = ['pistool', 'auto', 'shotgun'], nu = this.wapen[this.gunHand];
     x.clearRect(0, 0, 512, 512);
     x.fillStyle = 'rgba(8,10,12,0.45)'; x.beginPath(); x.roundRect ? x.roundRect(4, 4, 504, 504, 22) : x.rect(4, 4, 504, 504); x.fill();
     x.textBaseline = 'middle'; x.textAlign = 'left';
@@ -5380,7 +5381,7 @@ AFRAME.registerComponent('zombies', {
   },
   /* ================= WAPENS ================= */
   kies(id, w){
-    if (w === 'laser') w = 'auto';                                     // laser is eruit
+    if (w === 'laser' || w === 'raket') w = 'auto';                    // laser en raket zijn eruit
     this.wapen[id] = w;
     const h = document.getElementById(id);
     if (h && h.components.raycaster) h.setAttribute('raycaster', 'lineColor', WAPENS[w].kleur);
@@ -5540,7 +5541,7 @@ AFRAME.registerComponent('zombies', {
     if (this.vliegt) this.vliegt = this.vliegt.filter(p => !p.weg);
   },
   /* ---------- UPGRADEBLOKKEN: verschijnen om de zoveel tijd, schiet erop = upgrade (blijvend) ---------- */
-  blokInhoud(){ return {soort:'ammo', tekst:this.upg.raket ? '+3 ROCKETS' : '+3 GRENADES', kleur:'#ff9a2a'}; },
+  blokInhoud(){ return {soort:'ammo', tekst:'+3 GRENADES', kleur:'#ff9a2a'}; },
   kistTex(){   // houten ammo-kist: planken, kruisbalk, metalen hoeken, stencil
     if (this.kistT) return this.kistT;
     const T = this.T, c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d');
@@ -5593,7 +5594,7 @@ AFRAME.registerComponent('zombies', {
     if (b.kap && !b.geland){ b.los = true; this.sc.attach(b.hang); b.hangV = 0.6; (this.losseKappen = this.losseKappen || []).push(b); }   // scherm zweeft leeg verder
     b.g.removeFromParent();
     const i = b.inh;
-    if (this.ammo){ this.ammo.raket += 3; this.hudVuil = true; }
+    if (this.gran){ this.gran.n = Math.min(6, this.gran.n + 3); this.granHud(); }          // kist: +3 granaten (tot 6)
     this.melding(i.tekst, i.kleur); this.pling(1); this.vuurbal(kp, 0.8);
     ['handL','handR'].forEach(id => this.tril(id, 0.8, 120));
   },
@@ -5731,7 +5732,7 @@ AFRAME.registerComponent('zombies', {
     const h = document.getElementById(this.vrijeHand()); if (h && h.object3D && this.gHud.parent !== h.object3D) h.object3D.add(this.gHud);
     const x = this.gHudC.getContext('2d'), G = GRANATEN[g.sel]; x.clearRect(0, 0, 256, 64); x.fillStyle = 'rgba(8,10,12,0.6)'; x.fillRect(0, 0, 256, 64);
     x.font = '800 30px Trebuchet MS, sans-serif'; x.textBaseline = 'middle'; x.fillStyle = G.kleur; x.fillText(G.kort, 10, 32);
-    const inf = this.oneindigNu && this.ammo && this.oneindigNu(); for (let i=0;i<GRAN_MAX;i++){ x.fillStyle = inf || i < g.n ? G.kleur : '#3a3f44'; x.beginPath(); x.arc(170 + i*30, 32, 10, 0, 6.3); x.fill(); }
+    const inf = this.oneindigNu && this.ammo && this.oneindigNu(); const nd = Math.max(GRAN_MAX, g.n); for (let i=0;i<nd;i++){ x.fillStyle = inf || i < g.n ? G.kleur : '#3a3f44'; x.beginPath(); x.arc(130 + i*(nd > 3 ? 21 : 30), 32, nd > 3 ? 8 : 10, 0, 6.3); x.fill(); }
     this.gHudT.needsUpdate = true; },
   granPak(id){ const g = this.gran; if (!g || this.vastG || this.overleden) return;
     if (g.n <= 0 && !this.oneindigNu()){ this.melding('NO GRENADES', '#888888'); return; }
