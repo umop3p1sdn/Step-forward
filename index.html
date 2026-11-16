@@ -751,10 +751,79 @@ KWERELD.kruis = (T, R) => {
   return B.maak();
 };
 
+/* === BUNKER: lange betonnen gang met zijdeuren en geheime wandpanelen → commandokamer → smalle vluchttunnel === */
+KWERELD.bunker = (T, R) => {
+  const B = new KBouw(T), H = 2.8, cw = 1.5, zE = -34 - (R()*3|0), tO = [0.5, 0.56, 0.46], tB = [0.8, 0.81, 0.78];
+  const muur = (x0, z0, x1, z1, gaten, h) => { h = h || H;                                                     // groene band onder, grijs beton erboven
+    B.wand('beton', x0, z0, x1, z1, 0, 1.25, {dik:0.4, gaten:(gaten || []).map(g => Object.assign({}, g, {b1:Math.min(g.b1, 1.25)})), tint:tO});
+    B.wand('beton', x0, z0, x1, z1, 1.25, h, {dik:0.4, gaten, grond:0, tint:tB}); };
+  const deuren = { g1:[], g2:[], g3:[] };
+  const zijDeur = (lijst, x, z, s, geheim, h) => {                                                         // s = kant (-1 links, 1 rechts), deur kijkt de gang in
+    const d = B.deur(geheim ? 'beton' : kKies(R, ['golf_grijs', 'golf_roest']), x, z, -s, 0, 1.1, 2.2);
+    B.kamer(x + s*0.3, z, -s, 0, 2.4, 3.0, 0, h || 2.6, {f:0.28, mat:'beton', vloer:'beton', tint:[0.62, 0.64, 0.6]});
+    lijst.push({d, buiten:[x - s*1.0, z], drempel:[x - s*0.12, z], binnen:[x + s*1.6, z], geheim}); };
+  const gat = (a) => ({a0:a - 0.56, a1:a + 0.56, b0:0, b1:2.26});
+  // --- hoofdgang
+  const zDeur = [-7 - R()*1.5, -14 - R()*1.5, -21 - R()*1.5, -28 - R()*1.5].filter(z => z > zE + 2.5), kant = zDeur.map((_, i) => (i + (R() < 0.5 ? 0 : 1)) % 2 ? 1 : -1);
+  const geheimZ = [-11 - R()*1.5, zE + 6], geheimK = [R() < 0.5 ? -1 : 1, 0]; geheimK[1] = -geheimK[0];
+  const gL = [], gR = [];
+  zDeur.forEach((z, i) => (kant[i] < 0 ? gL : gR).push(gat(3 - z)));
+  geheimZ.forEach((z, i) => (geheimK[i] < 0 ? gL : gR).push(gat(3 - z)));
+  muur(-cw, 3, -cw, zE, gL); muur(cw, 3, cw, zE, gR); muur(cw, 3, -cw, 3);
+  B.vlakH('beton', -cw, zE - 3, cw, 3, 0.005, {stap:1.5, tint:[0.7, 0.72, 0.68]});
+  B._vlakH('beton', -cw, zE - 3, cw, 3, H, {f:0.4, stap:2, tint:[0.75, 0.76, 0.74]});
+  const r1 = B.ruimte(-cw, zE - 3, cw, 3, H, 0.26); for (let z = 1; z > zE; z -= 5.5) B.lamp(r1, 0, H, z, 0.7);
+  zDeur.forEach((z, i) => zijDeur(deuren.g1, kant[i]*cw, z, kant[i], false));
+  geheimZ.forEach((z, i) => zijDeur(deuren.g1, geheimK[i]*cw, z, geheimK[i], true));
+  for (let z = 2; z > zE + 1; z -= 3 + R()*3){ const s = R() < 0.5 ? -1 : 1; B.doos('kleur', s*cw - s*0.22, z - 2.5, s*cw - s*0.1, z, 2.35, 2.48, {tint:[0.32, 0.3, 0.26], geenBots:true, geenAo:true}); }   // leidingen
+  // --- dwarsgang
+  const X = 14, zK = zE - 3, H2 = 3.6, Rx = 9, zC = zK - 15 - (R()*2|0);
+  B.vlakH('beton', -X, zK, X, zE, 0.005, {stap:1.5, tint:[0.7, 0.72, 0.68]}); B._vlakH('beton', -X, zK, X, zE, H, {f:0.4, stap:2, tint:[0.75, 0.76, 0.74]});
+  muur(-X, zE, -cw, zE); muur(cw, zE, X, zE);
+  muur(-X, zK, X, zK, [{a0:X - 1.25, a1:X + 1.25, b0:0, b1:2.5}]);
+  const r2 = B.ruimte(-X, zK, X, zE, H, 0.24); [-9, -4, 4, 9].forEach(x => B.lamp(r2, x, H, zE - 1.5, 0.6));
+  [-1, 1].forEach(s => { B.kamer(s*X, (zE + zK)/2, -s, 0, 3, 4, 0, H, {f:0.2, mat:'beton', vloer:'beton', tint:[0.55, 0.57, 0.53]}); });
+  // --- commandokamer
+  const zDK = zC + 0; B.vlakH('tegels', -Rx, zC, Rx, zK, 0.006, {stap:2, tint:[0.62, 0.66, 0.62]}); B._vlakH('beton', -Rx, zC, Rx, zK, H2, {f:0.45, stap:3});
+  const sL = [gat(zK - (zK - 5)), gat(zK - (zK - 10.5))], sR = [gat(zK - (zK - 5)), gat(zK - (zK - 10.5))];
+  muur(-Rx, zK, -Rx, zC, sL, H2); muur(Rx, zK, Rx, zC, sR, H2);
+  muur(Rx, zC, -Rx, zC, [{a0:Rx - 0.6, a1:Rx + 0.6, b0:0, b1:2.3}], H2);
+  B.wand('beton', -X, zK, X, zK, H, H2, {dik:0.4, tint:tB});                                                       // boven de dwarsgang dicht tot het kamerplafond
+  const r3 = B.ruimte(-Rx, zC, Rx, zK, H2, 0.28); [[-4.5, zK - 4], [4.5, zK - 4], [-4.5, zK - 11], [4.5, zK - 11], [0, zK - 7.5]].forEach(([x, z]) => B.lamp(r3, x, H2, z, 0.75));
+  const pl = [];
+  [[-4.6, zK - 6], [4.6, zK - 6], [-4.6, zK - 11.5], [4.6, zK - 11.5]].forEach(([x, z]) => { B.cilinder('beton', x, z, 0.38, 0, H2, {tint:tB}); pl.push({x, z, w:0.76, d:0.76, h:H2}); });   // pilaren
+  B.doos('plank', -1.1, zK - 8.1, 1.1, zK - 6.9, 0, 0.92, {tint:[0.45, 0.4, 0.34]}); pl.push({x:0, z:zK - 7.5, w:2.2, d:1.2, h:0.92});          // kaartentafel
+  [[-6.5, -2.3], [2.3, 6.5]].forEach(([a, b]) => { B.doos('kleur', a, zC + 0.25, b, zC + 1.05, 0, 1.05, {tint:[0.2, 0.22, 0.2]}); pl.push({x:(a + b)/2, z:zC + 0.65, w:b - a, d:0.8, h:1.05});
+    for (let x = a + 0.3; x < b - 0.5; x += 0.9) B.doos('licht', x, zC + 0.24, x + 0.6, zC + 0.27, 1.1, 1.5, {geenBots:true, geenAo:true}); });   // consoles met schermen
+  kInricht(B, R, {x0:-Rx + 0.4, x1:-Rx + 1.6, z0:zC + 2, z1:zK - 1, wanden:['W'], thema:'kantoor', vrij:{W:[[zK - 6, zK - 4], [zK - 11.5, zK - 9.5]]}, kunst:false, H:H2, ruim:0.4});
+  [-1, 1].forEach(s => { zijDeur(deuren.g2, s*Rx, zK - 5, s, false, H2 - 0.6); zijDeur(deuren.g2, s*Rx, zK - 10.5, s, true, H2 - 0.6); });
+  // --- vluchttunnel
+  const tw = 1.0, H3 = 2.45, zT = zC - 28;
+  B.vlakH('beton', -tw, zT, tw, zC, 0.005, {stap:1.2, tint:[0.6, 0.62, 0.58]}); B._vlakH('beton', -tw, zT, tw, zC, H3, {f:0.35, stap:1.5});
+  const tZ = [zC - 6 - R()*2, zC - 13 - R()*2, zC - 20 - R()*2], tK = tZ.map(() => R() < 0.5 ? -1 : 1), tL = [], tR = [];
+  tZ.forEach((z, i) => (tK[i] < 0 ? tL : tR).push(gat(zC - z)));
+  const tg = zC - 16, tgK = R() < 0.5 ? -1 : 1; (tgK < 0 ? tL : tR).push(gat(zC - tg));
+  muur(-tw, zC, -tw, zT, tL, H3); muur(tw, zC, tw, zT, tR, H3); muur(tw, zT, -tw, zT, [gat(tw)], H3);
+  const r4 = B.ruimte(-tw, zT, tw, zC, H3, 0.16); for (let z = zC - 3; z > zT; z -= 6) B.lamp(r4, 0, H3, z, 0.5);
+  [-1, 1].forEach(s => { B.doos('kleur', s*(tw - 0.12), zT, s*(tw - 0.02), zC, 1.9, 2.0, {tint:[0.42, 0.3, 0.2], geenBots:true, geenAo:true}); B.doos('kleur', s*(tw - 0.14), zT, s*(tw - 0.02), zC, 2.12, 2.24, {tint:[0.3, 0.32, 0.33], geenBots:true, geenAo:true}); });
+  tZ.forEach((z, i) => zijDeur(deuren.g3, tK[i]*tw, z, tK[i], false, H3)); zijDeur(deuren.g3, tgK*tw, tg, tgK, true, H3);
+  { const d = B.deur('golf_grijs', 0, zT, 0, 1, 1.1, 2.2); B.kamer(0, zT - 0.3, 0, 1, 2.4, 3, 0, H3, {f:0.2, mat:'beton', vloer:'beton', tint:[0.55, 0.57, 0.53]}); deuren.g3.push({d, buiten:[0, zT + 1], drempel:[0, zT + 0.12], binnen:[0, zT - 1.6]}); }
+  // --- standen
+  const sp = (lijst, S, filt) => kDeurSpawns(lijst, S, filt);
+  const S1 = {x:0, z:0, naam:'BUNKER ENTRANCE', binnen:true, geenWagens:true, geenMuur:true, breed:cw - 0.4, props:[], plek:[]};
+  S1.spawns = sp(deuren.g1, S1, p => p[1] < -4).concat([{p:[-X - 1.5, zE - 1.5], via:[[-3, zE - 1.5], [-0.4, zE - 0.6]]}, {p:[X + 1.5, zE - 1.5], via:[[3, zE - 1.5], [0.4, zE - 0.6]]}, {p:[0, zK - 4], via:[[0, zK + 0.8], [0, zE - 0.5]]}]);
+  const S2 = {x:0, z:zK, naam:'CONTROL ROOM', binnen:true, geenWagens:true, geenMuur:true, breed:Rx - 1.5, props:pl, plek:[]};
+  S2.spawns = sp(deuren.g2, S2, () => true).concat([{p:[0, zC - 2.5], via:[[0, zC + 1.5]]}, {p:[0.3, zC - 4], via:[[0.3, zC + 1.2]]}]);
+  const S3 = {x:0, z:zC - 0.3, naam:'ESCAPE TUNNEL', binnen:true, geenWagens:true, geenMuur:true, breed:tw - 0.3, props:[], plek:[]};
+  S3.spawns = sp(deuren.g3, S3, () => true);
+  B.standen.push(S1, S2, S3);
+  return B.maak();
+};
+
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v59";
+const VERSIE = "v60";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -1068,13 +1137,15 @@ const KAART_STAND = {   // vaste eigenschappen per stand (de rest komt uit de ge
   dorp: [{naam:'MAIN STREET', geenWagens:true, lucht:true, tank:true}, {naam:'T-JUNCTION', lucht:true}, {naam:'THE HOUSE', binnen:true, geenWagens:true, geenMuur:true}, {naam:'BACK WINDOW', geenMuur:true}],
   loods:[{naam:'BACK ALLEY', geenWagens:true}, {naam:'WAREHOUSE'}],
   huis: [{naam:'OLD HOUSE', binnen:true, geenWagens:true, geenMuur:true}, {naam:'FRONT WINDOW', geenMuur:true}],
-  kruis:[{naam:'HIGH STREET', geenWagens:true, lucht:true, tank:true}, {naam:'CROSSROADS', lucht:true}, {naam:'CHURCH ROAD', geenWagens:true, lucht:true, tank:true}]
+  kruis:[{naam:'HIGH STREET', geenWagens:true, lucht:true, tank:true}, {naam:'CROSSROADS', lucht:true}, {naam:'CHURCH ROAD', geenWagens:true, lucht:true, tank:true}],
+  bunker:[{naam:'BUNKER ENTRANCE', binnen:true, geenWagens:true, geenMuur:true}, {naam:'CONTROL ROOM', binnen:true, geenWagens:true, geenMuur:true}, {naam:'ESCAPE TUNNEL', binnen:true, geenWagens:true, geenMuur:true}]
 };
-const KAART_WISSEL = {dorp:[1, 4, 7, 10], loods:[1, 6], huis:[1, 6], kruis:[1, 4, 8]};
+const KAART_WISSEL = {dorp:[1, 4, 7, 10], loods:[1, 6], huis:[1, 6], kruis:[1, 4, 8], bunker:[1, 4, 8]};
 const KAART_TITELS = {dorp:['MILL LANE', 'OLD TOWN', 'MARKET STREET', 'RIVERSIDE', 'STATION ROAD'], loods:['THE DOCKS', 'RAIL YARD', 'FACTORY ROW', 'DEPOT', 'CANAL WHARF'],
-  huis:['THE MANOR', 'THE OLD SCHOOL', 'THE HOTEL', 'THE CONVENT', 'THE RECTORY'], kruis:['CHURCH SQUARE', 'TOWN CROSS', 'HIGH STREET', 'MARKET CROSS', 'BRIDGE STREET']};
+  huis:['THE MANOR', 'THE OLD SCHOOL', 'THE HOTEL', 'THE CONVENT', 'THE RECTORY'], kruis:['CHURCH SQUARE', 'TOWN CROSS', 'HIGH STREET', 'MARKET CROSS', 'BRIDGE STREET'],
+  bunker:['IRON VAULT', 'DEEP ARCHIVE', 'RED SECTOR', 'COLD STORE', 'THE PIT']};
 function maakLevels(){
-  const volg = ['dorp', 'huis', 'loods', 'kruis', 'dorp', 'loods', 'huis', 'kruis', 'dorp', 'huis', 'kruis', 'loods', 'dorp', 'huis', 'loods', 'kruis', 'dorp', 'loods', 'huis', 'kruis'];
+  const volg = ['dorp', 'huis', 'loods', 'kruis', 'bunker', 'loods', 'huis', 'kruis', 'dorp', 'huis', 'kruis', 'bunker', 'dorp', 'huis', 'loods', 'kruis', 'dorp', 'bunker', 'huis', 'kruis'];
   const tel = {};
   return volg.map((w, i) => {
     const n = i + 1, f = i/19, r = (a, b) => +(a + (b - a)*f).toFixed(2), seed = 1000 + n*7919, k = tel[w] = (tel[w] || 0);
@@ -1096,6 +1167,7 @@ function maakLevels(){
     L.baas = w === 'dorp' ? (n < 9 ? {tekst:'GUN TRUCK', vracht:{mg:true, rijdt:true}, lopers:7, max:7} : {tekst:'GUN TRUCK + JEEP', vracht:{mg:true, rijdt:true}, wagens:['jeep_snorkel'], lopers:9, max:8})
            : w === 'loods' ? (n < 10 ? {tekst:'TRUCK + HEAVY GUNNER', wagens:['truck'], zwaar:1, lopers:8, max:8} : {tekst:'SWAT TRUCK + HEAVY GUNNER', wagens:['swat_truck', 'truck'], zwaar:1, vest:1, lopers:10, max:9})
            : w === 'huis' ? (n < 10 ? {tekst:'GUN TRUCKS', vracht:{mg:true, rijdt:true, boss:true, n:2}, lopers:7, max:7} : {tekst:'GUN TRUCK + ARMORED JEEP', vracht:{mg:true, rijdt:true}, wagens:['jeep'], vestLading:true, lopers:9, max:8})
+           : w === 'bunker' ? {tekst:'HEAVY GUNNER + SHIELDS', zwaar:1, schild:2, lopers:9, max:8}
            : (n < 20 ? {tekst:'TANK', tank:1, lopers:8, max:7} : {tekst:'TANK + CHOPPER', tank:1, apache:1, lopers:10, max:9});
     return L;
   });
