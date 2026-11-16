@@ -867,7 +867,7 @@ KWERELD.bunker = (T, R) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v77";
+const VERSIE = "v78";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2062,6 +2062,7 @@ AFRAME.registerComponent('zombies', {
     if (z && z.vWapen === 'sniper') kans = Math.min(0.85, kans);
     if (buk) kans *= 0.3;
     if (z && z.ai && z.ai.arcade) kans = z.dodelijk ? (buk ? 0.06 : 0.92) : kans*0.35;
+    if (z && (z.hoest || 0) > this.nu) kans *= 0.15;                     // aan het hoesten: raakt bijna niets
     // de kans wordt een mikfout: ze mikken op waar je nú bent, de kogel is even onderweg → wegleunen of bukken werkt
     const sig = this.mikSigma(kans), gauss = () => Math.sqrt(-2*Math.log(Math.random() + 1e-9))*Math.cos(6.2832*Math.random());
     const doel = ik.clone().add(new T.Vector3(gauss()*sig, -LIJF_LENGTE*0.5 + gauss()*sig*0.9 + (buk ? 0.25 : 0), 0));
@@ -5873,9 +5874,15 @@ AFRAME.registerComponent('zombies', {
       if (z.gBrand <= 0){ z.gBrand = 0; const wb = this.bronWapen; this.bronWapen = 'granaat'; this.omver(z, new T.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(), {wapen:'auto'}); this.bronWapen = wb; } }
     for (const w of this.gWolken || []){ w.t -= s; const sterk = Math.min(1, w.t/1.5);                                            // gaswolk
       if (Math.random() < 0.6*sterk) this.gasPuf(w.p.clone().add(new T.Vector3((Math.random() - 0.5)*w.r*1.6, 0.3 + Math.random()*1.2, (Math.random() - 0.5)*w.r*1.6)), w.r*0.7);
-      for (const z of this.lijst){ if (z.dood || !z.ai) continue; if (z.grp.position.clone().setY(0).distanceTo(w.p.clone().setY(0)) < w.r){ this.versuf(z, 1.2); z.gasT = (z.gasT || 0) + s;
+      for (const z of this.lijst){ if (z.dood || !z.ai) continue; if (z.grp.position.clone().setY(0).distanceTo(w.p.clone().setY(0)) < w.r){ this.versuf(z, 1.2); z.hoest = this.nu + 3.5; z.gasT = (z.gasT || 0) + s;
           if (z.gasT > 2.4){ z.gasT = 0; const wb = this.bronWapen; this.bronWapen = 'granaat'; this.omver(z, new T.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(), {wapen:'auto'}); this.bronWapen = wb; } } } }
     if (this.gWolken) this.gWolken = this.gWolken.filter(w => w.t > 0);
+    { const ik = this.el.camera.getWorldPosition(new T.Vector3());
+      for (const z of this.lijst){ if (z.dood || !((z.hoest || 0) > this.nu)) continue; if ((z.hoestT = (z.hoestT ?? Math.random()*0.5) - s) > 0) continue; z.hoestT = 0.55 + Math.random()*0.8;   // hoestbui
+        const voor = ik.clone().sub(z.grp.position).setY(0).normalize(); if (z.s3d){ this.s3dHit(z, 'Hit_Stomach', null, voor, 0.9); if (Math.random() < 0.4 && z.s3d.bot.Head) this.s3dGrijp(z, 'Head', z.s3d.bot.Head.getWorldPosition(new T.Vector3()).addScaledVector(voor, 0.12).add(new T.Vector3(0, -0.06, 0)), 0.7); }
+        this.wankel(z, voor, 0.25);
+        if (this.nu - (this.hoestGeluidT || -9) > 0.22){ this.hoestGeluidT = this.nu; const d = Math.max(1, z.grp.position.distanceTo(ik)), v = Math.min(0.6, 3/d);
+          this.geluid(A => { this.speel(A, this.ruisBuf(A, 0.11, 3), 'bandpass', 620 + Math.random()*160, v); this.speel(A, this.ruisBuf(A, 0.09, 3), 'bandpass', 520 + Math.random()*120, v*0.8, 0.17); }); } } }
     for (const q of this.ringen || []){ q.t += s; q.m.scale.setScalar(Math.max(0.01, q.r*Math.min(1, q.t/0.35))); q.m.material.opacity = Math.max(0, 1 - q.t/0.55); if (q.t > 0.55){ q.m.removeFromParent(); q.weg = true; } }
     if (this.ringen) this.ringen = this.ringen.filter(q => !q.weg);
     for (const sp of this.gasP || []){ if (!sp.visible) continue; const u = sp.userData; u.t -= s; const a = Math.max(0, u.t/u.duur);
