@@ -741,7 +741,7 @@ KWERELD.kruis = (T, R) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v52";
+const VERSIE = "v53";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -3395,7 +3395,7 @@ AFRAME.registerComponent('zombies', {
         [['spine_01', 0.3, 0.45], ['spine_02', 0.35, 0.35], ['spine_03', 0.35, 0.2]].forEach(([bn, ft, fl]) => { const b = S.bot[bn]; if (!b) return;
           q1.setFromAxisAngle(new T.Vector3(0, 1, 0), S.twist*ft); q2.setFromAxisAngle(rechts, S.leun.x*fl).multiply(new T.Quaternion().setFromAxisAngle(voor, S.leun.y*fl)); q2.multiply(q1);
           const bw = b.getWorldQuaternion(new T.Quaternion()), pw = b.parent.getWorldQuaternion(new T.Quaternion()); b.quaternion.copy(pw.invert().multiply(q2.clone().multiply(bw))); b.updateMatrixWorld(true); }); } }
-    this.s3dSpuitTick(z, s); this.s3dDuwTick(z, s); this.s3dGrijpIK(z, s);
+    this.s3dSpuitTick(z, s); this.s3dDuwTick(z, s); this.s3dGrijpIK(z, s); this.s3dBloedTick(z, s);
     S.kickS = (S.kickS || 0) + ((S.kick || 0) - (S.kickS || 0))*Math.min(1, s*16); S.kick = (S.kick || 0)*Math.exp(-8*s);   // terugslag: zacht en gedempt
     if (S.kickS > 0.01 && rb){ const as = new T.Vector3(1, 0, 0).applyQuaternion(S.m.getWorldQuaternion(new T.Quaternion())), q = new T.Quaternion().setFromAxisAngle(as, -S.kickS*0.055),
       bw = rb.getWorldQuaternion(new T.Quaternion()), pw = rb.parent.getWorldQuaternion(new T.Quaternion()); rb.quaternion.copy(pw.invert().multiply(q.multiply(bw))); rb.updateMatrixWorld(true); }
@@ -3499,7 +3499,7 @@ AFRAME.registerComponent('zombies', {
     else if (!S.rag) this.s3dRagStart(z, S.impuls);
     else this.s3dRagTick(z, s);
     if (g.position.y > 0.01 && !(z.ai && (z.ai.y0 || 0) > 0.4)) g.position.y = Math.max(0, g.position.y - s*6);
-    this.s3dSpuitTick(z, s);
+    this.s3dSpuitTick(z, s); this.s3dBloedTick(z, s);
   },
   /* ================= KNIPPEN in de 3D-pop: gaten, ledematen op elke plek door, hoofd stap voor stap ================= */
   BOT3D: {hoofd:'Head', nek:'neck_01', borst:'spine_03', buik:'spine_02', bekken:'pelvis', bovenarmL:'upperarm_r', onderarmL:'lowerarm_r', handL:'hand_r', bovenarmR:'upperarm_l', onderarmR:'lowerarm_l', handR:'hand_l',
@@ -3564,9 +3564,30 @@ AFRAME.registerComponent('zombies', {
     m.scale.setScalar(1/ws); m.position.copy(lok); m.raycast = () => {}; m.lookAt(b.localToWorld(lok.clone().multiplyScalar(2))); b.add(m); S.vlees.push(m);
     if (soort === 'gloei'){ const t0 = this.nu; m.userData.gloei = t0; }
   },
+  s3dBloedVlek(z, c, r){                // wond in rustpositie (bind-ruimte): de shader kleurt de stof eromheen bloederig
+    const S = z.s3d, T = this.T; if (!S || !S.knip || !S.knip.length) return;
+    if (!S.wond){ const U = {wC:{value:Array.from({length:8}, () => new T.Vector4(0, 0, 0, 0))}, wG:{value:new Array(8).fill(0)}, wN:{value:0}};
+      S.wond = {U, lijst:[]};
+      for (const K of S.knip){ const m = K.mesh; if (!m || !m.material || m.material.userData.wond) continue; const mat = m.material.clone(); mat.userData.wond = true;
+        mat.onBeforeCompile = sh => { Object.assign(sh.uniforms, U);
+          sh.vertexShader = 'varying vec3 vRust;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n#ifdef USE_SKINNING\n vRust = (bindMatrix * vec4(position, 1.0)).xyz;\n#else\n vRust = position;\n#endif');
+          sh.fragmentShader = 'varying vec3 vRust; uniform vec4 wC[8]; uniform float wG[8]; uniform int wN;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+  { float bl = 0.0, kern = 0.0;
+    for (int i = 0; i < 8; i++){ if (i >= wN) break; vec3 d = vRust - wC[i].xyz; d.y = d.y < 0.0 ? d.y*0.42 : d.y*1.3;
+      float n = sin(vRust.x*97.0 + vRust.y*31.0)*sin(vRust.y*83.0 - vRust.z*47.0)*sin(vRust.z*71.0 + vRust.x*23.0);
+      bl = max(bl, 1.0 - smoothstep(wC[i].w*0.5, wC[i].w, length(d)*(1.0 + 0.35*n)));
+      kern = max(kern, 1.0 - smoothstep(wG[i]*1.05, wG[i]*2.0, length(vRust - wC[i].xyz)*(1.0 + 0.5*n))); }
+    diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb*vec3(0.4, 0.05, 0.04) + vec3(0.1, 0.0, 0.0), bl*0.9);
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.12, 0.006, 0.005), kern); }`); };
+        mat.customProgramCacheKey = () => 'wond8'; m.material = mat; } }
+    const W = S.wond; W.lijst.push({c:c.clone(), r0:r, t:0}); if (W.lijst.length > 8) W.lijst.shift(); this.s3dBloedTick(z, 0); },
+  s3dBloedTick(z, s){ const W = z.s3d && z.s3d.wond; if (!W) return;
+    W.lijst.forEach((w, i) => { w.t += s; const g = Math.min(1, w.t/4); W.U.wC.value[i].set(w.c.x, w.c.y, w.c.z, w.r0*(1.5 + 2.4*Math.sqrt(g))); W.U.wG.value[i] = w.r0; });
+    W.U.wN.value = W.lijst.length; },
   s3dGat(z, botNaam, p, dir, r, soort){ // gat op de inslagplek (r in meter); soort: 'vlees' | 'gloei' (laser) | 'door' (je kijkt erdoorheen)
     const R = this.s3dNaarRust(z, botNaam, p); if (!R) return 0; const c = R.p, r2 = r*r;
     const eruit = this.s3dWeg(z, (I, t) => { const dx = I.cen[t*3] - c.x, dy = I.cen[t*3+1] - c.y, dz = I.cen[t*3+2] - c.z; return dx*dx + dy*dy + dz*dz < r2; }, [botNaam]);
+    if (soort !== 'gloei') this.s3dBloedVlek(z, c, r);
     if (!eruit.length) return 0;
     if (soort !== 'door') this.s3dVlees(z, R.bi, c, r, soort === 'gloei' ? 'zwart' : 'vlees');
     if (soort === 'gloei' || soort === 'door') this.s3dVlees(z, R.bi, c, r, 'gloei');
@@ -3611,6 +3632,7 @@ AFRAME.registerComponent('zombies', {
     let sAf = 0.08*len;                                              // waar langs het bot: bij een treffer precies daar
     if (p){ const R = this.s3dNaarRust(z, botNaam, p); if (R) sAf = Math.max(0.05*len, Math.min(0.95*len, R.p.clone().sub(start).dot(as))); }
     const c = start.clone().addScaledVector(as, sAf);
+    this.s3dBloedVlek(z, c, 0.06);
     const dichtbij = (I, i) => { const x = I.P[i*3] - c.x, y = I.P[i*3+1] - c.y, zz = I.P[i*3+2] - c.z; return x*as.x + y*as.y + zz*as.z; };
     const cache = new Map(), info = I => { let c = cache.get(I); if (!c){ const bi = I.namen.indexOf(botNaam), set = I._onder || (I._onder = {}); c = {bi, ond:set[botNaam] || (set[botNaam] = I.onder(bi))}; cache.set(I, c); } return c; };
     const eruit = this.s3dWeg(z, (I, t) => { const {bi, ond} = info(I);
@@ -3673,6 +3695,7 @@ AFRAME.registerComponent('zombies', {
     if (S.helmMesh) this.s3dHelmWeg(z, dir);
     hb.children.slice().forEach(ch => { if (ch.userData && ch.userData.box){ ch.userData.box = false; ch.userData.z = null; } });
     for (let i=0;i<3;i++) this.spat(wp, new T.Vector3((Math.random()-0.5)*2, 1, (Math.random()-0.5)*2).normalize(), 16); this.nevel(wp, 0.5);
+    { const R = this.s3dNaarRust(z, 'neck_01', wp.clone().add(new T.Vector3(0, -0.12, 0))); if (R) this.s3dBloedVlek(z, R.p, 0.07); }
     const nb = S.bot.neck_01; if (nb) (S.spuit = S.spuit || []).push({b:nb, lok:new T.Vector3(0, 0.08/(nb.getWorldScale(new T.Vector3()).x || 1), 0), t:3.5});
   },
   s3dGrijp(z, botNaam, p, duur, hand){   // hand naar de wond (nek, dij, arm): eerste treffer, even vasthouden
@@ -3730,6 +3753,7 @@ AFRAME.registerComponent('zombies', {
         if (R){ const c = R.p; const eruit = this.s3dWeg(z, (I, t) => { const dx = I.cen[t*3] - c.x, dy = I.cen[t*3+1] - c.y, dz = I.cen[t*3+2] - c.z; return dx*dx + dy*dy + dz*dz < 0.016; }, [bn]);
           if (eruit.length) this.s3dStuk(z, eruit, dir, 1.3); this.s3dVlees(z, R.bi, c, 0.1, 'vlees'); }
         this.spat(uit, dir, 24); }
+      if (wapen !== 'kanon'){ const R = this.s3dNaarRust(z, bn, p.clone().addScaledVector(dir, 0.24)); if (R) this.s3dBloedVlek(z, R.p, laser ? 0.03 : 0.045); }
       this.omver(z, dir, {wapen, p}); return; }
     // ---- arm of been
     if (knipt){ this.s3dDoorknip(z, bn, p, dir, zwaar ? 1.3 : 1); this.omver(z, dir, {wapen}); return; }
@@ -3885,8 +3909,8 @@ AFRAME.registerComponent('zombies', {
     const aan = (bot, geo, mat, pos) => { const b = S.bot[bot]; if (!b) return; const ws = b.getWorldScale(new T.Vector3()), me = new T.Mesh(geo, mat); me.raycast = () => {};
       me.scale.set(1/ws.x, 1/ws.y, 1/ws.z); me.position.set(pos[0]/ws.x, pos[1]/ws.y, pos[2]/ws.z); b.add(me); };
     aan('spine_03', bol(0.2, 1.22, 1.1, 0.95), m, [0, 0.09, 0.03]); aan('spine_02', bol(0.18, 1.18, 0.78, 0.92), m, [0, 0.04, 0.02]); aan('pelvis', bol(0.18, 1.2, 0.68, 0.92), m, [0, -0.01, 0]);
-    aan('Head', bol(0.168, 1, 0.92, 1.04, Math.PI*0.6), m, [0, 0.105, -0.005]);                                         // helmkoepel
-    aan('Head', new T.CylinderGeometry(0.158, 0.15, 0.075, 24, 1, true, -0.95, 1.9), viz, [0, 0.1, 0.008]);             // gebogen vizier
+    aan('Head', bol(0.152, 1, 0.9, 1.04, Math.PI*0.6), m, [0, 0.1, -0.005]);                                         // helmkoepel
+    aan('Head', new T.CylinderGeometry(0.146, 0.14, 0.07, 24, 1, true, -0.95, 1.9), viz, [0, 0.095, 0.008]);             // gebogen vizier
     ['l','r'].forEach(k => { aan('clavicle_'+k, bol(0.1, 1.15, 0.85, 1.1), m, [0, 0.1, 0]); aan('upperarm_'+k, new T.CapsuleGeometry(0.068, 0.16, 6, 14), m, [0, 0.13, 0]);
       aan('thigh_'+k, new T.CapsuleGeometry(0.09, 0.22, 6, 14), m, [0, 0.2, 0]); });
     S.zwaar = true;
