@@ -823,7 +823,7 @@ KWERELD.bunker = (T, R) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v63";
+const VERSIE = "v64";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -1204,19 +1204,20 @@ const WAVES = [
   {wagens:['truck', 'truck', 'jeep'],       lopers:12, schild:4, mg:1, apache:1, touw:1, max:10, raak:1.0, gran:0.13, helm:0.7, vest:0.68},
   {wagens:['swat_truck', 'truck', 'jeep_zand'], lopers:13, schild:4, mg:1, apache:2, huey:1, touw:1, max:10, raak:1.1, gran:0.15, helm:0.8, vest:0.75},
 ];
-const AMMO = {pistool:12, auto:60, raket:4, laser:100};
+const AMMO = {pistool:12, auto:60, raket:4, laser:100, shotgun:6};
 const HERLAAD_TIJD = 1.0;
 // wapen-levels: kills met dát wapen voor Lv 2, 3, 4
-const WAPEN_LVL = {pistool:[12, 30, 60], auto:[18, 45, 83], raket:[9, 24, 48], laser:[15, 38, 68]};   // 50% trager dan v38
+const WAPEN_LVL = {pistool:[12, 30, 60], auto:[18, 45, 83], raket:[9, 24, 48], laser:[15, 38, 68], shotgun:[10, 26, 50]};   // 50% trager dan v38
 const AANVAL_X = 2, MAX_X = 1.5;
 const GEWEER3D = {rx:-Math.PI/2, ry:0, rz:Math.PI};   // stand van het 3D-geweer in de rechterhand   // aantal aanvallers ×2, tegelijk in beeld ×1,5
-const CLIP = {pistool:[12, 17, 17, 32], auto:[60, 90, 150, 100]};
+const CLIP = {pistool:[12, 17, 17, 32], auto:[60, 90, 150, 100], shotgun:[6, 6, 4, 4]};
 const LVL_NAAM = {pistool:['PISTOL', 'PISTOL 17', 'AUTO PISTOL', 'UZI'], auto:['AUTOMATIC', 'BIG MAG', 'SUPER MAG', 'AUTO HAND CANNON'],
-                  raket:['HAND GRENADE', 'FRAG GRENADE', 'ROCKET LAUNCHER', 'HEAVY ROCKET'], laser:['LASER', 'BIG LASER', 'CHAIN LASER', 'HEAD-POP LASER']};
+                  raket:['HAND GRENADE', 'FRAG GRENADE', 'ROCKET LAUNCHER', 'HEAVY ROCKET'], laser:['LASER', 'BIG LASER', 'CHAIN LASER', 'HEAD-POP LASER'], shotgun:['SHOTGUN', 'BUCKSHOT 20', 'BLAST SLUG', 'CLUSTER SLUGS']};
 const LVL_UITLEG = {pistool:['12-round mag', '17-round mag', 'Full auto — hold the trigger', '32-round mag, full auto'],
                     auto:['60 rounds', '90 rounds', '150 rounds', 'Heavy rounds — straight through helmets'],
                     raket:['Hand grenade', 'Bigger blast + shrapnel', 'Rockets — straight and fast', 'Huge blast'],
-                    laser:['Laser', 'Bigger holes, double damage', 'Lightning jumps to 4 soldiers nearby', 'Lightning makes their heads pop']};
+                    laser:['Laser', 'Bigger holes, double damage', 'Lightning jumps to 4 soldiers nearby', 'Lightning makes their heads pop'],
+                    shotgun:['12 pellets', '20 pellets', 'One heavy slug — small blast', '5 heavy slugs — 5 blasts']};
 const ELEKTRO_AFSTAND = 4;
 const KIST = 0.6, PARA_HOOGTE = 14, PARA_V = 1.5;   // ammo-kist aan een parachute: valhoogte en daalsnelheid
 const TANK_LOOP = 1.62;
@@ -1285,6 +1286,7 @@ const WAPENS = {   // kleur = kleur van de richtlijn
   raket:  {naam:'ROCKET LAUNCHER', kleur:'#ff9a2a', wacht:0.9},
   laser:  {naam:'LASER',           kleur:'#3ad8ff', wacht:0.30},
   auto:   {naam:'AUTOMATIC',       kleur:'#ffffff', wacht:0.09},
+  shotgun:{naam:'SHOTGUN',         kleur:'#ffd040', wacht:0.85},
 };
 const RAKET_SNEL = 28, RAKET_STRAAL = 3.2;     // m/s, ontploffingsstraal (m)
 const GRANAAT_SNEL = 12, GRANAAT_LONT = 1.8, GRANAAT_STRAAL = 2.8;   // handgranaat: worp (m/s), lont (s), straal (m)
@@ -1362,11 +1364,12 @@ AFRAME.registerComponent('zombies', {
         if (st) return;                                           // één duw = één keus
         if (Math.abs(x) < 0.7 && Math.abs(y) < 0.7) return;
         this.stik[id] = 1;
+        if (Math.abs(x) > 0.5 && Math.abs(y) > 0.5){ this.kies(id, 'shotgun'); return; }                 // schuin = shotgun
         this.kies(id, Math.abs(y) > Math.abs(x) ? (y < 0 ? 'raket' : 'laser') : (x < 0 ? 'pistool' : 'auto'));
       });
     });
     window.addEventListener('keydown', e => {
-      const k = {Digit1:'pistool', Digit2:'raket', Digit3:'laser', Digit4:'auto', Digit5:'auto'}[e.code];
+      const k = {Digit1:'pistool', Digit2:'raket', Digit3:'laser', Digit4:'auto', Digit5:'shotgun'}[e.code];
       if (!this.gestart){ if (e.code === 'KeyL') this.kiesHand('handL'); if (e.code === 'KeyR') this.kiesHand('handR');
         if (e.code === 'Enter' || e.code === 'KeyS') this.startMet(this.menuHand || 'handR', 'lvl'); if (e.code === 'KeyD') this.startMet(this.menuHand || 'handR', 'demo'); if (e.code === 'KeyA') this.startMet('handR', 'auto'); if (e.code === 'KeyT') this.startMet(this.menuHand || 'handR', 'test'); return; }
       if (k) this.kies(this.gunHand, k); if (e.code === 'KeyG') this.ult(); if (e.code === 'KeyR') this.herladen(); });
@@ -2359,6 +2362,23 @@ AFRAME.registerComponent('zombies', {
     const ai = z.ai, T = this.T, ik = this.el.camera.getWorldPosition(new T.Vector3()), naar = ik.sub(z.grp.position).setY(0).normalize(), zij = new T.Vector3(-naar.z, 0, naar.x).multiplyScalar(ai.kant || 1);
     if (Math.random() < 0.3){ z.rol = {t:0, dur:0.65}; ai.strafe = {dir:zij, v:3.2, t:0.65, schot:0.7, kniel:true}; }
     else ai.strafe = {dir:zij, v:2.1 + Math.random()*0.8, t:0.7 + Math.random()*0.6, schot:0.12 + Math.random()*0.15, kniel:Math.random() < 0.3}; },
+  shotgunSchot(bron, o, d){             // hagel: per soldaat tellen hoeveel korrels raken; slug: kleine explosie op de inslag
+    const T = this.T, l = this.lv('shotgun'), slug = l >= 3, n = l === 1 ? 12 : l === 2 ? 20 : l === 3 ? 1 : 5, sp = slug ? 0.06 : 0.085;
+    this.knal(1.5); this.boem && this.geluid((A, t) => this.speel(A, this.ruisBuf(A, 0.35, 3), 'lowpass', 900, 1.1)); this.tril(bron, 1, 110);
+    const rechts = new T.Vector3().crossVectors(d, new T.Vector3(0, 1, 0)).normalize(), op = new T.Vector3().crossVectors(rechts, d).normalize(), per = new Map();
+    for (let i=0;i<n;i++){ const a = Math.random()*6.283, r = (n === 1 ? 0 : Math.sqrt(Math.random()))*sp;
+      const dk = d.clone().addScaledVector(rechts, Math.cos(a)*r).addScaledVector(op, Math.sin(a)*r).normalize(); this.rc.set(o, dk); this.rc.far = 80;
+      const t = this.treffers(true)[0], pr = this.propRaak(), rk = this.schietDoel(o, dk), dt = t ? t.d : 1e9, dp = pr ? pr.d : 1e9, dr = rk ? rk.d : 1e9;
+      if (rk && dr < dt && dr < dp){ rk.doe(); continue; }
+      if (slug){ let p = t && dt <= dp ? t.p : pr ? pr.p : null; if (!p){ const k = dk.y < -0.02 ? -o.y/dk.y : 40; p = o.clone().addScaledVector(dk, Math.min(40, k)); }
+        if (t && dt <= dp) this.raak(t.z, t.deel, t.p, dk, {wapen:'kanon', uv:t.uv}); else if (pr) this.propSchade(pr.ding, pr.p, dk, 'kanon', pr.obj);
+        this.ontplof(p.clone().addScaledVector(dk, -0.15), l >= 4 ? 1.2 : 1.6, l >= 4 ? 0.45 : 0.6); this.vuurbal(p.clone(), l >= 4 ? 0.5 : 0.7); continue; }
+      if (pr && dp < dt){ this.propSchade(pr.ding, pr.p, dk, 'auto', pr.obj); continue; }
+      if (t){ const q = per.get(t.z) || {n:0, t, d:dk}; q.n++; if (t.deel === 'hoofd' && !q.hoofd) q.hoofd = t; per.set(t.z, q); } }
+    for (const [z, q] of per){ if (z.dood){ this.raak(z, q.t.deel, q.t.p, q.d, {wapen:'auto', uv:q.t.uv}); continue; }
+      if (q.hoofd || q.n >= 3) this.raak(z, (q.hoofd || q.t).deel, (q.hoofd || q.t).p, q.d, {wapen:q.n >= 7 ? 'kanon' : 'pistool', uv:(q.hoofd || q.t).uv});   // dichtbij: alles raakt → dodelijk
+      else if (z.s3d){ const bn = this.BOT3D[q.t.deel] || 'spine_02'; this.spat(q.t.p, q.d, 8); this.s3dGat(z, bn, q.t.p, q.d, 0.02, 'vlees'); this.s3dHit(z, 'Hit_Chest', q.t.p, q.d, 0.9); this.s3dTreffer(z, q.t.p, q.d, bn); }
+      else this.raak(z, q.t.deel, q.t.p, q.d, {wapen:'pistool', uv:q.t.uv}); } },
   wagenKapot(w){
     const T = this.T; w.kapot = true; w.lading = 0; if (w.team) w.team.wacht = false;
     const p = w.g.position.clone().setY(0.9); this.ontplof(p, 4.2, 1.3); this.vuurbal(p.clone().setY(1.4), 4); this.vuurbal(p.clone().setY(0.7), 3);
@@ -2632,25 +2652,29 @@ AFRAME.registerComponent('zombies', {
     (this.dekkingen || []).forEach(d => d.plekken.forEach(p => p.bezet = null));
   },
   /* ================= AMMO ================= */
-  ammoReset(){ this.ammo = {pistool:this.clip('pistool'), auto:this.clip('auto'), raket:AMMO.raket, laser:AMMO.laser}; this.herlaad = 0; this.hudVuil = true; },
+  ammoReset(){ this.ammo = {pistool:this.clip('pistool'), auto:this.clip('auto'), raket:AMMO.raket, laser:AMMO.laser, shotgun:this.clip('shotgun')}; this.herlaad = 0; this.herlaadS = 0; this.hudVuil = true; },
   heeftAmmo(w){
     const a = this.ammo; if (!a || this.oneindigNu()) return true;
     if (w === 'pistool') return this.herlaad <= 0 && a.pistool > 0;
     if (w === 'auto') return a.auto >= 1;
     if (w === 'raket') return a.raket >= 1;
     if (w === 'laser') return a.laser >= 10;
+    if (w === 'shotgun') return (this.herlaadS || 0) <= 0 && (a.shotgun ?? 0) > 0;
     return true;
   },
   oneindigNu(){ return (this.oneindig && this.modus === 'demo') || this.modus === 'test'; },
   gebruik(w){
     const a = this.ammo; if (!a || this.oneindigNu()) return;
-    if (w === 'pistool') a.pistool--; else if (w === 'auto'){ a.auto--; this.autoRust = 0; } else if (w === 'raket') a.raket--; else if (w === 'laser'){ a.laser -= 10; this.laserRust = 0; }
+    if (w === 'pistool'){ a.pistool--; if (a.pistool <= 0) setTimeout(() => this.herladen(), 120); }                     // leeg: vanzelf herladen
+    else if (w === 'shotgun'){ a.shotgun = (a.shotgun ?? 0) - 1; if (a.shotgun <= 0){ this.herlaadS = 1.7; this.herlaadGeluid && this.herlaadGeluid(); } }
+    else if (w === 'auto'){ a.auto--; this.autoRust = 0; } else if (w === 'raket') a.raket--; else if (w === 'laser'){ a.laser -= 10; this.laserRust = 0; }
     this.hudVuil = true;
   },
   droog(w){   // klik: leeg
     if (!this.sample('droog', 0.8)) this.geluid(A => this.speel(A, this.ruisBuf(A, 0.03, 8), 'highpass', 4000, 0.6));
     if (this.nu - (this.droogT || -9) < 0.8) return; this.droogT = this.nu;
-    if (w === 'pistool') this.melding(this.herlaad > 0 ? 'RELOADING…' : 'RELOAD — PISTOL BUTTON / POINT DOWN', '#ffd060');
+    if (w === 'pistool'){ this.herladen(); this.melding('RELOADING…', '#ffd060'); }
+    else if (w === 'shotgun') this.melding('RELOADING…', '#ffd040');
     else if (w === 'laser') this.melding('LASER RECHARGING', '#3ad8ff');
     else this.melding(w === 'raket' ? (this.upg.raket ? 'NO ROCKETS' : 'NO GRENADES') : 'AUTOMATIC EMPTY', '#888888');
   },
@@ -2661,6 +2685,7 @@ AFRAME.registerComponent('zombies', {
   },
   ammoTick(s){
     if (!this.ammo || !this.gunHand) return;
+    if (this.herlaadS > 0){ this.herlaadS -= s; if (this.herlaadS <= 0){ this.ammo.shotgun = this.clip('shotgun'); this.hudVuil = true; this.tril(this.gunHand, 0.5, 50); } }
     if (this.herlaad > 0){ this.herlaad -= s; if (this.herlaad <= 0){ this.ammo.pistool = this.clip('pistool'); this.hudVuil = true; this.tril(this.gunHand, 0.4, 40); } }
     // pistool omlaag richten = herladen
     const h = document.getElementById(this.gunHand), rc = h && h.components.raycaster;
@@ -2679,6 +2704,7 @@ AFRAME.registerComponent('zombies', {
     if (w === 'auto') return `${this.lv('auto') >= 4 ? 'CANNON' : 'AUTO'} ${Math.floor(a.auto)}`;
     if (w === 'raket') return `${this.upg.raket ? 'ROCKET' : 'GRENADE'} ${a.raket}`;
     if (w === 'laser') return `LASER ${Math.floor(a.laser)}%`;
+    if (w === 'shotgun') return (this.herlaadS || 0) > 0 ? 'RELOAD' : `${LVL_NAAM.shotgun[this.lv('shotgun') - 1]} ${a.shotgun ?? 0}/${this.clip('shotgun')}`;
     return '';
   },
   /* ================= CONTINUES ================= */
@@ -4598,7 +4624,7 @@ AFRAME.registerComponent('zombies', {
     return true;
   },
   /* ================= WAPEN-LEVELS: kills met een wapen → volgend level ================= */
-  lvlReset(){ this.lvl = {pistool:1, auto:1, raket:1, laser:1}; this.kills = {pistool:0, auto:0, raket:0, laser:0}; this.syncUpg(); this.paneelVuil = true; },
+  lvlReset(){ this.lvl = {pistool:1, auto:1, raket:1, laser:1, shotgun:1}; this.kills = {pistool:0, auto:0, raket:0, laser:0, shotgun:0}; this.syncUpg(); this.paneelVuil = true; },
   syncUpg(){ this.upg.kanon = false; this.upg.raket = (this.lvl && this.lvl.raket >= 3) || false; },
   lv(w){ return (this.lvl && this.lvl[w]) || 1; },
   clip(w){ const c = CLIP[w]; return c ? c[this.lv(w) - 1] : (AMMO[w] || 0); },
@@ -4630,7 +4656,7 @@ AFRAME.registerComponent('zombies', {
     x.font = '900 46px Trebuchet MS, sans-serif'; x.fillStyle = '#ffd24a'; x.fillText('LEVEL UP', 512, 40);
     let px = 120; x.font = `900 ${px}px Trebuchet MS, sans-serif`; const b = x.measureText(LVL_NAAM[w][l - 1]).width; if (b > 980) x.font = `900 ${Math.floor(px*980/b)}px Trebuchet MS, sans-serif`;
     x.lineWidth = 8; x.strokeStyle = 'rgba(0,0,0,0.6)'; x.strokeText(LVL_NAAM[w][l - 1], 512, 140); x.fillStyle = kl; x.fillText(LVL_NAAM[w][l - 1], 512, 140);
-    this.vlT.needsUpdate = true; this.vlieger.visible = true; this.vlA = {t:0, w, rij:['pistool', 'auto', 'raket', 'laser'].indexOf(w)};
+    this.vlT.needsUpdate = true; this.vlieger.visible = true; this.vlA = {t:0, w, rij:['pistool', 'auto', 'shotgun', 'raket', 'laser'].indexOf(w)};
     this.paneelVuil = true;
   },
   bord(boven, groot, onder, kl, tijd, blokjes){
@@ -4736,22 +4762,22 @@ AFRAME.registerComponent('zombies', {
       if (f >= 1){ v.visible = false; this.vlA = null; this.knipper = 1.2; this.knipWapen = a.w; } }
   },
   tekenPaneel(){
-    const x = this.pnC.getContext('2d'), ws = ['pistool', 'auto', 'raket', 'laser'], nu = this.wapen[this.gunHand];
+    const x = this.pnC.getContext('2d'), ws = ['pistool', 'auto', 'shotgun', 'raket', 'laser'], nu = this.wapen[this.gunHand];
     x.clearRect(0, 0, 512, 512);
     x.fillStyle = 'rgba(8,10,12,0.45)'; x.beginPath(); x.roundRect ? x.roundRect(4, 4, 504, 504, 22) : x.rect(4, 4, 504, 504); x.fill();
     x.textBaseline = 'middle'; x.textAlign = 'left';
     x.font = '800 30px Trebuchet MS, sans-serif'; x.fillStyle = 'rgba(232,242,234,0.7)'; x.fillText('WEAPONS', 24, 34);
     ws.forEach((w, i) => {
-      const y = 60 + i*108, actief = w === nu, kl = WAPENS[w].kleur === '#ffffff' ? '#e8f2ea' : WAPENS[w].kleur, l = this.lv(w);
-      if (actief){ x.fillStyle = 'rgba(255,255,255,0.12)'; x.fillRect(12, y + 4, 488, 100); }
+      const y = 56 + i*90, actief = w === nu, kl = WAPENS[w].kleur === '#ffffff' ? '#e8f2ea' : WAPENS[w].kleur, l = this.lv(w);
+      if (actief){ x.fillStyle = 'rgba(255,255,255,0.12)'; x.fillRect(12, y + 2, 488, 86); }
       x.globalAlpha = actief ? 1 : 0.55;
       x.font = `800 ${actief ? 38 : 32}px Trebuchet MS, sans-serif`; x.fillStyle = kl;
       let naam = LVL_NAAM[w][l - 1]; x.fillText(naam, 24, y + 34);
       for (let b=0;b<4;b++){                                                        // levelblokjes, het nieuwe knippert
         const knip = this.knipper > 0 && this.knipWapen === w && b === l - 1 && Math.floor(this.knipper*8) % 2 === 0;
-        x.fillStyle = b < l && !knip ? kl : '#3a3f44'; x.fillRect(24 + b*46, y + 66, 38, 22); }
+        x.fillStyle = b < l && !knip ? kl : '#3a3f44'; x.fillRect(24 + b*46, y + 58, 38, 20); }
       x.font = '600 24px Trebuchet MS, sans-serif'; x.fillStyle = '#e8f2ea'; x.textAlign = 'right';
-      x.fillText(l >= 4 ? 'MAX' : `${this.kills[w]}/${WAPEN_LVL[w][l - 1]}`, 492, y + 77); x.textAlign = 'left';
+      x.fillText(l >= 4 ? 'MAX' : `${this.kills[w] || 0}/${WAPEN_LVL[w][l - 1]}`, 492, y + 68); x.textAlign = 'left';
       x.globalAlpha = 1;
     });
     this.pnT.needsUpdate = true;
@@ -5290,6 +5316,7 @@ AFRAME.registerComponent('zombies', {
       if (rk && dr < dt && dr < dp) rk.doe();
       else if (pr && dp < dt) this.propSchade(pr.ding, pr.p, d, kanon ? 'kanon' : w, pr.obj);
       else if (t) this.raak(t.z, t.deel, t.p, d, {ledemaat1: w === 'auto' || kanon, wapen: kanon ? 'kanon' : w, uv:t.uv});
+    } else if (w === 'shotgun'){ this.shotgunSchot(bron, o, d);
     } else if (w === 'laser'){
       this.zap(); this.tril(bron, 0.5, 90);
       for (let sd, n=0; n<12 && (sd = this.schietDoel(o, d)) && sd.d < LASER_VER; n++) sd.doe();   // raketten en granaten op de straal
