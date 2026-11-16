@@ -823,7 +823,7 @@ KWERELD.bunker = (T, R) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v62";
+const VERSIE = "v63";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -5626,6 +5626,7 @@ AFRAME.registerComponent('zombies', {
   },
   melding(tekst, kleur){
     { const st = {'SNIPER!':0, 'HEAVY GUNNER!':'zwaar', 'TRUCK INCOMING!':'truck', 'GUN TRUCK — ARMORED GUNNERS!':'baas', 'DRIVE-BY!':'contact', 'FUEL TANK!':0}[tekst]; if (st) this.stinger(st); }
+    if (/^(SNIPER|SWAT|VEHICLE|SHELL|ROCKET DOWN|ROCKET POD|APACHE|CHOPPER|BOSS|TRUCK|TANK|PARATROOPERS|HEAVY|GUN TRUCK|GRENADE (SHOT|IN HAND|FROM|DROPPED)|FUEL|DRONE|DRIVER|DRIVE-BY)/.test(tekst)) return;
     if (!this.mbord) return;
     const c = this.mcv.getContext('2d'); c.clearRect(0,0,1024,128);
     c.font = '700 64px Trebuchet MS, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
