@@ -741,7 +741,7 @@ KWERELD.kruis = (T, R) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v54";
+const VERSIE = "v55";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -4510,7 +4510,13 @@ AFRAME.registerComponent('zombies', {
   standWissel(){ const L = this.modus === 'lvl' && LEVELS[this.lvlNr - 1]; return !!L && this.standIdx(L, (this.waveNr || 1) + 1) !== this.standIdx(L); },
   opVoet(){ const p = this.plekNu(); return !!(p && (p.binnen || p.geenWagens)); },
   kiesSpawn(K, dicht){ const nu = this.nu || 0; let l = K.spawns.filter(s => dicht === undefined || !!s.dicht === dicht); if (!l.length) l = K.spawns;
-    const vrij = l.filter(s => !(s.bezetTot > nu)); if (vrij.length) l = vrij; const md = l.filter(s => s.deur); if (md.length && Math.random() < 0.75) l = md; const s = l[Math.random()*l.length|0]; s.bezetTot = nu + 2.5; return s; },
+    const vrij = l.filter(s => !(s.bezetTot > nu)); if (vrij.length) l = vrij; const md = l.filter(s => s.deur); if (md.length && Math.random() < 0.75) l = md;
+    const T = this.T, cam = this.el.camera, f = cam ? cam.getWorldDirection(new T.Vector3()).setY(0) : new T.Vector3(0, 0, -1), ik = cam ? cam.getWorldPosition(new T.Vector3()) : new T.Vector3();
+    if (f.lengthSq() < 1e-4) f.set(0, 0, -1); f.normalize();
+    const gew = l.map(q => { const e = q.via && q.via.length ? q.via[q.via.length - 1] : q.p, d = new T.Vector3(e[0] - ik.x, 0, e[1] - ik.z); if (d.lengthSq() < 1e-4) return 1;
+      const a = Math.acos(Math.max(-1, Math.min(1, d.normalize().dot(f)))); return a > 0.45 ? 1 : 0.25; });           // in je blikveld (±25°): kleinere kans
+    let r = Math.random()*gew.reduce((a, b) => a + b, 0), s = l[l.length - 1]; for (let i=0;i<l.length;i++){ r -= gew[i]; if (r <= 0){ s = l[i]; break; } }
+    s.bezetTot = nu + 2.5; return s; },
   spawnOp(s, opt, i){ const T = this.T, terug = s.via && s.via.length ? new T.Vector3(s.p[0] - s.via[0][0], 0, s.p[1] - s.via[0][1]) : new T.Vector3(0, 0, -1);
     if (terug.lengthSq() > 1e-6) terug.normalize();
     const z = this.soldaat(new T.Vector3(s.p[0], 0, s.p[1]).addScaledVector(terug, (i || 0)*0.85), opt); if (!z || !z.ai) return z;
