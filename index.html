@@ -867,7 +867,7 @@ KWERELD.bunker = (T, R) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v75";
+const VERSIE = "v76";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -3775,7 +3775,7 @@ AFRAME.registerComponent('zombies', {
     if (!p){ const bn = {Hit_Head:'Head', Hit_Chest:'spine_03', Hit_Stomach:'spine_01', Hit_Shoulder_L:'upperarm_l', Hit_Shoulder_R:'upperarm_r'}[naam] || 'spine_02', b = S.bot[bn]; p = b ? b.getWorldPosition(new T.Vector3()) : z.grp.position.clone().setY(1.3); }
     this.s3dDuw(z, p, dir, k ?? (naam === 'Hit_Head' ? 1.6 : 1.1)); },
   // duw: koppel = (raakpunt - zwaartepunt) × kracht → draaiing van de romp; kritisch gedempt terug (geen nawippen)
-  s3dDuw(z, p, dir, k){ const S = z.s3d, T = this.T; if (!S) return; k *= Math.min(2.2, z.impactM || 1); const pel = S.bot.pelvis; if (!pel) return;
+  s3dDuw(z, p, dir, k){ const S = z.s3d, T = this.T; if (!S) return; k *= (this.nu - (z.impactT ?? -9)) < 0.3 ? Math.min(2.2, z.impactM || 1) : 1; const pel = S.bot.pelvis; if (!pel) return;
     const com = pel.getWorldPosition(new T.Vector3()).add(new T.Vector3(0, 0.22, 0)), r = p.clone().sub(com), F = dir.clone().setY(dir.y*0.3).normalize().multiplyScalar(k);
     const tau = new T.Vector3().crossVectors(r, F);
     S.duw = S.duw || {th:new T.Vector3(), om:new T.Vector3(), hoofd:0};
@@ -3888,13 +3888,15 @@ AFRAME.registerComponent('zombies', {
     S.mixer.stopAllAction(); bewaar.forEach(([o, q, p]) => { o.quaternion.copy(q); o.position.copy(p); });
   },
   s3dRagStart(z, impulsen){
-    { const IM = z.impactM || 1; z.impactM = 1; if (IM !== 1 && impulsen) impulsen.forEach(q => { if (q && q[1] && q[1].multiplyScalar) q[1].multiplyScalar(IM); }); }
+    { const vers = (this.nu - (z.impactT ?? -9)) < 0.6, IM = vers ? Math.min(1.6, z.impactM || 1) : 1; z.impactM = 1; if (IM !== 1 && impulsen) impulsen.forEach(q => { if (q && q[1] && q[1].multiplyScalar) q[1].multiplyScalar(IM); }); }   // alleen de treffer van nét, en begrensd
     const S = z.s3d, T = this.T, N = this.RAG_P, idx = n => N.indexOf(n);
     this.s3dStop(S); S.m.updateMatrixWorld(true);
     const P = N.map(n => { const b = S.bot[n], p = b.getWorldPosition(new T.Vector3()); return {n, b, p, o:p.clone(), r:/Head/.test(n) ? 0.12 : /pelvis|spine/.test(n) ? 0.11 : /foot|hand/.test(n) ? 0.05 : 0.07}; });
-    const v0 = (z.sprong ? z.sprong.v.clone() : z.para ? z.para.v.clone() : S.snelV ? S.snelV.clone() : new T.Vector3()).multiplyScalar(1/60);
+    const v0 = (z.sprong ? z.sprong.v.clone() : z.para ? z.para.v.clone() : S.snelV ? S.snelV.clone() : new T.Vector3());
+    { const hz = Math.hypot(v0.x, v0.z); if (hz > 4) { v0.x *= 4/hz; v0.z *= 4/hz; } v0.y = Math.max(-3, Math.min(z.sprong || z.para ? 2 : 0.5, v0.y)); v0.multiplyScalar(1/60); }   // teleport/sprong: geen lancering
     P.forEach(q => q.o.sub(v0));
     (impulsen || []).forEach(([naam, v]) => { const i = idx(naam); if (i >= 0) P[i].o.addScaledVector(v, -1/60); });
+    P.forEach(q => { const d = q.p.clone().sub(q.o).multiplyScalar(60), hz = Math.hypot(d.x, d.z); if (hz > 8){ d.x *= 8/hz; d.z *= 8/hz; } d.y = Math.max(-4, Math.min(5, d.y)); q.o.copy(q.p).addScaledVector(d, -1/60); });   // per deel begrensd: geen salto's of raketten
     const paren = [['pelvis','spine_03'],['spine_03','Head'],['spine_03','upperarm_l'],['upperarm_l','lowerarm_l'],['lowerarm_l','hand_l'],['spine_03','upperarm_r'],['upperarm_r','lowerarm_r'],['lowerarm_r','hand_r'],
       ['pelvis','thigh_l'],['thigh_l','calf_l'],['calf_l','foot_l'],['pelvis','thigh_r'],['thigh_r','calf_r'],['calf_r','foot_r'],
       ['upperarm_l','upperarm_r'],['thigh_l','thigh_r'],['pelvis','upperarm_l'],['pelvis','upperarm_r'],['spine_03','thigh_l'],['spine_03','thigh_r'],['upperarm_l','thigh_r'],['upperarm_r','thigh_l'],
@@ -4760,6 +4762,14 @@ AFRAME.registerComponent('zombies', {
     return true;
   },
   /* ================= WAPEN-LEVELS: kills met een wapen → volgend level ================= */
+  schildTick(s){ const T = this.T, v = this._sv || (this._sv = new T.Vector3());
+    for (const z of this.lijst){ const sc = z.schild, S = z.s3d; if (!sc || !S || z.dood || sc.parent !== z.grp) continue;
+      const k = Math.min(1, s*14), rand = sc.position.x - 0.37;                                          // pistoolhand komt langs de rand naar buiten (zoals echte schildmannen)
+      sc.position.x += (0.27 - sc.position.x)*k;
+      let voor = 0.34; for (const n of ['hand_r', 'hand_l']){ const b = S.bot[n]; if (!b) continue; b.getWorldPosition(v); const l = z.grp.worldToLocal(v);
+        const gunHand = z.geweer && z.geweer.parent === b; if (l.x < rand - (gunHand ? 0.03 : 0)) continue;     // buiten het schild: mag ervoor
+        voor = Math.max(voor, l.z + (gunHand ? 0.3 : 0.07)); }
+      sc.position.z += (Math.min(0.62, voor) - sc.position.z)*k; } },
   vrijLaad(){ if (this.vrij) return; let v = {}, k = {}; try { v = JSON.parse(localStorage.getItem('sf_vrij') || '{}'); k = JSON.parse(localStorage.getItem('sf_kit') || '{}'); } catch(_){}
     this.vrij = Object.assign({pistool:1, auto:1, shotgun:1, granaat:1, vest:0, helm:0}, v); this.kit = Object.assign({}, this.vrij, k); },
   vrijBewaar(){ try { localStorage.setItem('sf_vrij', JSON.stringify(this.vrij)); localStorage.setItem('sf_kit', JSON.stringify(this.kit)); } catch(_){} },
@@ -5985,7 +5995,7 @@ AFRAME.registerComponent('zombies', {
   wapenUpdate(s){
     this.nu += s;
     ['handL','handR','muis'].forEach(id => { if (this.vuurt[id] && this.isAuto(this.wapen[id === 'muis' ? (this.gunHand || 'handR') : id])) this.vuur(id); });
-    this.projectielTick(s); this.granTick(s); this.vuurTick(s); this.vliegTick(s); this.bomTick(s); this.effectTick(s); this.blokTick(s);
+    this.projectielTick(s); this.granTick(s); this.schildTick(s); this.vuurTick(s); this.vliegTick(s); this.bomTick(s); this.effectTick(s); this.blokTick(s);
   },
   /* ---------- geluiden ---------- */
   geluid(f){ try { const A = this.ac || (this.ac = new (window.AudioContext||window.webkitAudioContext)()); if (A.state === 'suspended') A.resume(); this.knal(0); f(A, A.currentTime); } catch(_){} },
@@ -6024,7 +6034,7 @@ AFRAME.registerComponent('zombies', {
     });
   },
   raak(z, deel, p, dir, opt){
-    if (z) z.impactM = this.impactMul || 1;
+    if (z){ z.impactM = this.impactMul || 1; z.impactT = this.nu; }
     opt = opt || {}; const wapen = opt.wapen || 'pistool';
     if (deel === 'schild' && z.s3d){ this.ketst(p, dir, 14); this.klang && this.klang(0.5); if (!z.dood){ this.s3dDuw(z, p, dir, wapen === 'kanon' ? 1.6 : 0.5); z.grp.position.addScaledVector(new this.T.Vector3(dir.x, 0, dir.z).normalize(), wapen === 'kanon' ? 0.15 : 0.03); }
       z.schildHp = (z.schildHp ?? 14) - ({kanon:7, laser:5, auto:0.7}[wapen] || 1); if (z.schildHp <= 0) this.schildWeg(z, dir); return; }
