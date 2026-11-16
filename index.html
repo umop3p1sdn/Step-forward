@@ -320,14 +320,14 @@ function kRij(B, R, o){
           if (o.echteDeur && o.echteDeur(pc, R)){
             gaten.push({a0:c - 0.56, a1:c + 0.56, b0:0, b1:2.28});
             const d = B.deur(kKies(R, KAART_DEUR_I), pc[0], pc[1], nx, nz, 1.1, 2.26);
-            const ib = P(c, -0.3); B.kamer(ib[0], ib[1], nx, nz, 2.6, 3.2, 0, 2.9, {f:0.38});
+            const ib = P(c, -0.3); B.kamer(ib[0], ib[1], nx, nz, Math.min(2.6, w/ns - 0.06), 3.2, 0, 2.9, {f:0.38});   // nooit breder dan het eigen vak: geen kamers door elkaar
             uit.deuren.push({d, buiten:P(c, 1.0), drempel:P(c, 0.15), binnen:P(c, -1.6)}); open.push(c);
           } else { const dh = 2.3, dw = Math.min(1.5, dh*B.maatVan(deurTex)); B.decal(deurTex, pc[0], pc[1], nx, nz, 0, dw, dh, {geenAo:false}); }
           continue; }
         if (o.raamOpen && o.raamOpen(pc, f, R)){
           gaten.push({a0:c - 0.62, a1:c + 0.62, b0:y + 0.95, b1:y + 2.25});
           const lw = 0.62, lh = 1.36; [[-1, 0, 0.5], [1, 0.5, 1]].forEach(([s, u0, u1]) => { const q = P(c + s*(0.62 + lw/2)); B.decal(luik, q[0], q[1], nx, nz, y + 0.92, lw, lh, {u0, u1}); });
-          const ib = P(c, -0.3); B.kamer(ib[0], ib[1], nx, nz, 2.8, 3, y, 2.9, {f:0.34});
+          const ib = P(c, -0.3); B.kamer(ib[0], ib[1], nx, nz, Math.min(2.8, w/ns - 0.06), 3, y, 2.9, {f:0.34});
           uit.ramen.push({p:P(c, -0.42), y0:y, buiten:P(c, 0.3), c:pc, n:[nx, nz]});
         } else B.decal(raamTex, pc[0], pc[1], nx, nz, y + 0.85, rw, rh);
       }
@@ -956,7 +956,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v82";
+const VERSIE = "v83";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -1435,7 +1435,7 @@ for (const w in WAPEN_STAT){
   LVL_NAAM[w] = WAPEN_STAT[w].map(s => s.naam); CLIP[w] = WAPEN_STAT[w].map(s => s.mag);
   LVL_UITLEG[w] = WAPEN_STAT[w].map((s, i) => `${s.mag} rounds · ${w === 'auto' || (AUTO_LV[w] || []).includes(i + 1) ? 'full auto' : w === 'shotgun' && i < 2 ? 'pump action' : 'semi-auto'}` +
     ((w === 'shotgun' ? s.dmg >= 80 : s.dmg >= DOOR_VEST) ? ' · through vests' : '')); }
-WAPEN_LVL.pistool = [12, 30, 60, 95, 135, 180, 230]; WAPEN_LVL.shotgun = [10, 26, 50, 80, 115, 155, 200]; WAPEN_LVL.auto = [18, 45, 83, 125, 170, 220, 275, 335, 400];
+WAPEN_LVL.pistool = [20, 50, 95, 150, 215, 290, 375]; WAPEN_LVL.shotgun = [18, 45, 85, 135, 195, 265, 345]; WAPEN_LVL.auto = [30, 70, 125, 190, 265, 350, 445, 550, 665];   // v83: trager
 const GRANATEN = [                                                      // r = straal-stat, duur = effect-stat; vrij = kills nodig
   {naam:'M67 FRAG',         kort:'FRAG',  kleur:'#a8d060', dmg:60,  r:35,  kracht:40,  bereik:65, lont:3.5, stun:20,  vrij:0,   uitleg:'Blast + shrapnel'},
   {naam:'MK3A2 CONCUSSION', kort:'CONC',  kleur:'#d8d8d8', dmg:45,  r:45,  kracht:60,  bereik:65, lont:3.0, stun:75,  vrij:20,  uitleg:'Knocks them flat — stunned'},
@@ -1449,7 +1449,7 @@ const HELM_LV = [{naam:'NO HELMET', f:1}, {naam:'COMBAT HELMET', f:0.75}, {naam:
 const VEST_VRIJ = {2:1, 6:2, 12:3}, HELM_VRIJ = {4:1, 9:2, 15:3};     // na level X uitgespeeld
 const KIT_RIJEN = [['pistool', 'PISTOL'], ['auto', 'MACHINE GUN'], ['shotgun', 'SHOTGUN'], ['granaat', 'GRENADE'], ['vest', 'VEST'], ['helm', 'HELMET']];
 const GRAN_MAX = 3, GRAN_HERVUL = 20;                                   // voorraad, elke 20 s eentje erbij
-LVL_NAAM.granaat = GRANATEN.map(G => G.naam); LVL_UITLEG.granaat = GRANATEN.map(G => G.uitleg); WAPEN_LVL.granaat = [5, 12, 22, 35, 50, 70];   // granaat: level omhoog met granaatkills, net als de wapens
+LVL_NAAM.granaat = GRANATEN.map(G => G.naam); LVL_UITLEG.granaat = GRANATEN.map(G => G.uitleg); WAPEN_LVL.granaat = [8, 20, 36, 56, 80, 110];   // granaat: level omhoog met granaatkills, net als de wapens
 const WAPENS = {   // kleur = kleur van de richtlijn
   pistool:{naam:'PISTOL',          kleur:'#ff3a3a', wacht:0.0},
   raket:  {naam:'ROCKET LAUNCHER', kleur:'#ff9a2a', wacht:0.9},
@@ -2762,7 +2762,7 @@ AFRAME.registerComponent('zombies', {
   /* ---------- waves ---------- */
   levend(){ return this.lijst.filter(z => !z.dood).length; },
   arcadeAan(){ return this.modus === 'lvl' && !!this.kaartNu(); },
-  maxNu(){ if (this.arcadeAan()) return 8 + ((this.wave && this.wave.baas) ? 2 : 0); return ((this.wave && this.wave.max) || MAX_TEGELIJK) + Math.round((this.modus === 'lvl' && this.dir && this.dir.extra) || 0); },
+  maxNu(){ if (this.arcadeAan()) return ((this.nu % 32) < 9 ? 9 : 5) + ((this.wave && this.wave.baas) ? 2 : 0); /* meestal 5 in beeld, elke ~30 s een vlaag van 9 */ return ((this.wave && this.wave.max) || MAX_TEGELIJK) + Math.round((this.modus === 'lvl' && this.dir && this.dir.extra) || 0); },
   oorlogStart(nr){
     this.leegOorlog(true); this.dir = null;
     this.waveNr = nr || 1; this.speler = this.speler || {hp:SPELER_HP}; this.overleden = false; this.hudVuil = true;
@@ -5241,7 +5241,7 @@ AFRAME.registerComponent('zombies', {
   standWissel(){ const L = this.modus === 'lvl' && LEVELS[this.lvlNr - 1]; return !!L && this.standIdx(L, (this.waveNr || 1) + 1) !== this.standIdx(L); },
   opVoet(){ const p = this.plekNu(); return !!(p && (p.binnen || p.geenWagens)); },
   kiesSpawn(K, dicht){ const nu = this.nu || 0; let l = K.spawns.filter(s => dicht === undefined || !!s.dicht === dicht); if (!l.length) l = K.spawns;
-    const vrij = l.filter(s => !(s.bezetTot > nu)); if (vrij.length) l = vrij; const md = l.filter(s => s.deur); if (md.length && ((this.arcadeAan && this.arcadeAan() && md.length >= 3) || Math.random() < 0.75)) l = md;
+    const vrij = l.filter(s => !(s.bezetTot > nu)); if (vrij.length) l = vrij; const md = l.filter(s => s.deur); if (md.length && ((this.arcadeAan && this.arcadeAan() && md.length >= 2) || Math.random() < 0.75)) l = md;
     const T = this.T, cam = this.el.camera, f = cam ? cam.getWorldDirection(new T.Vector3()).setY(0) : new T.Vector3(0, 0, -1), ik = cam ? cam.getWorldPosition(new T.Vector3()) : new T.Vector3();
     if (f.lengthSq() < 1e-4) f.set(0, 0, -1); f.normalize();
     const gew = l.map(q => { const e = q.via && q.via.length ? q.via[q.via.length - 1] : q.p, d = new T.Vector3(e[0] - ik.x, 0, e[1] - ik.z); if (d.lengthSq() < 1e-4) return 1;
