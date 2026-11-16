@@ -78,6 +78,7 @@ const KAART = {
     Object.keys(this.werelden).forEach(q => { const w = this.werelden[q]; if (w.g.parent) return; w.g.traverse(o => { if (o.geometry) o.geometry.dispose(); }); delete this.werelden[q]; });   // oude werelden uit het geheugen
     const t0 = performance.now(), W = KWERELD[soort](T, kRng(seed), seed); W.ms = Math.round(performance.now() - t0); W.soort = soort; W.seed = seed;
     kCentreer(T, W);
+    kSpawnCheck(T, W);
     return this.werelden[k] = W; }
 };
 
@@ -263,6 +264,24 @@ function kCentreer(T, W){
     if (bx == null && !S.binnen) for (const dz of [0, 1, 2]){ const o = new T.Vector3(S.x, 1.3, S.z - dz), l = afst(o, new T.Vector3(-1, 0, 0)), r = afst(o, new T.Vector3(1, 0, 0));   // straat: in het midden
       if (l + r < 14 && l + r < bb){ bb = l + r; bx = S.x + (r - l)/2; } }
     if (bx != null && Math.abs(bx - S.x) > 0.06 && Math.abs(bx - S.x) < 1.6){ S.centreerDx = +(bx - S.x).toFixed(2); S.opening = +bb.toFixed(2); S.x = bx; } });
+}
+
+// spawns zonder deur moeten écht ergens vandaan komen: uit het zicht achter een gebouwmuur (niet achter een container of krat),
+// en hun looproute mag niet door een muur gaan. Anders weg (dan blijven deuren, ramen en echte straathoeken over).
+function kSpawnCheck(T, W){
+  const ray = new T.Ray(), tmp = new T.Vector3(), boxen = (W.boxen || []).filter(b => !b.uit);
+  const eerste = (a, b) => { const d = b.clone().sub(a), L = d.length(); if (L < 0.01) return null; ray.origin.copy(a); ray.direction.copy(d.normalize()); let best = null, bd = L;
+    for (const bx of boxen){ if (bx.containsPoint(a)) continue; const p = ray.intersectBox(bx, tmp); if (p){ const dd = p.distanceTo(a); if (dd < bd){ bd = dd; best = bx; } } } return best; };
+  const muurTussen = (a, b) => { const d = b.clone().sub(a), L = d.length(); ray.origin.copy(a); ray.direction.copy(d.normalize());
+    return boxen.some(bx => bx.max.y >= 2.7 && bx.max.y - bx.min.y >= 1.4 && !bx.containsPoint(a) && (() => { const p = ray.intersectBox(bx, tmp); return p && p.distanceTo(a) < L; })()); };
+  (W.standen || []).forEach(S => { const oog = new T.Vector3(S.x, 1.6, S.z); let weg = 0;
+    S.spawns = (S.spawns || []).filter(s => { if (s.deur) return true;
+      const p = new T.Vector3(s.p[0], 1.4, s.p[1]);
+      if (boxen.some(bx => bx.containsPoint(p.clone().setY(1.0)))){ weg++; return false; }                     // staat ín een muur/gebouw
+      if (!muurTussen(oog, p)){ weg++; return false; }                                                      // in het zicht of alleen achter een container/krat
+      let v = p.clone(); for (const q of s.via || []){ const n = new T.Vector3(q[0], 1.0, q[1]); if (eerste(v.clone().setY(1.0), n)){ weg++; return false; } v = n; }
+      return true; });
+    S.spawnsWeg = weg; });
 }
 
 /* ---------- huizenrij langs een straat: gevels met ramen/deuren, echte deuren en open ramen waar soldaten uit komen ---------- */
@@ -823,7 +842,7 @@ KWERELD.bunker = (T, R) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v66";
+const VERSIE = "v67";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -4842,7 +4861,7 @@ AFRAME.registerComponent('zombies', {
   standWissel(){ const L = this.modus === 'lvl' && LEVELS[this.lvlNr - 1]; return !!L && this.standIdx(L, (this.waveNr || 1) + 1) !== this.standIdx(L); },
   opVoet(){ const p = this.plekNu(); return !!(p && (p.binnen || p.geenWagens)); },
   kiesSpawn(K, dicht){ const nu = this.nu || 0; let l = K.spawns.filter(s => dicht === undefined || !!s.dicht === dicht); if (!l.length) l = K.spawns;
-    const vrij = l.filter(s => !(s.bezetTot > nu)); if (vrij.length) l = vrij; const md = l.filter(s => s.deur); if (md.length && Math.random() < 0.75) l = md;
+    const vrij = l.filter(s => !(s.bezetTot > nu)); if (vrij.length) l = vrij; const md = l.filter(s => s.deur); if (md.length && ((this.arcadeAan && this.arcadeAan() && md.length >= 3) || Math.random() < 0.75)) l = md;
     const T = this.T, cam = this.el.camera, f = cam ? cam.getWorldDirection(new T.Vector3()).setY(0) : new T.Vector3(0, 0, -1), ik = cam ? cam.getWorldPosition(new T.Vector3()) : new T.Vector3();
     if (f.lengthSq() < 1e-4) f.set(0, 0, -1); f.normalize();
     const gew = l.map(q => { const e = q.via && q.via.length ? q.via[q.via.length - 1] : q.p, d = new T.Vector3(e[0] - ik.x, 0, e[1] - ik.z); if (d.lengthSq() < 1e-4) return 1;
@@ -4871,8 +4890,8 @@ AFRAME.registerComponent('zombies', {
     t.leider = t.leden[0] || null;
     if (!t.leider){ this.teams = this.teams.filter(q => q !== t); return; }
     if (!t.schild) this.teamAnker(t);
-    if (this.arcadeAan() && !t.schild){ t.leden.slice().forEach((z, i) => { this.uitTeam(z); z.ai.arcade = true; if (i === 0 && s.via && s.via.length && Math.random() < 0.7) this.arcadeDeur(z, s); }); }
-    if (Math.random() < 0.45) this.stinger('contact', t.leider.grp.position);                // radio: contact, daar komen ze
+    if (this.arcadeAan() && !t.schild){ t.leden.slice().forEach((z, i) => { this.uitTeam(z); z.ai.arcade = true; if (i === 0 && s.deur && s.via && s.via.length && Math.random() < 0.7) this.arcadeDeur(z, s); }); }
+    if (Math.random() < 0.45) this.stinger('contact', new T.Vector3(s.p[0], 0, s.p[1]));                // radio: contact, daar komen ze
     if (Math.random() < 0.5) this.raamLoper();
   },
   raamLoper(){ const K = this.kaartNu(); if (!K || this.levend() >= this.maxNu()) return null; const vrij = [];
