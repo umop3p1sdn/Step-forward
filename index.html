@@ -741,7 +741,7 @@ KWERELD.kruis = (T, R) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v56";
+const VERSIE = "v57";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -3580,16 +3580,16 @@ AFRAME.registerComponent('zombies', {
         S.wacht = 0.7 + Math.random()*0.25; S.gezichtT = 0; const hb = S.bot.Head;
         S.gezichtLok = hb ? hb.worldToLocal((o.p ? o.p.clone() : hb.getWorldPosition(new T.Vector3()).add(new T.Vector3(0, 0.1, 0))).addScaledVector(weg, -0.06)) : null;
         S.impuls.push(['Head', weg.clone().multiplyScalar(0.7)], ['calf_l', weg.clone().multiplyScalar(-0.5)], ['calf_r', weg.clone().multiplyScalar(-0.5)]); }
-      else if (o.hoofd){ S.wacht = 0; S.impuls.push(['Head', weg.clone().multiplyScalar(2.2)], ['spine_03', weg.clone().multiplyScalar(0.5)], ['calf_l', weg.clone().multiplyScalar(-0.7)], ['calf_r', weg.clone().multiplyScalar(-0.7)]); }   // hersenpan: alle controle weg, lijf loopt door in de val
+      else if (o.hoofd){ S.wacht = 0; S.impuls.push(['Head', weg.clone().multiplyScalar(1.0).setY(-0.4)], ['spine_03', weg.clone().multiplyScalar(0.25)]); }   // hersenpan: alle controle weg, lijf loopt door in de val
       else if (w === 'kanon'){ S.wacht = 0; S.impuls.push(['spine_03', weg.clone().multiplyScalar(2.2)], ['calf_l', weg.clone().multiplyScalar(-0.8)], ['calf_r', weg.clone().multiplyScalar(-0.8)]); }
       else { S.wacht = 0.1 + Math.random()*0.22;
         const naam = r < 0.35 ? 'Death01' : r < 0.7 ? 'Death02' : 'Hit_Stomach'; this.s3dStop(S); const a = this.s3dAct(z, naam); if (a){ a.reset(); a.setLoop(T.LoopOnce, 1); a.clampWhenFinished = true; a.play(); }
         const zij = new T.Vector3(-weg.z, 0, weg.x).multiplyScalar((Math.random() - 0.5)*1.6);
         S.impuls.push(['spine_03', weg.clone().multiplyScalar(0.9 + Math.random()).add(zij)], ['Head', weg.clone().multiplyScalar(0.6)]);
         if (S.snel > 1.5) S.impuls.push(['spine_03', S.snelV ? S.snelV.clone().multiplyScalar(0.6) : new T.Vector3()]); }
-      if (o.p && w !== 'explosie'){                                         // klap op het lichaamsdeel dat geraakt is (niet altijd de borst)
+      if (o.p && w !== 'explosie' && !o.hoofd){                                         // klap op het lichaamsdeel dat geraakt is (niet altijd de borst)
         let best = null, bd = 9; for (const n of this.RAG_P){ const b = S.bot[n]; if (!b) continue; const d = b.getWorldPosition(new T.Vector3()).distanceTo(o.p); if (d < bd){ bd = d; best = n; } }
-        if (best) S.impuls.push([best, weg.clone().multiplyScalar({kanon:4.2, laser:2.4, auto:1.6}[w] || 2.0)]); }
+        if (best) S.impuls.push([best, weg.clone().multiplyScalar({kanon:3.2, laser:1.8, auto:1.2}[w] || 1.4)]); }
     }
     if (S.wacht > 0){ S.wacht -= s; S.mixer.update(s);
       if (S.gezichtT != null){ S.gezichtT += s; const hb = S.bot.Head;
@@ -3839,13 +3839,13 @@ AFRAME.registerComponent('zombies', {
       if (S.helm && !S.helmAf && !nek && !zwaar && !groteLaser){
         this.ketst(p, dir, 16, true); this.helmTik();
         if (Math.random() < (HELM_DOOD[wapen] || 0)){ this.s3dHoofd(z, p, dir, wapen); this.omver(z, dir, {wapen, hoofd:true}); return; }
-        this.s3dHit(z, 'Hit_Head', p, dir, 2.0); this.wankel(z, dir, 0.3); if (Math.random() < 0.35) this.s3dHelmWeg(z, dir); this.s3dTreffer(z, p, dir, 'Head'); return; }
+        this.s3dHit(z, 'Hit_Head', p, dir, 2.0); this.wankel(z, dir, 0.3); if (Math.random() < 0.35) this.s3dHelmWeg(z, dir); this.s3dTreffer(z, p, dir, null); return; }
       if (nek && !zwaar){ this.s3dGat(z, 'neck_01', p, dir, 0.035, 'vlees'); this.nekGrijp(z, dir); this.s3dGrijp(z, 'neck_01', p, 3, z.geweer && z.geweer.parent ? 'l' : 'r'); return; }
       const hb = S.bot.Head, hoog = hb ? p.y - hb.getWorldPosition(new T.Vector3()).y : 0.2;
       const voor = hb ? (() => { const ik = this.el.camera.getWorldPosition(new T.Vector3()); const f = new T.Vector3(0, 0, 1).applyQuaternion(S.m.getWorldQuaternion(new T.Quaternion())); return f.dot(ik.sub(z.grp.position).setY(0).normalize()) > 0.2; })() : true;
-      const gezicht = !zwaar && voor && hoog < 0.12;                                         // laag op het hoofd, van voren: gezicht; hoger: hersenpan
+      const gezicht = false;                                                                 // hoofdschot: geen handen naar het hoofd, meteen slap                                         // laag op het hoofd, van voren: gezicht; hoger: hersenpan
       this.s3dHoofd(z, p, dir, wapen);
-      if (!zwaar && Math.random() < HOOFD_LEEFT && S.kop === 1){ this.s3dHit(z, 'Hit_Head', p, dir, 1.8); this.s3dGrijp(z, 'Head', p, 1.6); this.s3dTreffer(z, p, dir, 'Head'); return; }
+      if (!zwaar && Math.random() < HOOFD_LEEFT && S.kop === 1){ this.s3dHit(z, 'Hit_Head', p, dir, 1.8); this.s3dTreffer(z, p, dir, null); return; }
       this.omver(z, dir, {wapen, hoofd:true, gezicht, p}); return; }
     // ---- romp: gat (handkanon: ook een uitschot met een brok aan de achterkant)
     if (deel === 'borst' || deel === 'buik' || deel === 'bekken'){
