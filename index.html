@@ -823,7 +823,7 @@ KWERELD.bunker = (T, R) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v61";
+const VERSIE = "v62";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -4612,7 +4612,7 @@ AFRAME.registerComponent('zombies', {
     if (!this.kills || !(w in this.kills)) return;
     this.kills[w]++; this.hudVuil = true; this.paneelVuil = true;
     { const nu = this.nu || 0; this.comboN = nu - (this.comboT || -9) < 2.6 ? (this.comboN || 1) + 1 : 1; this.comboT = nu; this.comboMax = Math.max(this.comboMax || 0, this.comboN);
-      if (this.comboN >= 2){ const n = this.comboN, tekst = n === 2 ? 'DOUBLE KILL' : n === 3 ? 'TRIPLE KILL' : n === 4 ? 'QUAD KILL' : `COMBO x${n}`;
+      if (false && this.comboN >= 2){ const n = this.comboN, tekst = n === 2 ? 'DOUBLE KILL' : n === 3 ? 'TRIPLE KILL' : n === 4 ? 'QUAD KILL' : `COMBO x${n}`;
         this.melding(tekst, n >= 5 ? '#ff5aff' : n >= 4 ? '#ff7a3a' : '#ffd040'); this.pling(0.5 + Math.min(n, 8)*0.12); } }
     const l = this.lv(w), nodig = WAPEN_LVL[w][l - 1];
     if (l < 4 && this.kills[w] >= nodig) this.levelUp(w);
