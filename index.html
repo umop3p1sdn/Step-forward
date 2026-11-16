@@ -867,7 +867,7 @@ KWERELD.bunker = (T, R) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v76";
+const VERSIE = "v77";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -7060,6 +7060,7 @@ AFRAME.registerComponent('zombies', {
   omver(z, dir, opt){
     if (z.ring) z.ring.visible = false;
     if (!z.dood && z.ai && this.bronWapen) this.kill(this.bronWapen);                // kill telt voor het wapen
+    if (!z.dood && z.ai && this.bronWapen !== 'granaat' && (z.versuft || 0) > this.nu - 0.3) this.kill('granaat');   // en voor je granaat als hij nog versuft was
     if (z.dood) return; z.dood = true; z.val = 0; opt = opt || {}; if (z.s3d) z.s3d.doodOpt = opt; this.sniperWeg(z);
     z.valKant = Math.random() < 0.5 ? -1 : 1;
     z.rd = {}; z.rdRust = 0; z.rdHoekV = 0; z.stoot = 0;
