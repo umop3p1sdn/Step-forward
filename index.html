@@ -741,7 +741,7 @@ KWERELD.kruis = (T, R) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v51";
+const VERSIE = "v52";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -1832,7 +1832,7 @@ AFRAME.registerComponent('zombies', {
       if (z.vWapen !== 'm60' && z.vWapen !== 'sniper') schade = VW.schade;
       if (VW.dubbel) setTimeout(() => { if (!z.dood && !this.overleden) { const k = z.vKlaar; z.vKlaar = 0; this.vijandSchot(z, schade, spreiding); z.vKlaar = k; } }, 70); }
     if (!loop && z && z.ai && z.vWapen !== 'bazooka'){
-      if (z.s3d && Math.abs(z.s3d.yaw || 0) > 1.05) return;                                 // loopt van je weg: geen schot door zijn rug
+      if (z.s3d && Math.abs((z.s3d.yaw || 0) + (z.s3d.twist || 0)) > 0.6) return;                                 // loopt van je weg: geen schot door zijn rug
       if ((z.herlaadTot || 0) > this.nu) return;                                            // aan het herladen
       const clip = {pistool:12, sniper:5}[z.vWapen] || 30;
       z.mag = (z.mag ?? clip) - 1;
@@ -3345,11 +3345,21 @@ AFRAME.registerComponent('zombies', {
     if (D.hoofd > 0.01){ const hb = S.bot.Head; if (hb){ hb.rotateX(-D.hoofd*0.5); hb.updateMatrixWorld(true); } } },
   s3dLeef(z, s){
     const S = z.s3d, ai = z.ai || {}, g = z.grp, T = this.T;
-    const v = g.position.clone().sub(S.vorige); v.y = 0; S.vorige.copy(g.position); S.snelV = v.clone().multiplyScalar(1/Math.max(s, 1e-3));
+    const v = g.position.clone().sub(S.vorige); v.y = 0;
+    const traag = s > 0 && !z.sprong && !(z.wankel > 0) && !z.strk && !['bak','touw','deur'].includes(ai.staat) && v.length() < 0.6;
+    if (traag){ const wil = v.clone().multiplyScalar(1/s); S.vel = S.vel || wil.clone(); const dv = wil.sub(S.vel), rem = dv.dot(S.vel) < 0, a = (rem ? 22 : 9)*s;   // optrekken traag, afremmen snel
+      if (dv.length() > a) dv.setLength(a); S.acc = (S.acc || new T.Vector3()).lerp(dv.clone().multiplyScalar(1/s), Math.min(1, s*8)); S.vel.add(dv);
+      g.position.x = S.vorige.x + S.vel.x*s; g.position.z = S.vorige.z + S.vel.z*s; v.copy(S.vel).multiplyScalar(s); }
+    else { S.vel = v.clone().multiplyScalar(1/Math.max(s, 1e-3)); if (S.acc) S.acc.set(0, 0, 0); }
+    S.vorige.copy(g.position); S.snelV = v.clone().multiplyScalar(1/Math.max(s, 1e-3));
     S.snel += (v.length()/Math.max(s, 1e-3) - S.snel)*Math.min(1, s*10);
     // kijkrichting: lopend naar waar hij heen gaat, mikkend naar jou
     if (ai.staat === 'bak'){ S.snel = 0; }                                           // staat op de rijdende laadbak
-    let wil = 0; if (S.snel > 0.3 && ((!ai.mik && !ai.mikLopen) || z.sprong)) wil = Math.atan2(v.x, v.z) - g.rotation.y;
+    const mikt = (ai.mik || ai.mikLopen) && !z.sprong && !!(z.geweer && z.geweer.parent);
+    let wil = 0; S.terug = false;
+    if (S.snel > 0.3){ let mv = Math.atan2(v.x, v.z) - g.rotation.y; mv = Math.atan2(Math.sin(mv), Math.cos(mv));
+      if (mikt && Math.abs(mv) > 1.75){ wil = mv - Math.PI*Math.sign(mv); S.terug = true; }                  // terugtrekken: achteruit lopen, gezicht naar jou
+      else wil = mv; }
     if (S.testYaw != null) wil = S.testYaw;
     const dw = Math.atan2(Math.sin(wil - S.yaw), Math.cos(wil - S.yaw)); S.yaw += dw*Math.min(1, s*7); S.m.rotation.y = S.yaw;
     const zak = ai.zak || 0, kniel = ai.houding === 'kniel' || z.knieVast || z.gewond, hurk = ai.houding === 'hurk';
@@ -3371,9 +3381,20 @@ AFRAME.registerComponent('zombies', {
     if (S.herlaad > 0){ S.herlaad -= s; if (gewapend) boven = 'Pistol_Idle_Loop';                                       // herladen: wapen omlaag, linkerhand naar het wapen
       if (!S.grijp && z.geweer && S.herlaad > 0.3){ const d = Math.min(S.herlaad, 1.8); S.grijp = {b:z.geweer, lok:new T.Vector3(0, 0, 0), t:d, duur:d, hand:'l', snel:4}; } }
     this.s3dSpeel(z, benen, boven);
-    const ab = this.s3dAct(z, benen + '|benen'); if (ab) ab.timeScale = ts;
+    const ab = this.s3dAct(z, benen + '|benen'); if (ab) ab.timeScale = ts*(S.terug && /Walk|Jog|Sprint/.test(benen) ? -0.85 : 1);
     const rb = S.bot.spine_03;
+    if (S.basisQ) S.basisQ.forEach((q, b) => b.quaternion.copy(q));
     S.mixer.update(s);
+    S.basisQ = S.basisQ || new Map(); ['spine_01','spine_02','spine_03','neck_01','Head'].forEach(n => { const b = S.bot[n]; if (b) S.basisQ.set(b, (S.basisQ.get(b) || new T.Quaternion()).copy(b.quaternion)); });
+    { const doel = mikt ? Math.max(-1.25, Math.min(1.25, -S.yaw)) : 0; S.twist = (S.twist || 0) + (doel - (S.twist || 0))*Math.min(1, s*9);   // romp naar jou, benen in de looprichting
+      const acc = S.acc || new T.Vector3(), mq = S.m.getWorldQuaternion(new T.Quaternion()), voor = new T.Vector3(0, 0, 1).applyQuaternion(mq), rechts = new T.Vector3(1, 0, 0).applyQuaternion(mq);
+      const lv = Math.max(-0.2, Math.min(0.2, acc.dot(voor)*0.022)), lz = Math.max(-0.14, Math.min(0.14, -acc.dot(rechts)*0.02));      // leunen bij optrekken en in de bocht
+      S.leun = S.leun || new T.Vector2(); S.leun.x += (lv - S.leun.x)*Math.min(1, s*6); S.leun.y += (lz - S.leun.y)*Math.min(1, s*6);
+      if (Math.abs(S.twist) > 0.01 || Math.abs(S.leun.x) > 0.005 || Math.abs(S.leun.y) > 0.005){ S.m.updateMatrixWorld(true);
+        const qt = new T.Quaternion().setFromAxisAngle(new T.Vector3(0, 1, 0), 0), q1 = new T.Quaternion(), q2 = new T.Quaternion();
+        [['spine_01', 0.3, 0.45], ['spine_02', 0.35, 0.35], ['spine_03', 0.35, 0.2]].forEach(([bn, ft, fl]) => { const b = S.bot[bn]; if (!b) return;
+          q1.setFromAxisAngle(new T.Vector3(0, 1, 0), S.twist*ft); q2.setFromAxisAngle(rechts, S.leun.x*fl).multiply(new T.Quaternion().setFromAxisAngle(voor, S.leun.y*fl)); q2.multiply(q1);
+          const bw = b.getWorldQuaternion(new T.Quaternion()), pw = b.parent.getWorldQuaternion(new T.Quaternion()); b.quaternion.copy(pw.invert().multiply(q2.clone().multiply(bw))); b.updateMatrixWorld(true); }); } }
     this.s3dSpuitTick(z, s); this.s3dDuwTick(z, s); this.s3dGrijpIK(z, s);
     S.kickS = (S.kickS || 0) + ((S.kick || 0) - (S.kickS || 0))*Math.min(1, s*16); S.kick = (S.kick || 0)*Math.exp(-8*s);   // terugslag: zacht en gedempt
     if (S.kickS > 0.01 && rb){ const as = new T.Vector3(1, 0, 0).applyQuaternion(S.m.getWorldQuaternion(new T.Quaternion())), q = new T.Quaternion().setFromAxisAngle(as, -S.kickS*0.055),
