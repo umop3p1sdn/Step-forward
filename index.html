@@ -1028,7 +1028,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v86";
+const VERSIE = "v87";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2942,12 +2942,12 @@ AFRAME.registerComponent('zombies', {
     this.paraLosTick(s);
     if (this.modus === 'test'){ this.testTick(s); this.levenTick(s); return; }
     if (bezig && !this.waveKlaar) this.waakhond(s); else this.vastT = 0;
-    if (bezig && !this.waveKlaar && this.modus === 'lvl' && !this.arcadeAan() && this.waveNr <= 8 && !this.standWissel() && !this.wq.length && this.wt > 6 && this.levend() <= 2
+    if (bezig && !this.waveKlaar && this.modus === 'lvl' && this.waveNr <= 8 && !this.standWissel() && !this.wq.length && this.wt > 6 && this.levend() <= 2
         && !(this.helis || []).some(h => !h.kapot && !h.weggaan) && !(this.wagens || []).some(w => !w.kapot && (w.lading > 0 || (w.bak && !w.bemand))) && !(this.tanks || []).some(t => !t.kapot)){
       this.speler.hp = Math.min(SPELER_HP, this.speler.hp + 20); this.hudVuil = true;      // geen pauze: hoppa, de volgende wave erin
       this.waveNr++; this.opruimen(); this.waveBegin(); return; }
     if (!bezig && !this.waveKlaar){
-      this.waveKlaar = true; this.pauze = this.modus === 'lvl' && !this.auto ? 1.6 : 5;
+      this.waveKlaar = true; this.pauze = this.modus === 'lvl' ? 0.8 : 5;   /* waves lopen door */
       if (this.modus === 'lvl' && this.waveNr >= 10){ this.pauze = 6; this.levelKlaarStaat = true; }
       else if (this.waveNr >= WAVES.length){ this.melding('ALL 10 WAVES CLEARED!', '#7dff7a'); this.pauze = 8; }
       else this.melding(`WAVE ${this.waveNr} CLEARED`, '#7dff7a');
@@ -2955,7 +2955,7 @@ AFRAME.registerComponent('zombies', {
     }
     if (this.waveKlaar){ this.pauze -= s;
       if (this.levelKlaarStaat && this.pauze < 5.5){ this.levelKlaarStaat = false; this.levelKlaar(); this.waveNr = 0; }
-      if (this.pauze <= 0 && this.modus === 'lvl' && !this.auto && !this.doorOk){ if (!this.wachtKnop) this.wachtToon(); this.pauze = 0; return; }   // wachten op de trekker
+      if (this.pauze <= 0 && this.modus === 'lvl' && !this.auto && !this.doorOk && this.wachtLevel){ if (!this.wachtKnop) this.wachtToon(); this.pauze = 0; return; }   // alleen na een level: wachten op de trekker
       if (this.pauze <= 0){ this.doorOk = false; this.wachtWeg(); this.waveNr = this.waveNr >= WAVES.length ? 1 : this.waveNr + 1; this.opruimen(); this.waveBegin(); } }
   },
   opruimen(){   // wrakken en lijken van twee waves terug weg, dekking blijft
@@ -4851,7 +4851,7 @@ AFRAME.registerComponent('zombies', {
     x.textAlign = 'center'; x.font = '900 46px Trebuchet MS, sans-serif'; x.fillStyle = '#ffffff'; x.fillText('PULL TRIGGER TO CONTINUE', W/2, H - 52);
     this.wachtT.needsUpdate = true; this.wachtSinds = this.nu; this.pling && this.pling(0); },
   wachtWeg(){ this.wachtKnop = false; if (this.wachtB) this.wachtB.removeFromParent(); },
-  doorGaan(){ if (!this.wachtKnop || this.nu - (this.wachtSinds || 0) < 0.5) return; this.nieuwVrij = []; this.doorOk = true; this.wachtWeg(); this.tik(); this.melding('GET READY', '#ffd24a'); },
+  doorGaan(){ if (!this.wachtKnop || this.nu - (this.wachtSinds || 0) < 0.5) return; this.nieuwVrij = []; this.doorOk = true; this.wachtLevel = false; this.wachtWeg(); this.tik(); this.melding('GET READY', '#ffd24a'); },
   /* ================= PAUZE + MENU ================= */
   pauzeWissel(){ if (!this.gestart) return; if (this.pauzeM){ this.pauzeMenuWeg(); this.gepauzeerd = false; } else this.gepauzeerd = !this.gepauzeerd; this.pauzeBord(this.gepauzeerd); this.tik(); },
   pauzeMenuWissel(){ if (!this.gestart) return; if (this.pauzeM){ this.pauzeMenuWeg(); this.gepauzeerd = false; this.pauzeBord(false); } else { this.gepauzeerd = true; this.pauzeBord(false); this.pauzeMenuToon(); } this.tik(); },
@@ -5536,7 +5536,7 @@ AFRAME.registerComponent('zombies', {
   },
   levelKlaar(){   // level uit: volgend level, nieuwe dekking, +1 continue
     this.leegOorlog();
-    if (this.modus === 'lvl' && !this.auto){ this.vrijLaad(); const klaar = this.lvlNr, nieuw = []; this.lvlKlaarNr = klaar;
+    if (this.modus === 'lvl' && !this.auto){ this.vrijLaad(); const klaar = this.lvlNr, nieuw = []; this.lvlKlaarNr = klaar; this.wachtLevel = true;
       const tot = M => Math.max(0, ...Object.entries(M).filter(([k]) => +k <= klaar).map(([, n]) => n)), vv = tot(VEST_VRIJ), hv = tot(HELM_VRIJ);
       if (vv > this.vrij.vest || hv > this.vrij.helm) setTimeout(() => this.pantserVol(), 50);
       if (vv > this.vrij.vest){ this.vrij.vest = vv; this.kit.vest = this.vrij.vest; this.vrijBewaar(); nieuw.push(VEST_LV[this.vrij.vest].naam + ' — armor ' + VEST_LV[this.vrij.vest].p); }
