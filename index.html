@@ -1028,7 +1028,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v97";
+const VERSIE = "v98";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -3909,8 +3909,8 @@ AFRAME.registerComponent('zombies', {
       kind(h, G.band, this._bandMat || (this._bandMat = new T.MeshLambertMaterial({color:0x1a1410, side:T.DoubleSide})), [0, 0.012, 0.0], null).scale.set(1, 1, 1.1);   /* leren rand */
       kind(h, G.spel, this._spelMat || (this._spelMat = new T.MeshLambertMaterial({color:0xc8a24a})), [-0.048, 0.04, 0.112], [-0.3, -0.38, 0]);   /* insigne links voor */
       return h; }
-    const h = aan('Head', this.s3dSchaal('pet', [[0, 0.45], [1.2, 0.48], [Math.PI, 0.52]], 0.12, 0.118, 0.13, 0.88), this.s3dCamo(z.n || 0), [0, 0.2, 0.022]); if (!h) return null;   /* patrouillepet */
-    kind(h, this._klepGeo || (this._klepGeo = new T.CylinderGeometry(0.075, 0.075, 0.006, 16, 1, false, -Math.PI/2, Math.PI).scale(1.25, 1, 1)), this.s3dCamo(z.n || 0), [0, 0.022, 0.116], [0.08, 0, 0]);   /* klep */
+    const h = aan('Head', this.s3dSchaal('pet', [[0, 0.45], [1.2, 0.48], [Math.PI, 0.52]], 0.106, 0.118, 0.13, 0.88), this.s3dCamo(z.n || 0), [0, 0.2, 0.022]); if (!h) return null;   /* patrouillepet */
+    kind(h, this._klepGeo || (this._klepGeo = new T.CylinderGeometry(0.075, 0.075, 0.006, 16, 1, false, -Math.PI/2, Math.PI).scale(1.08, 1, 1)), this.s3dCamo(z.n || 0), [0, 0.022, 0.116], [0.08, 0, 0]);   /* klep */
     return h; },
   s3dSchaal(naam, K, rx, ry, rz, plat){ this._schaal = this._schaal || {}; if (this._schaal[naam]) return this._schaal[naam];   /* bol met eigen randlijn per richting */
     const T = this.T, pm = Math.PI*0.64, g = new T.SphereGeometry(1, 30, 14, 0, Math.PI*2, 0, pm), P = g.attributes.position;
