@@ -1028,7 +1028,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v87";
+const VERSIE = "v88";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2857,7 +2857,7 @@ AFRAME.registerComponent('zombies', {
   /* ---------- waves ---------- */
   levend(){ return this.lijst.filter(z => !z.dood).length; },
   arcadeAan(){ return this.modus === 'lvl' && !!this.kaartNu(); },
-  maxNu(){ if (this.arcadeAan()) return ((this.nu % 32) < 9 ? 9 : 5) + ((this.wave && this.wave.baas) ? 2 : 0); /* meestal 5 in beeld, elke ~30 s een vlaag van 9 */ return ((this.wave && this.wave.max) || MAX_TEGELIJK) + Math.round((this.modus === 'lvl' && this.dir && this.dir.extra) || 0); },
+  maxNu(){ if (this.arcadeAan()) return 2 + Math.round(((this.lvlNr || 1) - 1)*4/19) + ((this.wave && this.wave.baas) ? 1 : 0); /* level 1: 2 in beeld ... level 20: 6 */ return ((this.wave && this.wave.max) || MAX_TEGELIJK) + Math.round((this.modus === 'lvl' && this.dir && this.dir.extra) || 0); },
   oorlogStart(nr){
     this.leegOorlog(true); this.dir = null;
     this.waveNr = nr || 1; this.speler = this.speler || {hp:SPELER_HP}; this.overleden = false; this.hudVuil = true;
@@ -2887,13 +2887,13 @@ AFRAME.registerComponent('zombies', {
     if (this.waveNr > 1 && this.ammo) this.ammo.raket += 2;                  // elke wave 2 granaten/raketten erbij
     // tijdlijn: wanneer wat binnenkomt
     const q = [];
-    W.wagens.forEach((n, i) => q.push({t:2 + i*8, geenSoldaat:true, f:() => { const w = this.wagen(n, {jeep:3, jeep_zand:3, jeep_snorkel:3, truck:17 + (Math.random()*4|0), swat_truck:17 + (Math.random()*4|0)}[n], {team:true}); if (w && W.vestLading) w.vest = true; }}));
+    W.wagens.forEach((n, i) => q.push({t:2 + i*8, geenSoldaat:true, f:() => { const w = this.wagen(n, {jeep:3, jeep_zand:3, jeep_snorkel:3, truck:15, swat_truck:15 + 0*(Math.random()*4|0)}[n], {team:true}); if (w && W.vestLading) w.vest = true; }}));
     if (W.tank) q.push({t:4, geenSoldaat:true, f:() => this.tank()});
     if (this.modus === 'lvl' && this.waveNr >= 2 && Math.random() < (this.waveNr >= 10 ? 1 : 0.75)) q.push({t:8 + Math.random()*8, geenSoldaat:true, f:() => { const n = this.waveNr >= 8 ? 3 : this.waveNr >= 5 ? 2 : 1; for (let i=0;i<n;i++) this.drone(i*2.5); }});   // vaker drones (EMP!)
     if (this.modus === 'lvl' && this.waveNr >= 4 && Math.random() < 0.5) q.push({t:24 + Math.random()*10, geenSoldaat:true, f:() => { for (let i=0;i<(this.waveNr >= 8 ? 2 : 1);i++) this.drone(i*2.5); }});
     if (this.modus === 'lvl' && this.waveNr >= 2 && this.waveNr < 10 && (this.waveNr % 2 === 0 || Math.random() < 0.3)) q.push({t:7 + Math.random()*6, geenSoldaat:true, f:() => this.paraDrop(3 + (Math.random()*3|0))});
     if (this.modus === 'lvl' && this.kaartNu() && this.waveNr % 3 === 0 && this.waveNr < 10 && !W.wagens.length)       // af en toe een volle truck om de druk op te voeren
-      q.push({t:10, geenSoldaat:true, f:() => { if (this.wagen(Math.random() < 0.3 ? 'swat_truck' : 'truck', 17 + (Math.random()*4|0), {team:true})) this.melding('TRUCK INCOMING!', '#ff5a3a'); }});
+      q.push({t:10, geenSoldaat:true, f:() => { if (this.wagen(Math.random() < 0.3 ? 'swat_truck' : 'truck', 15, {team:true})) this.melding('TRUCK INCOMING!', '#ff5a3a'); }});
     for (let k=0; W.vracht && k<(W.vracht.n || 1); k++) q.push({t:3 + k*11, geenSoldaat:true, f:() => this.wagen('vracht_open', 0, {mgBak:W.vracht.mg, rijdt:W.vracht.rijdt, boss:W.vracht.boss})});
     { const kw = W.team || TEAM_STD; let rest = W.lopers, i = 0;                    // lopers komen per team binnen
       const schild = W.schild || 0; for (let k=0;k<schild;k++){ q.push({t:7 + k*kw.tussen*1.2, n:3, f:() => this.spawnTeam(3, true)}); rest -= 2; }
@@ -2934,6 +2934,7 @@ AFRAME.registerComponent('zombies', {
     { const so = this.el.components.stad; if (this.modus === 'lvl' && so && so.fase === 'open' && so.kaartNu() && this.onwStand !== so.i && this.wt > 0.5){ this.onwStand = so.i; this.zetOnwetend(); } }
     this.dirTick(s); const D = this.modus === 'lvl' && this.dir;
     this.wt += s*(D ? (D.fase === 'rust' && !this.arcadeAan() ? 0 : D.kalm > 6 ? 1.8 : 1) : 1);
+    if (this.arcadeAan && this.arcadeAan() && this.levend() < this.maxNu()){ const q0 = this.wq.find(q => !q.geenSoldaat); if (q0 && q0.t > this.wt + 0.7){ q0.t = this.wt + 0.7; this.wq.sort((a, b) => a.t - b.t); } }   // meteen aanvullen
     while (this.wq.length && this.wq[0].t <= this.wt && (this.levend() + Math.min(this.wq[0].n || 1, this.maxNu()) - 1 < this.maxNu() || this.wq[0].geenSoldaat)) this.wq.shift().f();
     for (let i=0;i<this.wq.length;i++){ const q = this.wq[i]; if (q.t > this.wt) break; if (q.geenSoldaat){ this.wq.splice(i, 1); i--; q.f(); } }
     // MG weer bemannen als de schutter dood is
@@ -4150,7 +4151,7 @@ AFRAME.registerComponent('zombies', {
     const f0 = F();
     rust.pelvis = {q:wq(S.bot.pelvis), B:new T.Quaternion().setFromRotationMatrix(f0.pel)};
     rust.spine_03 = {q:wq(S.bot.spine_03), B:new T.Quaternion().setFromRotationMatrix(f0.bor)};
-    S.rag = {P, C, knik, rust, F, dirs, rustT:0, t:0};
+    S.rag = {P, C, knik, rust, F, dirs, rustT:0, t:0, vloer:(z.para || z.sprong || (z.ai && ['bak','touw'].includes(z.ai.staat))) ? 0 : Math.max(0, (z.ai && z.ai.y0 > 0.4) ? z.ai.y0 : 0)};
   },
   s3dRagDuw(z, p, dir, kracht){         // treffer op een liggend lijk: dat stuk krijgt een duw
     const R = z.s3d && z.s3d.rag; if (!R) return; let best = null, bd = 1e9;
@@ -4162,11 +4163,11 @@ AFRAME.registerComponent('zombies', {
     R.t += s; const h = Math.min(s, 1/30), G = ZWAARTE*0.72*h*h, demp = 0.985;   // iets trager vallen: met gevoel
     let beweging = 0;
     for (const q of R.P){ const v = q.p.clone().sub(q.o).multiplyScalar(demp); q.o.copy(q.p); q.p.add(v); q.p.y -= G; beweging += v.lengthSq();
-      if (q.p.y < q.r){ q.p.y = q.r; const vx = q.p.x - q.o.x, vz = q.p.z - q.o.z; q.o.x = q.p.x - vx*0.55; q.o.z = q.p.z - vz*0.55; } }   // grond: wrijving
+      if (q.p.y < q.r + R.vloer){ q.p.y = q.r + R.vloer; const vx = q.p.x - q.o.x, vz = q.p.z - q.o.z; q.o.x = q.p.x - vx*0.55; q.o.z = q.p.z - vz*0.55; } }   // grond: wrijving
     for (let it=0; it<8; it++){
       for (const [i, j, L] of R.C){ const a = R.P[i].p, b = R.P[j].p, d = b.clone().sub(a), l = d.length() || 1e-6, f = (l - L)/l*0.5; a.addScaledVector(d, f); b.addScaledVector(d, -f); }
       for (const [i, j, L] of R.knik){ const a = R.P[i].p, b = R.P[j].p, d = b.clone().sub(a), l = d.length() || 1e-6; if (l >= L) continue; const f = (l - L)/l*0.5; a.addScaledVector(d, f); b.addScaledVector(d, -f); }
-      for (const q of R.P) if (q.p.y < q.r) q.p.y = q.r;
+      for (const q of R.P) if (q.p.y < q.r + R.vloer) q.p.y = q.r + R.vloer;
     }
     // botten naar de deeltjes zetten (van boven naar beneden)
     const zetWereld = (b, q) => { const pq = b.parent.getWorldQuaternion(new T.Quaternion()); b.quaternion.copy(pq.invert().multiply(q)); b.updateMatrixWorld(true); };
@@ -7961,7 +7962,7 @@ AFRAME.registerComponent('zombies', {
       } else {
         if (z.ai && !z.ai.gevallen){ z.ai.gevallen = true;           // net dood: uit de heli vallen / achter de dekking blijven
           if (z.handGranaat) this.werpLaatVallen(z);                    // granaat valt bij zijn voeten
-          if (z.ai.soort === 'deur' || (z.ai.y0 || 0) > 0.4){ z.hop = g.position.y + 0.3; g.position.y = 0; z.basis = -0.02; z.lv = z.lv || new T.Vector3(); z.lv.x += (Math.random()-0.5)*1.5; z.lv.y = Math.max(z.lv.y, 1); }
+          if (!z.s3d && (z.ai.soort === 'deur' || (z.ai.y0 || 0) > 0.4)){ z.hop = g.position.y + 0.3; g.position.y = 0; z.basis = -0.02; z.lv = z.lv || new T.Vector3(); z.lv.x += (Math.random()-0.5)*1.5; z.lv.y = Math.max(z.lv.y, 1); }
           else if (z.ai.zak > 0.05) z.dekZak = z.ai.zak;
           if (z.ai.plek && z.ai.plek.bezet === z && z.ai.soort !== 'mg') z.ai.plek.bezet = null;
           if (z.schild) this.schildWeg(z, naar.clone().normalize().negate());
