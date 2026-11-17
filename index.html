@@ -1086,7 +1086,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v110";
+const VERSIE = "v111";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2201,10 +2201,14 @@ AFRAME.registerComponent('zombies', {
         break;
       case 'arcade': { const P = ai.post; if (!P){ ai.staat = 'vrij'; break; }
         const naar = (doel, v) => { const d = doel.clone().sub(g.position).setY(0), l = d.length(); if (l < 0.06) return true; g.position.addScaledVector(d.normalize(), Math.min(l, v*s)); return false; };
-        ai.t -= s; ai.zakDoel = 0; ai.houding = null;
-        if (P.fase === 'schuil'){ ai.stil = !naar(P.schuil, 2.4); ai.mik = false; if (P.laag) ai.zakDoel = 1; if (ai.t <= 0){ P.fase = 'uit'; ai.t = 2; } }
-        else if (P.fase === 'uit'){ ai.mik = true; ai.stil = false; if (naar(P.uit, P.laag ? 9 : 2.8) || ai.t <= 0){ P.fase = 'mik'; ai.t = P.mikT = (z.dodelijk ? 0.75 : 1.0) + Math.random()*0.5; this.arcadeRing(z, true); } }
-        else if (P.fase === 'mik'){ ai.mik = true; ai.stil = true; naar(P.uit, 1.5); this.arcadeRing(z, true, 1 - ai.t/P.mikT);
+        ai.t -= s; ai.zakDoel = 0; ai.houding = null; ai.leunDoel = P.leun && P.fase !== 'schuil' ? 1 : 0; ai.leunL = P.leun ? P.leun.L : null; if (P.nuLaag && P.fase !== 'schuil') ai.zakDoel = 1;
+        if (P.fase === 'schuil' && !P.gehad){ P.gehad = true; const dv = P.schuil.clone().sub(g.position).setY(0), dl = dv.length();       /* binnenkomen met actie */
+          if (dl > 1.8 && dl < 6.5 && Math.random() < 0.6){ dv.normalize(); if (Math.random() < 0.45){ z.rol = {t:0, dur:0.62}; ai.strafe = {dir:dv, v:dl/0.62, t:0.62, schot:99, kniel:false}; }
+            else ai.strafe = {dir:dv, v:Math.min(5.5, dl/0.55), t:dl/Math.min(5.5, dl/0.55), schot:0.18, kniel:false}; break; } }
+        if (P.fase === 'schuil'){ ai.stil = !naar(P.schuil, 2.4); ai.mik = false; if (P.laag) ai.zakDoel = 1; if (ai.t <= 0){ P.fase = 'uit'; ai.t = 2; P.nuLaag = !!(P.leun && P.leun.laag && Math.random() < 0.45); P.doelUit = P.leun ? (P.nuLaag ? P.leun.laag : P.leun.hoog) : P.uit;
+            const d = ai.deurObj; if (d && d.trap === z){ d.trap = true; d.doel = 1.55; d.b.uit = true; this.fxStart && this.fxStart('rook', d.g.getWorldPosition(new T.Vector3()).setY(0.4), 0.5, 0.6); this.boem && this.boem(0.18); } } }
+        else if (P.fase === 'uit'){ ai.mik = true; ai.stil = false; if (naar(P.doelUit || P.uit, P.laag ? 9 : (P.leun ? 3.6 : 2.8)) || ai.t <= 0){ P.fase = 'mik'; ai.t = P.mikT = (z.dodelijk ? 0.75 : 1.0) + Math.random()*0.5; this.arcadeRing(z, true); } }
+        else if (P.fase === 'mik'){ ai.mik = true; ai.stil = true; naar(P.doelUit || P.uit, 1.5); this.arcadeRing(z, true, 1 - ai.t/P.mikT);
           if (ai.t <= 0){ P.fase = 'vuur'; P.n = 1 + (Math.random()*3|0); ai.t = 0; } }
         else if (P.fase === 'vuur'){ ai.mik = true; ai.stil = true; this.arcadeRing(z, true, 1);
           if (ai.t <= 0){ if (!this.overleden && !this.kaartBlok(z)) this.vijandSchot(z, SCHOT_SCHADE, 0.1); P.n--; ai.t = 0.24;
@@ -2757,7 +2761,12 @@ AFRAME.registerComponent('zombies', {
   arcadeDeur(z, s){                     // gluurt vanuit de deuropening: schuilen binnen, uitstappen tot net buiten de deur
     const T = this.T, binnen = new T.Vector3(s.p[0], 0, s.p[1]), buiten = new T.Vector3(s.via[0][0], 0, s.via[0][1]);
     const uit = buiten.clone().lerp(binnen, 0.25); z.ai.via = null; s.deurBezet = z; z.grp.position.copy(binnen); if (z.s3d) z.s3d.vorige.copy(binnen);
-    z.ai.post = {schuil:binnen, uit, fase:'schuil'}; z.ai.staat = 'arcade'; z.ai.t = 0.4 + Math.random()*1.2; z.dodelijk = Math.random() < 0.3; },
+    let post = {schuil:binnen, uit, fase:'schuil'};
+    { const naar = buiten.clone().sub(binnen).setY(0).normalize(), tan = new T.Vector3(-naar.z, 0, naar.x), oog = this.el.camera.getWorldPosition(new T.Vector3());   /* naast de deurpost binnen, leunt de opening in */
+      for (const k of (Math.random() < 0.5 ? [1, -1] : [-1, 1])){ const S2 = binnen.clone().addScaledVector(naar, 0.55).addScaledVector(tan, k*0.75);
+        if (!this.kaartVrij(S2, 0.22) || !this.kaartSegZ(oog, S2.clone().setY(1.2))) continue; const L = this.leunPlek(S2, tan.clone().multiplyScalar(-k)); if (L){ post = {schuil:S2, uit:L.hoog, fase:'schuil', leun:L}; break; } } }
+    if (s.deur && s.deur.g && !s.deur.trap){ const d = s.deur; d.trap = z; d.doel = d.open = 0; d.g.rotation.y = d.basis ?? d.g.rotation.y; d.b.uit = false; }   /* deur dicht: wordt open getrapt */
+    z.ai.post = post; z.ai.deurObj = s.deur || null; z.ai.staat = 'arcade'; z.ai.t = 0.4 + Math.random()*1.2; z.dodelijk = Math.random() < 0.3; },
   hoeken(K){                            // gluurplekken: verstopt achter een hoek, met één stap opzij in beeld (eenmalig per stand berekend)
     if (K._hoeken) return K._hoeken; const T = this.T, uit = [], oog = this.el.camera.getWorldPosition(new T.Vector3()); oog.y = Math.max(1.35, oog.y);
     for (let d = 4.5; d <= 11.6; d += 0.55) for (let a = -0.92; a <= 0.92; a += 0.08){   /* alleen binnen 120° */ const p = new T.Vector3(oog.x + Math.sin(a)*d, 0, oog.z - Math.cos(a)*d);
@@ -2769,12 +2778,20 @@ AFRAME.registerComponent('zombies', {
         if (this.kaartSegZ(oog, u.clone().setY(1.5)) || this.kaartSegZ(oog, u.clone().setY(1.05))) continue;                                       // daar wel in beeld
         uit.push({p, uit:u, kant:k}); break; } }
     return K._hoeken = uit; },
+  leunPlek(S, L){ const T = this.T, oog = this.el.camera.getWorldPosition(new T.Vector3()); oog.y = Math.max(1.35, oog.y);   /* hoe ver moet hij opzij om net met bovenlijf en geweer in beeld te komen? */
+    const zoek = hk => { for (let t = 0.1; t <= 0.85; t += 0.08){ const p = S.clone().addScaledVector(L, t); if (!this.kaartVrij(p, 0.22)) return null;
+        const kop = p.clone().addScaledVector(L, 0.32).setY(hk); if (!this.kaartSegZ(oog, kop)) return p; } return null; };
+    const hoog = zoek(1.45), laag = zoek(1.0); if (!hoog && !laag) return null; return {L:L.clone(), hoog:hoog || laag, laag}; },
+  s3dLeun(z){ const T = this.T, S = z.s3d, ai = z.ai, w = ai.leunW, mq = S.m.getWorldQuaternion(new T.Quaternion()), voor = new T.Vector3(0, 0, 1).applyQuaternion(mq), rechts = new T.Vector3(1, 0, 0).applyQuaternion(mq);
+    const zij = new T.Vector3(-voor.z, 0, voor.x), sg = ai.leunL ? (Math.sign(zij.dot(ai.leunL)) || 1) : 1, th = sg*0.6*w, laag = ai.zakDoel > 0.5, q = new T.Quaternion();   /* voorover buigen en om de hoek draaien */
+    const draai = (bn, as, h) => { const b = S.bot[bn]; if (!b || !h) return; q.setFromAxisAngle(as, h); const bw = b.getWorldQuaternion(new T.Quaternion()), pw = b.parent.getWorldQuaternion(new T.Quaternion()); b.quaternion.copy(pw.invert().multiply(q.clone().multiply(bw))); b.updateMatrixWorld(true); };
+    S.m.updateMatrixWorld(true); draai('spine_01', voor, th*0.25); draai('spine_02', voor, th*0.35); draai('spine_03', voor, th*0.4); draai('spine_02', rechts, (laag ? 0.38 : 0.14)*w); draai('Head', voor, -th*0.5); },
   arcadePost(z){                        // na het binnenkomen: om een hoekje, achter dekking (bukken en opkomen) of tegen een muur (opzij stappen en uitleunen)
     const T = this.T, ai = z.ai, K = this.kaartNu(), g = z.grp.position, st = this.el.components.stad; z.dodelijk = Math.random() < 0.3;
     if (K){ const H = this.hoeken(K); let hb = null, hd = 9;                                                   // 1) een vrij hoekje dat hij kan bereiken
       for (const h of H){ if (h.bezet && !h.bezet.dood && h.bezet !== z && h.bezet.ai && h.bezet.ai.post && h.bezet.ai.post.hoek === h) continue; const d = h.p.distanceTo(g);
         if (d < hd && !this.kaartSegZ(g.clone().setY(0.5), h.p.clone().setY(0.5)) && !this.kaartSegZ(g.clone().setY(1.2), h.p.clone().setY(1.2))){ hd = d; hb = h; } }
-      if (hb){ hb.bezet = z; ai.post = {schuil:hb.p.clone(), uit:hb.uit.clone(), laag:false, fase:'schuil', hoek:hb}; ai.staat = 'arcade'; ai.t = 0.2 + Math.random()*0.6; ai.strafe = null; return; } }
+      if (hb){ hb.bezet = z; ai.post = {schuil:hb.p.clone(), uit:hb.uit.clone(), laag:false, fase:'schuil', hoek:hb, leun:this.leunPlek(hb.p, hb.uit.clone().sub(hb.p).setY(0).normalize())}; ai.staat = 'arcade'; ai.t = 0.2 + Math.random()*0.6; ai.strafe = null; return; } }
     let best = null, bd = 6;
     if (K) K.plekken.forEach(gp => gp.lijst.forEach(q => { const d = q.dek; if (!d || q.prive || (d.bezet && !d.bezet.dood && d.bezet !== z)) return; const a = d.p.distanceTo(g); if (a < bd){ bd = a; best = d; } }));
     if (best){ best.bezet = z; ai.post = {schuil:best.p.clone(), uit:best.p.clone(), laag:true, fase:'schuil'}; }
@@ -3024,8 +3041,11 @@ AFRAME.registerComponent('zombies', {
     { const so = this.el.components.stad; if (this.modus === 'lvl' && so && so.fase === 'open' && so.kaartNu() && this.onwStand !== so.i && this.wt > 0.5){ this.onwStand = so.i; this.zetOnwetend(); } }
     this.dirTick(s); const D = this.modus === 'lvl' && this.dir;
     this.wt += s*(D ? (D.fase === 'rust' && !this.arcadeAan() ? 0 : D.kalm > 6 ? 1.8 : 1) : 1);
-    if (this.arcadeAan && this.arcadeAan() && this.levend() < this.maxNu()){ const q0 = this.wq.find(q => !q.geenSoldaat); if (q0 && q0.t > this.wt + 0.7){ q0.t = this.wt + 0.7; this.wq.sort((a, b) => a.t - b.t); } }   // meteen aanvullen
-    while (this.wq.length && this.wq[0].t <= this.wt && (this.levend() + Math.min(this.wq[0].n || 1, this.maxNu()) - 1 < this.maxNu() || this.wq[0].geenSoldaat)) this.wq.shift().f();
+    const arc = this.arcadeAan && this.arcadeAan();
+    if (arc){ const B = this.beat || (this.beat = {fase:'rust', t:0.8}), lev = this.levend();   /* ritme: een groep springt tegelijk tevoorschijn, jij ruimt op, korte adempauze, volgende groep */
+      if (B.fase === 'vol'){ if (lev <= (this.maxNu() >= 6 ? 1 : 0)){ B.fase = 'rust'; B.t = 0.8 + Math.random()*0.7; } }
+      else if ((B.t -= s) <= 0){ B.fase = 'vol'; let k = 0; for (const q of this.wq){ if (q.geenSoldaat) continue; if (k >= this.maxNu() - lev) break; q.t = this.wt + 0.05 + k*(0.16 + Math.random()*0.14); k++; } this.wq.sort((a, b) => a.t - b.t); } }
+    while (this.wq.length && this.wq[0].t <= this.wt && (this.wq[0].geenSoldaat || ((!arc || this.beat.fase === 'vol') && this.levend() + Math.min(this.wq[0].n || 1, this.maxNu()) - 1 < this.maxNu()))) this.wq.shift().f();
     for (let i=0;i<this.wq.length;i++){ const q = this.wq[i]; if (q.t > this.wt) break; if (q.geenSoldaat){ this.wq.splice(i, 1); i--; q.f(); } }
     // MG weer bemannen als de schutter dood is
     if (this.mgNest && this.wave.mg && (!this.mgNest.plek.bezet || this.mgNest.plek.bezet.dood) && this.wt > 5 && Math.random() < s*0.25 && this.levend() < this.maxNu()){ this.mgNest.plek.bezet = null; this.loper('mg'); }
@@ -4319,6 +4339,8 @@ AFRAME.registerComponent('zombies', {
     S.mixer.update(s);
     S.basisQ = S.basisQ || new Map(); ['spine_01','spine_02','spine_03','neck_01','Head','thigh_l','thigh_r'].forEach(n => { const b = S.bot[n]; if (b) S.basisQ.set(b, (S.basisQ.get(b) || new T.Quaternion()).copy(b.quaternion)); });
     if (S.houding && !z.rol && !z.dood) this.s3dHouding(z);
+    ai.leunW = (ai.leunW || 0) + (((ai.staat === 'arcade' && !ai.strafe) ? (ai.leunDoel || 0) : 0) - (ai.leunW || 0))*Math.min(1, s*7);
+    if (ai.leunW > 0.01 && !z.rol && !z.dood) this.s3dLeun(z);
     if (!z.rol && ai.staat === 'rennen' && S.vStaat !== 'rennen' && S.snel > 0 && Math.random() < 0.3 && !z.mank && !this.arcadeAan()) S.rolT = 0.35;      // tussen dekkingen: duikrol
     if (S.rolT > 0 && (S.rolT -= s) <= 0 && S.snel > 1.5 && !z.rol) z.rol = {t:0, dur:0.7};
     S.vStaat = ai.staat;
