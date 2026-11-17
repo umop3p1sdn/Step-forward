@@ -956,7 +956,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v84";
+const VERSIE = "v85";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -3732,13 +3732,15 @@ AFRAME.registerComponent('zombies', {
   /* ================= 3D-SOLDATEN (proef): Quaternius-pop (CC0) met motion-capture-animaties ================= */
   s3dLaad(){
     if (this.s3dBron || this.s3dLaden || !this.T.GLTFLoader) return; this.s3dLaden = true;
-    new this.T.GLTFLoader().load('art/soldaat3d.glb', g => { try { this.s3dBron = this.s3dVoorbereid(g); this.s3dOpwarmen(); } catch(e){ this.fout(e); } }, undefined, e => console.warn('3D-soldaat laden mislukt', e));
+    new this.T.GLTFLoader().load('art/soldaat3d.glb', g => { const oud = () => { try { this.s3dBron = this.s3dVoorbereid(g); this.s3dOpwarmen(); } catch(e){ this.fout(e); } };
+      new this.T.GLTFLoader().load('art/soldaat_nieuw.glb', gn => { try { this.s3dBron = this.s3dVoorbereid(this.s3dOmzetten(gn, g)); this.s3dOpwarmen(); } catch(e){ console.warn('nieuw model mislukt', e); oud(); } }, undefined, oud);
+    }, undefined, e => console.warn('3D-soldaat laden mislukt', e));
   },
   s3dOpwarmen(){                       // alles vooraf klaarzetten en de shaders laten compileren: geen haperingen bij de eerste treffer
     const T = this.T, B = this.s3dBron, re = this.el.renderer, cam = this.el.camera;
     if (!re || !cam || !this.klaar || !Object.keys(this.soorten || {}).length){ setTimeout(() => this.s3dOpwarmen(), 500); return; }
     const tmp = new T.Scene(); tmp.add(new T.AmbientLight(0xffffff, 1)); tmp.add(new T.DirectionalLight(0xffffff, 1));
-    Object.keys(this.soorten || {}).forEach(n => { const kl = this.s3dKleding(+n); if (!kl) return; const m = this.s3dKloon(B.scene); m.traverse(o => { if (o.isSkinnedMesh) o.material = kl; }); m.position.set(0, -50, 0); tmp.add(m); });
+    Object.keys(this.soorten || {}).forEach(n => { const kl = this.s3dKleding(+n); if (!kl) return; const m = this.s3dKloon(B.scene); m.traverse(o => { if (o.isSkinnedMesh) o.material = B.nieuw ? this.s3dNieuwMat(o, +n) : kl; }); m.position.set(0, -50, 0); tmp.add(m); });
     this._helmMat = this._helmMat || new T.MeshLambertMaterial({color:0x5c5643}); this._stukMat = this._stukMat || new T.MeshLambertMaterial({color:0x4a4436});
     [this._helmMat, this._stukMat, new T.MeshLambertMaterial({color:0x1b1d18})].forEach(mt => { const me = new T.Mesh(new T.CapsuleGeometry(0.05, 0.2, 2, 6), mt); me.position.y = -50; tmp.add(me); });
     try { re.compile(tmp, cam); } catch(_){}
@@ -3756,12 +3758,47 @@ AFRAME.registerComponent('zombies', {
     const t = new this.T.CanvasTexture(c); t.wrapS = t.wrapT = this.T.RepeatWrapping; t.repeat.set(2, 2); t.colorSpace = this.T.SRGBColorSpace; return this._camo[kit] = t;
   },
   s3dKit(){ const pk = this.plekNu && this.plekNu(); if (this.modus !== 'lvl') return 'stad'; const L = LEVELS[this.lvlNr - 1]; return pk && pk.binnen ? 'binnen' : (L && L.stijl && L.stijl[this.standIdx(L)]) || 'natuur'; },
+  S3D_MAP: {Hips:'pelvis', Spine:'spine_01', Spine1:'spine_02', Spine2:'spine_03', Neck:'neck_01', Head:'Head',
+    LeftShoulder:'clavicle_l', LeftArm:'upperarm_l', LeftForeArm:'lowerarm_l', LeftHand:'hand_l', RightShoulder:'clavicle_r', RightArm:'upperarm_r', RightForeArm:'lowerarm_r', RightHand:'hand_r',
+    LeftUpLeg:'thigh_l', LeftLeg:'calf_l', LeftFoot:'foot_l', LeftToeBase:'ball_l', RightUpLeg:'thigh_r', RightLeg:'calf_r', RightFoot:'foot_r', RightToeBase:'ball_r'},
+  s3dOmzetten(gN, gO){                   // nieuw model → zelfde skelet-vorm als het oude: botnamen, bot-assen (rusthouding), meters, kijkrichting +z
+    const T = this.T, M = this.S3D_MAP, tmp = new T.Group(); tmp.rotation.y = Math.PI; tmp.add(gN.scene); tmp.updateMatrixWorld(true); gO.scene.updateMatrixWorld(true);
+    const rustO = {}, posO = {}; gO.scene.traverse(o => { if (o.isBone){ rustO[o.name] = o.getWorldQuaternion(new T.Quaternion()); posO[o.name] = o.position.clone(); } });
+    const wortel = new T.Group(); wortel.name = 'Armature'; const root = new T.Bone(); root.name = 'root'; if (rustO.root) root.quaternion.copy(rustO.root); wortel.add(root);   // zelfde stand als de oude root: de heup-baan klopt dan
+    const meshes = []; gN.scene.traverse(o => { if (o.isSkinnedMesh) meshes.push(o); });
+    const oudB = meshes[0].skeleton.bones, nieuw = new Map();
+    oudB.forEach(b => { const k = b.name.replace(/^mixamorig/, ''), nb = new T.Bone(); nb.name = M[k] || 'x_' + k;
+      b.getWorldPosition(nb.position); if (M[k] && rustO[M[k]]) nb.quaternion.copy(rustO[M[k]]); else b.getWorldQuaternion(nb.quaternion); wortel.add(nb); nieuw.set(b, nb); });
+    wortel.updateMatrixWorld(true);
+    oudB.forEach(b => { (nieuw.get(b.parent) || root).attach(nieuw.get(b)); });                       // zelfde boom, wereldstand blijft
+    wortel.updateMatrixWorld(true);
+    for (const sm of meshes){ const X = sm.skeleton.bones[0].matrixWorld.clone().multiply(sm.skeleton.boneInverses[0]).multiply(sm.bindMatrix);   // bind-ruimte → wereld (meters)
+      const geo = sm.geometry.clone(); geo.applyMatrix4(X); geo.computeBoundingBox(); geo.computeBoundingSphere();
+      const mt = new T.MeshLambertMaterial({map:sm.material.map, color:new T.Color(0.85, 0.85, 0.85)}); mt.name = sm.material.name;
+      const nm = new T.SkinnedMesh(geo, mt); nm.name = sm.name; nm.userData.vizier = /visor/i.test(sm.name); nm.frustumCulled = false; wortel.add(nm);
+      nm.bind(new T.Skeleton(sm.skeleton.bones.map(b => nieuw.get(b)))); }
+    // vingers: licht gekromd (anders een platte hand om het wapen)
+    wortel.traverse(o => { const m = /^x_(Left|Right)Hand(Index|Middle|Ring|Pinky)([123])$/.exec(o.name); if (m) o.rotateX(m[3] === '1' ? 0.5 : 0.9); });
+    // animaties: zelfde botten, zelfde assen → de draaiingen kunnen één op één over; alleen de heuphoogte schalen
+    const namen = new Set(Object.values(M)); let pel = null; wortel.traverse(o => { if (o.name === 'pelvis') pel = o; });
+    const f = pel.position.length()/Math.max(0.01, posO.pelvis.length()), clips = gO.animations.map(c => { const tr = [];
+      for (const t of c.tracks){ const [bn, eig] = t.name.split('.');
+        if (eig === 'quaternion' && (namen.has(bn) || bn === 'root')) tr.push(t.clone());
+        else if (eig === 'position' && bn === 'root') tr.push(t.clone());
+        else if (eig === 'position' && bn === 'pelvis'){ const k = t.clone(), v = k.values; for (let i=0;i<v.length;i+=3){ v[i] = (v[i] - posO.pelvis.x)*f + pel.position.x; v[i+1] = (v[i+1] - posO.pelvis.y)*f + pel.position.y; v[i+2] = (v[i+2] - posO.pelvis.z)*f + pel.position.z; } tr.push(k); } }
+      return new T.AnimationClip(c.name, c.duration, tr); });
+    return {scene:wortel, animations:clips, nieuw:true};
+  },
+  s3dNieuwMat(o, n){                    // kleurvariant per soort (zand, groen, grijsblauw, zwart)
+    const B = this.s3dBron || {}; this._nmat = this._nmat || {}; const k = (o.userData.vizier ? 'v' : 'l') + n; if (this._nmat[k]) return this._nmat[k];
+    const tint = o.userData.vizier ? [0.8, 0.8, 0.8] : ({1:[0.86, 0.84, 0.8], 2:[0.44, 0.5, 0.36], 3:[0.5, 0.56, 0.68], 4:[0.3, 0.31, 0.34], 5:[0.72, 0.6, 0.46], zw:[0.36, 0.42, 0.3]}[n] || [0.8, 0.8, 0.8]);
+    const m = this._nmat0[o.name].clone(); m.color = new this.T.Color(tint[0], tint[1], tint[2]); return this._nmat[k] = m; },
   s3dVoorbereid(g){
     const T = this.T, sc = g.scene;
     const naad = new T.MeshLambertMaterial({color:0x15170f}), stoffen = {};
     ['stad','natuur','binnen'].forEach(k => stoffen[k] = new T.MeshLambertMaterial({map:this.camoTex(k), color:new T.Color(0.62, 0.62, 0.62)}));   // iets donkerder: het licht in de scène is fel
     const stof = stoffen.natuur;
-    sc.traverse(o => { if (o.isMesh){ o.frustumCulled = false; o.userData.joint = o.material && o.material.name === 'M_Joints'; o.material = o.userData.joint ? naad : stof; } });
+    sc.traverse(o => { if (o.isMesh){ o.frustumCulled = false; if (g.nieuw){ (this._nmat0 = this._nmat0 || {})[o.name] = o.material; return; } o.userData.joint = o.material && o.material.name === 'M_Joints'; o.material = o.userData.joint ? naad : stof; } });
     sc.updateMatrixWorld(true); const box = new T.Box3().setFromObject(sc), hoog = Math.max(0.1, box.max.y - box.min.y);
     const BENEN = /^(root|pelvis|spine_01|thigh_|calf_|foot_|ball_)/;
     const clips = {};
@@ -3769,8 +3806,8 @@ AFRAME.registerComponent('zombies', {
       clips[c.name] = c;
       const b = c.clone(); b.name = c.name + '|benen'; b.tracks = b.tracks.filter(t => BENEN.test(t.name)); clips[b.name] = b;
       const o = c.clone(); o.name = c.name + '|boven'; o.tracks = o.tracks.filter(t => !BENEN.test(t.name)); clips[o.name] = o; });
-    const atlas = this.s3dUV(sc), knipInfo = this.s3dKnipPrep(sc);
-    return {scene:sc, clips, schaal:ZLENGTE/hoog, stof, stoffen, naad, atlas, knipInfo};
+    const atlas = g.nieuw ? null : this.s3dUV(sc), knipInfo = this.s3dKnipPrep(sc);
+    return {scene:sc, clips, schaal:ZLENGTE/hoog, stof, stoffen, naad, atlas, knipInfo, nieuw:!!g.nieuw};
   },
   /* ---------- foto-kleding: de onderdelen van de 2D-soldaat geprojecteerd op de 3D-pop (in rusthouding) ---------- */
   s3dUV(sc){                            // eenmalig: elke vertex krijgt een plek in een atlas, per lichaamsdeel een vak
@@ -3806,7 +3843,7 @@ AFRAME.registerComponent('zombies', {
   },
   s3dKleding(n){                        // atlas voor soldaat-soort n: elk vak = het (bijgesneden) 2D-plaatje van dat deel
     this._kleding = this._kleding || {}; if (this._kleding[n]) return this._kleding[n];
-    const B = this.s3dBron, so = this.soorten[n]; if (!B || !so) return null;
+    const B = this.s3dBron, so = this.soorten[n]; if (!B || !so) return null; if (B.nieuw) return this._kleding[n] = {nieuw:true};
     const W = 2048, H = 1024, c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
     x.fillStyle = '#3a3c34'; x.fillRect(0, 0, W, H);
     B.atlas.VAKKEN.forEach(d => { const dl = so.delen[d], im = dl && dl.mat && dl.mat.map && dl.mat.map.image; if (!im || !im.width) return;
@@ -3831,7 +3868,7 @@ AFRAME.registerComponent('zombies', {
     z.grp.traverse(o => { if (o.isMesh){ o.visible = false; o.userData.D = null; } });     // 2D-plaatjes weg (skelet blijft voor de AI)
     m.scale.setScalar(B.schaal); z.grp.add(m); m.updateMatrixWorld(true);
     const kit = this.s3dKit(), kl = this.s3dKleding(z.n); S0.kleding = kl;
-    m.traverse(o => { if (o.isSkinnedMesh) o.material = kl || (o.userData.joint ? B.naad : (B.stoffen[kit] || B.stof)); });
+    m.traverse(o => { if (o.isSkinnedMesh) o.material = B.nieuw ? this.s3dNieuwMat(o, z.n) : (kl || (o.userData.joint ? B.naad : (B.stoffen[kit] || B.stof))); });
     const bot = {}; m.traverse(o => { if (o.isBone) bot[o.name] = o; });
     const S = z.s3d = Object.assign(S0, {m, bot, mixer:new T.AnimationMixer(m), acts:{}, benen:null, boven:null, yaw:0, vorige:z.grp.position.clone(), snel:0, kick:0, helm:!!z.helmSprite || (this.soorten[z.n] && this.soorten[z.n].j.helm != null)});
     const bs = new T.Vector3(); m.getWorldScale(bs); const sch = bs.x || 1;
@@ -3848,7 +3885,7 @@ AFRAME.registerComponent('zombies', {
     const aan = (bot, geo, mat, pos, rot) => { const b = S.bot[bot]; if (!b) return null; const ws = b.getWorldScale(new T.Vector3()).x || sch;
       const me = new T.Mesh(geo, mat); me.scale.setScalar(1/ws); me.position.set(pos[0]/ws, pos[1]/ws, pos[2]/ws); if (rot) me.rotation.set(rot[0], rot[1], rot[2]); b.add(me); return me; };
     const foto = !!S.kleding, eigenHelm = this.soorten[z.n] && this.soorten[z.n].j.helm != null;   // soort 1 en 5 hebben al een helm/pet op de foto
-    if (S.helm && !eigenHelm){ S.helmMesh = aan('Head', new T.SphereGeometry(0.172, 16, 9, 0, Math.PI*2, 0, Math.PI*0.56), groen, [0, 0.122, -0.022], [-0.24, 0, 0]); S.helmMesh.scale.multiply(new T.Vector3(1, 1.06, 1.1)); }
+    if (S.helm && !eigenHelm && !B.nieuw){ S.helmMesh = aan('Head', new T.SphereGeometry(0.172, 16, 9, 0, Math.PI*2, 0, Math.PI*0.56), groen, [0, 0.122, -0.022], [-0.24, 0, 0]); S.helmMesh.scale.multiply(new T.Vector3(1, 1.06, 1.1)); }
     else if (!foto) aan('Head', new T.SphereGeometry(0.128, 12, 6, 0, Math.PI*2, 0, Math.PI*0.42), zwart, [0, 0.13, 0]);  // muts
     if (!foto) aan('Head', new T.BoxGeometry(0.15, 0.035, 0.03), zwart, [0, 0.1, 0.11]);                                  // bril / gezichtsband
     if (z.vestHard && !foto) aan('spine_03', new T.BoxGeometry(0.4, 0.34, 0.3), new T.MeshLambertMaterial({color:0x2f3424}), [0, 0.08, 0.02]);
@@ -4487,6 +4524,7 @@ AFRAME.registerComponent('zombies', {
   },
   zwaarPantser(z){                      // dikker lijf, rond pantser (borst, buik, schouders, dijen), pantserhelm met gebogen vizier
     const S = z.s3d, T = this.T; if (!S) return; S.m.scale.x *= 1.2; S.m.scale.z *= 1.24; if (S.bot.Head) S.bot.Head.scale.set(1/1.2, 1, 1/1.24);   // lijf dikker, hoofd niet
+    if (this.s3dBron && this.s3dBron.nieuw){ S.m.traverse(o => { if (o.isSkinnedMesh && !o.userData.vizier) o.material = this.s3dNieuwMat(o, 'zw'); }); S.zwaar = true; return; }   // nieuw model: al gepantserd — alleen breder en donker olijf
     const m = this._pantserMat || (this._pantserMat = new T.MeshStandardMaterial({color:0x434a39, roughness:0.58, metalness:0.32})),
       viz = this._vizMat || (this._vizMat = new T.MeshStandardMaterial({color:0x0b0e10, roughness:0.12, metalness:0.7, emissive:0x081016, side:T.DoubleSide}));
     const bol = (r, sx, sy, sz, a) => { const g = a ? new T.SphereGeometry(r, 22, 14, 0, Math.PI*2, 0, a) : new T.SphereGeometry(r, 22, 14); g.scale(sx, sy, sz); return g; };
