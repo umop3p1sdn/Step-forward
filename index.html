@@ -1049,7 +1049,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v108";
+const VERSIE = "v109";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -1187,8 +1187,10 @@ AFRAME.registerComponent('stad', {
     (W.meubels || []).forEach(m => { if (!m.userData.muur && !m.userData.kapot) m.rotation.y = Math.atan2(S.x - m.position.x, S.z - m.position.z); });
     // niets van opzij: spawns die bijna haaks links/rechts naast je uitkomen vallen af
     const sp = this.kaartS.spawns, hoek = q => { const e = q.via.length ? q.via[q.via.length - 1] : q.p; return {a:Math.atan2(Math.abs(e[0]), -e[1]), d:Math.hypot(e[0], e[1])}; };
-    const goed = sp.filter(q => { const h = hoek(q); return h.a < 0.95 || h.d > 16; });
+    const goed = sp.filter(q => hoek(q).a < 0.98);                                          // alles binnen 120° (±56° vooruit): niet ver je hoofd draaien
     this.kaartS.spawns = goed.length >= 3 ? goed : sp.slice().sort((a, b) => hoek(a).a - hoek(b).a).slice(0, 4);
+    const kegel = q => Math.atan2(Math.abs(q.p[0]), -q.p[1]) < 0.98;
+    this.kaartS.plekken = this.kaartS.plekken.map(g => Object.assign(g, {lijst:g.lijst.filter(kegel)})).filter(g => g.lijst.length);
   },
   kaartWeg(){ if (this.kaartG){ this.kaartG.removeFromParent(); this.kaartG = null; } this.kaartW = null; this.kaartS = null; this.extraY = 0;
     [this.wand, this.vloer, this.vloerVer, this.voet, this.achter, this.muren].forEach(m => { if (m) m.visible = true; }); this.lichtZet(1, 1); this.el.object3D.fog = null; },
@@ -2257,7 +2259,7 @@ AFRAME.registerComponent('zombies', {
   vijandSchot(z, schade, spreiding, loop){
     if (this.modus === 'test') return;
     if (z && z.versuft > this.nu) return;                               // verblind/versuft: schiet niet
-    if (z && !loop && z.grp && this.kaartNu()){ const oog = this.el.camera.getWorldPosition(new this.T.Vector3()); if (this.kaartSegZ(z.grp.position.clone().setY(1.45), oog)) return; }   // muur ertussen: niet schieten
+    if (z && !loop && z.grp && this.kaartNu()){ const oog = this.el.camera.getWorldPosition(new this.T.Vector3()); if (this.kaartSegZ(z.grp.position.clone().setY(1.45), oog)) return; if (Math.atan2(Math.abs(z.grp.position.x), -z.grp.position.z) > 1.05) return; }   // muur ertussen of buiten 120°: niet schieten
     this.dodNu = !!(z && z.dodelijk);                                   // helm: rode schoten minder schade
     const T = this.T, ik = this.el.camera.getWorldPosition(new T.Vector3());
     const VW = z && z.vWapen && !loop && this.VWAPEN[z.vWapen];
@@ -2616,14 +2618,15 @@ AFRAME.registerComponent('zombies', {
     const K = this.kaartNu(), P = this.props.parachute, T = this.T; if (!K || !K.lucht || !P) return;
     const br = Math.min(5, (this.laan() || 4)*0.8), st = this.el.components.stad, ik = this.el.camera.getWorldPosition(new T.Vector3());
     this.melding('PARATROOPERS!', '#ff5a3a'); this.stinger('para');
-    for (let i=0;i<n;i++){ let x = 0, zz = -10;
-      for (let k=0;k<20;k++){ x = (Math.random()*2 - 1)*br; zz = -(8 + Math.random()*8); if (this.blokKaartVrij(new T.Vector3(x, 0, zz)) && !(st && st.kaartSeg(ik, new T.Vector3(x, 1.3, zz)))) break; }
+    for (let i=0;i<n;i++){ let x = 0, zz = -10, ok = false;   /* landplek: vrij op de grond, open lucht erboven (geen dak/balkon), in beeld en binnen 120° */
+      for (let k=0;k<30 && !ok;k++){ x = (Math.random()*2 - 1)*br; zz = -(8 + Math.random()*7); ok = Math.atan2(Math.abs(x), -zz) < 0.9 && this.blokKaartVrij(new T.Vector3(x, 0, zz)) && this.kaartVrij(new T.Vector3(x, 0, zz), 0.6) && !(st && st.kaartSeg(ik, new T.Vector3(x, 1.3, zz))) && !(st && st.kaartSeg(new T.Vector3(x, 2.4, zz), new T.Vector3(x, 30, zz))); }
+      if (!ok) continue;
       const y = 15 + i*2.2 + Math.random()*1.5, z = this.soldaat(new T.Vector3(x, 0, zz), {soorten:this.wave && this.wave.soorten}); if (!z || !z.ai) continue;
       const kap = new T.Mesh(new T.PlaneGeometry(P.w*0.9, P.h*0.9), new T.MeshBasicMaterial({map:P.tex, alphaTest:0.5, side:T.DoubleSide})); kap.raycast = () => {};
       const kapG = new T.Group(); kapG.position.y = 2.25; kapG.add(kap); kap.position.y = P.h*0.38;
       const pts = []; [-0.9, -0.45, 0.45, 0.9].forEach(f => pts.push(new T.Vector3(f*P.w*0.42, P.h*0.38 - P.h*0.3, 0), new T.Vector3(f*0.12, -0.75, 0)));
       kapG.add(new T.LineSegments(new T.BufferGeometry().setFromPoints(pts), new T.LineBasicMaterial({color:0xc9b48a}))); z.grp.add(kapG);
-      z.para = {y, v:new T.Vector3((Math.random() - 0.5)*0.8, -2.3 - Math.random()*0.5, 0.25), kapG, t:Math.random()*6};
+      z.para = {y, v:new T.Vector3(0, -2.3 - Math.random()*0.5, 0), kapG, t:Math.random()*6};   /* recht naar beneden: landt precies op de vrije plek */
       z.ai.y0 = y; z.grp.position.y = y; (this.paras = this.paras || []).push(z);
       const S = z.s3d; if (S){ const hand = new T.Object3D(); hand.position.set(0, 2.15, 0.05); z.grp.add(hand); z.para.hand = hand;
         ['l', 'r'].forEach((h, j) => { const lok = new T.Vector3(j ? -0.16 : 0.16, 0, 0); S[j ? 'grijp2' : 'grijp'] = {b:hand, lok, t:999, duur:999, hand:h, snel:5}; }); } } },
@@ -2716,7 +2719,7 @@ AFRAME.registerComponent('zombies', {
     z.ai.post = {schuil:binnen, uit, fase:'schuil'}; z.ai.staat = 'arcade'; z.ai.t = 0.4 + Math.random()*1.2; z.dodelijk = Math.random() < 0.3; },
   hoeken(K){                            // gluurplekken: verstopt achter een hoek, met één stap opzij in beeld (eenmalig per stand berekend)
     if (K._hoeken) return K._hoeken; const T = this.T, uit = [], oog = this.el.camera.getWorldPosition(new T.Vector3()); oog.y = Math.max(1.35, oog.y);
-    for (let d = 4.5; d <= 11.6; d += 0.55) for (let a = -1.3; a <= 1.3; a += 0.09){ const p = new T.Vector3(oog.x + Math.sin(a)*d, 0, oog.z - Math.cos(a)*d);
+    for (let d = 4.5; d <= 11.6; d += 0.55) for (let a = -0.92; a <= 0.92; a += 0.08){   /* alleen binnen 120° */ const p = new T.Vector3(oog.x + Math.sin(a)*d, 0, oog.z - Math.cos(a)*d);
       if (uit.some(q => q.p.distanceTo(p) < 1.7) || !this.kaartVrij(p, 0.42)) continue;   /* niet in of tegen een muur */
       if (!this.kaartSegZ(oog, p.clone().setY(1.5)) || !this.kaartSegZ(oog, p.clone().setY(0.9))) continue;                 // daar zie je hem niet
       const naar = oog.clone().sub(p).setY(0).normalize(), zij = new T.Vector3(-naar.z, 0, naar.x);
