@@ -1086,7 +1086,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v114";
+const VERSIE = "v115";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2792,8 +2792,13 @@ AFRAME.registerComponent('zombies', {
       for (const h of H){ if (h.bezet && !h.bezet.dood && h.bezet !== z && h.bezet.ai && h.bezet.ai.post && h.bezet.ai.post.hoek === h) continue; const d = h.p.distanceTo(g);
         if (d < hd && !this.kaartSegZ(g.clone().setY(0.5), h.p.clone().setY(0.5)) && !this.kaartSegZ(g.clone().setY(1.2), h.p.clone().setY(1.2))){ hd = d; hb = h; } }
       if (hb){ hb.bezet = z; ai.post = {schuil:hb.p.clone(), uit:hb.uit.clone(), laag:false, fase:'schuil', hoek:hb, leun:this.leunPlek(hb.p, hb.uit.clone().sub(hb.p).setY(0).normalize())}; ai.staat = 'arcade'; ai.t = 0.2 + Math.random()*0.6; ai.strafe = null; return; } }
+    const inKegel = v => Math.atan2(Math.abs(v.x), -v.z) < 0.98;
+    if (K && !inKegel(g)){ const H = this.hoeken(K).filter(h => !(h.bezet && !h.bezet.dood && h.bezet !== z && h.bezet.ai && h.bezet.ai.post && h.bezet.ai.post.hoek === h)).sort((a, b) => a.p.distanceTo(g) - b.p.distanceTo(g));   /* staat opzij: naar een hoekje binnen 120° of door een deur naar voren */
+      if (H[0]){ const hb = H[0]; hb.bezet = z; ai.post = {schuil:hb.p.clone(), uit:hb.uit.clone(), laag:false, fase:'schuil', hoek:hb, leun:this.leunPlek(hb.p, hb.uit.clone().sub(hb.p).setY(0).normalize())}; ai.staat = 'arcade'; ai.t = 0.2; ai.strafe = null; return; }
+      const deur = (K.spawns || []).filter(q => q.deur && q.via && q.via.length && !(q.deurBezet && !q.deurBezet.dood)).sort((a, b) => Math.hypot(a.p[0] - g.x, a.p[1] - g.z) - Math.hypot(b.p[0] - g.x, b.p[1] - g.z))[0];
+      if (deur){ if (z.team) this.uitTeam(z); this.arcadeDeur(z, deur); return; } }
     let best = null, bd = 6;
-    if (K) K.plekken.forEach(gp => gp.lijst.forEach(q => { const d = q.dek; if (!d || q.prive || (d.bezet && !d.bezet.dood && d.bezet !== z)) return; const a = d.p.distanceTo(g); if (a < bd){ bd = a; best = d; } }));
+    if (K) K.plekken.forEach(gp => gp.lijst.forEach(q => { const d = q.dek; if (!d || q.prive || (d.bezet && !d.bezet.dood && d.bezet !== z) || !inKegel(d.p)) return; const a = d.p.distanceTo(g); if (a < bd){ bd = a; best = d; } }));
     if (best){ best.bezet = z; ai.post = {schuil:best.p.clone(), uit:best.p.clone(), laag:true, fase:'schuil'}; }
     else { const ik = this.el.camera.getWorldPosition(new T.Vector3()), naar = ik.sub(g).setY(0).normalize(), zij = new T.Vector3(-naar.z, 0, naar.x);
       let kant = ai.kant || 1, d = 0; if (st){ const o = g.clone().setY(1.2), l = st.kaartStraal(o, zij.clone().negate(), 2.2), r = st.kaartStraal(o, zij, 2.2);
@@ -4364,7 +4369,7 @@ AFRAME.registerComponent('zombies', {
     if (S.kickS > 0.01 && rb){ const as = new T.Vector3(1, 0, 0).applyQuaternion(S.m.getWorldQuaternion(new T.Quaternion())), q = new T.Quaternion().setFromAxisAngle(as, -S.kickS*0.055),
       bw = rb.getWorldQuaternion(new T.Quaternion()), pw = rb.parent.getWorldQuaternion(new T.Quaternion()); rb.quaternion.copy(pw.invert().multiply(q.multiply(bw))); rb.updateMatrixWorld(true); }
     // hoogte: achter dekking gehurkt (en de rest wegzakken), anders zoals de 2D-soldaat
-    const hurkDekking = ai.staat === 'dekking' ? 0.62 : 0;
+    const hurkDekking = ai.staat === 'dekking' ? 0.62 : ai.staat === 'arcade' ? 1 : 0;   /* gehurkt is gehurkt: niet de grond in zakken */
     g.position.y = (ai.y0 || 0) - Math.max(0, zak - hurkDekking) + this.reactie(z, s);
     g.rotation.z = z.nekT ? Math.sin(z.t*5.5)*0.09 : (z.mank && S.snel > 0.2 ? Math.max(0, Math.sin(z.t*5.2))*0.16*(z.mank === 'L' ? 1 : -1) : 0);   // hinken: zakt door op het zere been
     g.rotation.x = 0;
@@ -6051,8 +6056,10 @@ AFRAME.registerComponent('zombies', {
   zichtRedding(s){ const K = this.kaartNu(); if (!K || !this.arcadeAan || !this.arcadeAan()) return; if ((this.zrT = (this.zrT || 0) - s) > 0) return; this.zrT = 1;
     const T = this.T, oog = this.el.camera.getWorldPosition(new T.Vector3()), deuren = (K.spawns || []).filter(q => q.deur && q.via && q.via.length);
     for (const z of this.lijst){ if (z.dood || !z.ai || !z.s3d || z.sprong || z.para || z.schild || ['bak', 'touw', 'mg', 'mgVuur', 'zwaar', 'sniper', 'onwetend'].includes(z.ai.staat) || z.ai.raamSniper) continue;
-      const p = z.grp.position, dicht = this.kaartSegZ(oog, p.clone().setY(1.5)) && this.kaartSegZ(oog, p.clone().setY(0.6));
-      z.zichtT = dicht ? (z.zichtT || 0) + 1 : 0; if (z.zichtT < 7 || !deuren.length) continue; z.zichtT = 0;
+      const p = z.grp.position, opzij = Math.atan2(Math.abs(p.x), -p.z) > 1.05, dicht = opzij || (this.kaartSegZ(oog, p.clone().setY(p.y + 1.5)) && this.kaartSegZ(oog, p.clone().setY(p.y + 0.9)));   /* ook op een verdieping: vanaf zijn eigen vloer */
+      z.zichtT = dicht ? (z.zichtT || 0) + 1 : 0;
+      if (z.zichtT === 2 && z.ai.staat === 'arcade' && z.ai.post && z.ai.post.fase === 'schuil'){ z.ai.t = 0; continue; }   /* verstopt: nu tevoorschijn komen */
+      if (z.zichtT < 4 || !deuren.length) continue; z.zichtT = 0;
       const nu = this.nu, vrij = deuren.filter(q => !(q.reddingT > nu - 4)).sort((a, b) => Math.hypot(a.p[0] - p.x, a.p[1] - p.z) - Math.hypot(b.p[0] - p.x, b.p[1] - p.z))[0]; if (!vrij) continue;
       vrij.reddingT = nu; if (z.team) this.uitTeam(z); z.ai.arcade = true; if (z.ai.plek && z.ai.plek.bezet === z) z.ai.plek.bezet = null; z.ai.plek = null;
       this.arcadeDeur(z, vrij); this.logboek('redding: soldaat achter muur → deur ' + vrij.p.map(v => v.toFixed(0))); } },
