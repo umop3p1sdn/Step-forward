@@ -1028,7 +1028,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v102";
+const VERSIE = "v103";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -3891,6 +3891,17 @@ AFRAME.registerComponent('zombies', {
       return new T.AnimationClip(c.name, c.duration, tr); });
     return {scene:wortel, animations:clips, nieuw:true};
   },
+  s3dVest(aan, z){ const VY = 0.13, VZ = 0.212, VA = 0.245, VX = 0.245;                      /* plate carrier: voor- en achterplaat, zijbanden, schouderbanden, magazijntassen */
+    const T = this.T, E = this.s3dEenheid(), camo = this.s3dCamo(E.camo), web = this._webMat || (this._webMat = new T.MeshLambertMaterial({color:0x34342a}));
+    const B = this._vestGeo || (this._vestGeo = {voor:new T.BoxGeometry(0.3, 0.32, 0.035), achter:new T.BoxGeometry(0.32, 0.34, 0.035), zij:new T.BoxGeometry(0.03, 0.12, 0.44),
+      band:new T.BoxGeometry(0.06, 0.025, 0.42), tas:new T.BoxGeometry(0.075, 0.1, 0.045), admin:new T.BoxGeometry(0.12, 0.06, 0.03)});
+    const h = aan('spine_02', B.voor, camo, [0, VY, VZ]); if (!h) return null;            /* spine_02: draait minder mee met het mikken dan spine_03 */
+    const kind = (g, m, p) => { const o = new T.Mesh(g, m); o.position.set(p[0], p[1] - VY, p[2] - VZ); o.raycast = () => {}; h.add(o); return o; };
+    kind(B.achter, camo, [0, VY + 0.01, -VA]);
+    for (const s of [-1, 1]){ kind(B.zij, web, [s*VX, VY - 0.07, (VZ - VA)/2]); kind(B.band, web, [s*0.11, VY + 0.235, (VZ - VA)/2]); }
+    for (const x of [-0.085, 0, 0.085]) kind(B.tas, camo, [x, VY - 0.07, VZ + 0.035]);
+    kind(B.admin, web, [0, VY + 0.06, VZ + 0.028]);
+    return h; },
   s3dHouding(z){                       /* eigen houding: iets voorover, wapen gekanteld, hoofd schuin, bredere stand */
     const T = this.T, S = z.s3d, H = S.houding, mq = S.m.getWorldQuaternion(new T.Quaternion()), voor = new T.Vector3(0, 0, 1).applyQuaternion(mq), rechts = new T.Vector3(1, 0, 0).applyQuaternion(mq);
     S.m.updateMatrixWorld(true); const q = new T.Quaternion();
@@ -3907,7 +3918,8 @@ AFRAME.registerComponent('zombies', {
   s3dDeksel(aan, z, k){                 /* helm, muts, baret of pet; gezichten zonder voorhoofd houden hun hoofddeksel altijd op */
     const T = this.T, S = z.s3d, vast = [3, 4, 8, 9, 10, 11, 12, 13, 14, 15, 16].includes(k), E = this.s3dEenheid();
     S.helmVast = vast;
-    const st = S.helm ? {d:'helm', camo:E.camo} : E.soorten[(E.tel++) % E.soorten.length], soort = st.d;   /* eenheid van deze wave: vaste stijlen, om de beurt */
+    const st = (S.helm || z.vestHard) ? {d:'helm', camo:E.camo} :   /* helm-, vest- en M60-types: altijd een helm */
+       E.soorten[(E.tel++) % E.soorten.length], soort = st.d;   /* eenheid van deze wave: vaste stijlen, om de beurt */
     const kind = (h, g, m, p, rt) => { const o = new T.Mesh(g, m); o.position.set(p[0], p[1], p[2]); if (rt) o.rotation.set(rt[0], rt[1], rt[2]); o.raycast = () => {}; h.add(o); return o; };
     if (soort === 'helm') return this.s3dHelm(aan, z, st.camo);
     if (soort === 'muts') return aan('Head', this.s3dSchaal('muts', [[0, 0.45], [1.0, 0.47], [1.6, 0.53], [Math.PI, 0.57]], 0.122, 0.146, 0.138), (this._mutsMat = this._mutsMat || {})[st.kleur] || (this._mutsMat[st.kleur] = new T.MeshLambertMaterial({color:st.kleur})), [0, 0.17, 0.022]);
@@ -4077,6 +4089,7 @@ AFRAME.registerComponent('zombies', {
     const foto = !!S.kleding, eigenHelm = this.soorten[z.n] && this.soorten[z.n].j.helm != null;   // soort 1 en 5 hebben al een helm/pet op de foto
     if (B.nieuw){ const kNr = this._kopNr = ((this._kopNr || 0) % 16) + 1; S.kopMesh = aan('Head', this.s3dKopGeo(), this.s3dKopMat(kNr), [0, 0.075, 0.03]);                                   // eigen hoofd met gezichtsskin
       S.helmMesh = this.s3dDeksel(aan, z, kNr);
+      if (z.vestHard && !(z.ai && z.ai.soort === 'zwaar')) S.vestMesh = this.s3dVest(aan, z);   // ballistisch vest
       const hr = () => Math.random() - 0.5; S.houding = {voor:0.04 + hr()*0.12, kant:hr()*0.16, kopR:hr()*0.22, kopV:hr()*0.12, breed:0.02 + Math.random()*0.07}; }   // eigen houding
     if (S.helm && !eigenHelm && !B.nieuw){ S.helmMesh = aan('Head', new T.SphereGeometry(0.172, 16, 9, 0, Math.PI*2, 0, Math.PI*0.56), groen, [0, 0.122, -0.022], [-0.24, 0, 0]); S.helmMesh.scale.multiply(new T.Vector3(1, 1.06, 1.1)); }
     else if (!foto) aan('Head', new T.SphereGeometry(0.128, 12, 6, 0, Math.PI*2, 0, Math.PI*0.42), zwart, [0, 0.13, 0]);  // muts
