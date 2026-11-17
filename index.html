@@ -1086,7 +1086,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v112";
+const VERSIE = "v113";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2207,7 +2207,7 @@ AFRAME.registerComponent('zombies', {
             else ai.strafe = {dir:dv, v:Math.min(5.5, dl/0.55), t:dl/Math.min(5.5, dl/0.55), schot:0.18, kniel:false}; break; } }
         if (P.fase === 'schuil'){ ai.stil = !naar(P.schuil, 2.4); ai.mik = false; if (P.laag) ai.zakDoel = 1; if (ai.t <= 0){ P.fase = 'uit'; ai.t = 2; P.nuLaag = !!(P.leun && P.leun.laag && Math.random() < 0.45); P.doelUit = P.leun ? (P.nuLaag ? P.leun.laag : P.leun.hoog) : P.uit;
             const d = ai.deurObj; if (d && d.trap === z){ d.trap = true; d.doel = 1.55; d.b.uit = true; this.fxStart && this.fxStart('rook', d.g.getWorldPosition(new T.Vector3()).setY(0.4), 0.5, 0.6); this.boem && this.boem(0.18); } } }
-        else if (P.fase === 'uit'){ ai.mik = true; ai.stil = false; if (naar(P.doelUit || P.uit, P.laag ? 9 : (P.leun ? 3.6 : 2.8)) || ai.t <= 0){ P.fase = 'mik'; ai.t = P.mikT = (z.dodelijk ? 0.75 : 1.0) + Math.random()*0.5; this.arcadeRing(z, true); } }
+        else if (P.fase === 'uit'){ ai.mik = true; ai.stil = false; if (naar(P.doelUit || P.uit, P.laag ? 9 : (P.leun ? 4.6 : 2.8)) || ai.t <= 0){ P.fase = 'mik'; ai.t = P.mikT = (z.dodelijk ? 0.75 : 1.0) + Math.random()*0.5; this.arcadeRing(z, true); } }
         else if (P.fase === 'mik'){ ai.mik = true; ai.stil = true; naar(P.doelUit || P.uit, 1.5); this.arcadeRing(z, true, 1 - ai.t/P.mikT);
           if (ai.t <= 0){ P.fase = 'vuur'; P.n = 1 + (Math.random()*3|0); ai.t = 0; } }
         else if (P.fase === 'vuur'){ ai.mik = true; ai.stil = true; this.arcadeRing(z, true, 1);
@@ -2780,7 +2780,7 @@ AFRAME.registerComponent('zombies', {
     return K._hoeken = uit; },
   leunPlek(S, L){ const T = this.T, oog = this.el.camera.getWorldPosition(new T.Vector3()); oog.y = Math.max(1.35, oog.y);   /* hoe ver moet hij opzij om net met bovenlijf en geweer in beeld te komen? */
     const zoek = hk => { for (let t = 0.1; t <= 0.85; t += 0.08){ const p = S.clone().addScaledVector(L, t); if (!this.kaartVrij(p, 0.22)) return null;
-        const kop = p.clone().addScaledVector(L, 0.32).setY(hk); if (!this.kaartSegZ(oog, kop)) return p; } return null; };
+        const kop = p.clone().addScaledVector(L, 0.32).setY(hk); if (!this.kaartSegZ(oog, kop)){ const p2 = p.clone().addScaledVector(L, 0.24); return this.kaartVrij(p2, 0.22) ? p2 : p; } } return null; };   /* plus een stukje: schouder en geweer duidelijk in beeld */
     const hoog = zoek(1.45), laag = zoek(1.0); if (!hoog && !laag) return null; return {L:L.clone(), hoog:hoog || laag, laag}; },
   s3dLeun(z){ const T = this.T, S = z.s3d, ai = z.ai, w = ai.leunW, mq = S.m.getWorldQuaternion(new T.Quaternion()), voor = new T.Vector3(0, 0, 1).applyQuaternion(mq), rechts = new T.Vector3(1, 0, 0).applyQuaternion(mq);
     const zij = new T.Vector3(-voor.z, 0, voor.x), sg = ai.leunL ? (Math.sign(zij.dot(ai.leunL)) || 1) : 1, th = sg*0.6*w, laag = ai.zakDoel > 0.5, q = new T.Quaternion();   /* voorover buigen en om de hoek draaien */
@@ -4288,7 +4288,9 @@ AFRAME.registerComponent('zombies', {
     const S = z.s3d, ai = z.ai || {}, g = z.grp, T = this.T;
     const v = g.position.clone().sub(S.vorige); v.y = 0;
     const traag = s > 0 && !z.sprong && !z.para && !(z.wankel > 0) && !z.strk && !['bak','touw','deur'].includes(ai.staat) && v.length() < 0.6;
-    if (traag){ const wil = v.clone().multiplyScalar(1/s); S.vel = S.vel || wil.clone(); const dv = wil.sub(S.vel), rem = dv.dot(S.vel) < 0, a = (rem ? 22 : 9)*s;   // optrekken traag, afremmen snel
+    if (traag){ const wil = v.clone().multiplyScalar(1/s); S.vel = S.vel || wil.clone();
+      { const ws = wil.length(), vs = S.vel.length(); if (ws > 0.3 && vs > 0.3 && wil.dot(S.vel) < -0.25*ws*vs && !(S.keer > 0)){ S.keer = 0.38; S.keerR = Math.atan2(wil.x, wil.z); }   /* andere kant op: eerst stoppen en omdraaien */
+        if (S.keer > 0){ S.keer -= s; if (ws > 0.3) S.keerR = Math.atan2(wil.x, wil.z); wil.set(0, 0, 0); } } const dv = wil.sub(S.vel), rem = dv.dot(S.vel) < 0, a = (rem ? 22 : 9)*s;   // optrekken traag, afremmen snel
       if (dv.length() > a) dv.setLength(a); if (this.arcadeAan()) { const vm = 2.9; const nv = S.vel.clone().add(dv); if (nv.length() > vm) dv.copy(nv.setLength(vm).sub(S.vel)); }
       S.acc = (S.acc || new T.Vector3()).lerp(dv.clone().multiplyScalar(1/s), Math.min(1, s*8)); S.vel.add(dv);
       g.position.x = S.vorige.x + S.vel.x*s; g.position.z = S.vorige.z + S.vel.z*s; v.copy(S.vel).multiplyScalar(s); }
@@ -4305,8 +4307,9 @@ AFRAME.registerComponent('zombies', {
       if (echtMik && Math.abs(mv) > 1.75){ wil = mv - Math.PI*Math.sign(mv); S.terug = true; }                  // terugtrekken: achteruit lopen, gezicht naar jou
       else wil = mv; }
     if (ai.staat === 'onwetend' && S.snel <= 0.3 && ai.kijk != null) wil = Math.atan2(Math.sin(ai.kijk - g.rotation.y), Math.cos(ai.kijk - g.rotation.y));
+    if (S.keer > 0 && !echtMik && S.keerR != null){ const k = S.keerR - g.rotation.y; wil = Math.atan2(Math.sin(k), Math.cos(k)); }
     if (S.testYaw != null) wil = S.testYaw;
-    const dw = Math.atan2(Math.sin(wil - S.yaw), Math.cos(wil - S.yaw)); S.yaw += dw*Math.min(1, s*(mikt ? 12 : 7)); S.m.rotation.order = 'YXZ'; S.m.rotation.y = S.yaw;
+    const dw = Math.atan2(Math.sin(wil - S.yaw), Math.cos(wil - S.yaw)), dmax = s*(mikt ? 6.5 : 4.8); S.yaw += Math.max(-dmax, Math.min(dmax, dw*Math.min(1, s*(mikt ? 12 : 7))));   /* geen 180° in één klap */ S.m.rotation.order = 'YXZ'; S.m.rotation.y = S.yaw;
     const zak = ai.zak || 0, kniel = ai.houding === 'kniel' || z.knieVast || z.gewond, hurk = ai.houding === 'hurk';
     const gewapend = !!(z.geweer && z.geweer.parent);
     let benen, boven, ts = 1;
@@ -4339,7 +4342,7 @@ AFRAME.registerComponent('zombies', {
     S.mixer.update(s);
     S.basisQ = S.basisQ || new Map(); ['spine_01','spine_02','spine_03','neck_01','Head','thigh_l','thigh_r'].forEach(n => { const b = S.bot[n]; if (b) S.basisQ.set(b, (S.basisQ.get(b) || new T.Quaternion()).copy(b.quaternion)); });
     if (S.houding && !z.rol && !z.dood) this.s3dHouding(z);
-    ai.leunW = (ai.leunW || 0) + (((ai.staat === 'arcade' && !ai.strafe) ? (ai.leunDoel || 0) : 0) - (ai.leunW || 0))*Math.min(1, s*7);
+    ai.leunW = (ai.leunW || 0) + (((ai.staat === 'arcade' && !ai.strafe) ? (ai.leunDoel || 0) : 0) - (ai.leunW || 0))*Math.min(1, s*11);
     if (ai.leunW > 0.01 && !z.rol && !z.dood) this.s3dLeun(z);
     if (!z.rol && ai.staat === 'rennen' && S.vStaat !== 'rennen' && S.snel > 0 && Math.random() < 0.3 && !z.mank && !this.arcadeAan()) S.rolT = 0.35;      // tussen dekkingen: duikrol
     if (S.rolT > 0 && (S.rolT -= s) <= 0 && S.snel > 1.5 && !z.rol) z.rol = {t:0, dur:0.7};
