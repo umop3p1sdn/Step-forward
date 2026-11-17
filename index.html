@@ -1086,7 +1086,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v115";
+const VERSIE = "v116";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -1224,7 +1224,8 @@ AFRAME.registerComponent('stad', {
     (W.meubels || []).forEach(m => { if (!m.userData.muur && !m.userData.kapot) m.rotation.y = Math.atan2(S.x - m.position.x, S.z - m.position.z); });
     // niets van opzij: spawns die bijna haaks links/rechts naast je uitkomen vallen af
     const sp = this.kaartS.spawns, hoek = q => { const e = q.via.length ? q.via[q.via.length - 1] : q.p; return {a:Math.atan2(Math.abs(e[0]), -e[1]), d:Math.hypot(e[0], e[1])}; };
-    const goed = sp.filter(q => hoek(q).a < 0.98);                                          // alles binnen 120° (±56° vooruit): niet ver je hoofd draaien
+    const hk = e => Math.atan2(Math.abs(e[0]), -e[1]);
+    const goed = sp.filter(q => hoek(q).a < 0.98 && !(q.deur && Math.max(hk(q.p), q.via.length ? hk(q.via[0]) : 0) > 0.95));   // deuren: ook de deuropening zelf ruim binnen de 120°                                          // alles binnen 120° (±56° vooruit): niet ver je hoofd draaien
     this.kaartS.spawns = goed.length >= 3 ? goed : sp.slice().sort((a, b) => hoek(a).a - hoek(b).a).slice(0, 4);
     const kegel = q => Math.atan2(Math.abs(q.p[0]), -q.p[1]) < 0.98;
     this.kaartS.plekken = this.kaartS.plekken.map(g => Object.assign(g, {lijst:g.lijst.filter(kegel)})).filter(g => g.lijst.length);
@@ -2764,7 +2765,7 @@ AFRAME.registerComponent('zombies', {
     let post = {schuil:binnen, uit, fase:'schuil'};
     { const naar = buiten.clone().sub(binnen).setY(0).normalize(), tan = new T.Vector3(-naar.z, 0, naar.x), oog = this.el.camera.getWorldPosition(new T.Vector3());   /* naast de deurpost binnen, leunt de opening in */
       for (const k of (Math.random() < 0.5 ? [1, -1] : [-1, 1])){ const S2 = binnen.clone().addScaledVector(naar, 0.55).addScaledVector(tan, k*0.75);
-        if (!this.kaartVrij(S2, 0.22) || !this.kaartSegZ(oog, S2.clone().setY(1.2))) continue; const L = this.leunPlek(S2, tan.clone().multiplyScalar(-k)); if (L){ post = {schuil:S2, uit:L.hoog, fase:'schuil', leun:L}; break; } } }
+        if (!this.kaartVrij(S2, 0.22) || !this.kaartSegZ(oog, S2.clone().setY(1.2))) continue; const L = this.leunPlek(S2, tan.clone().multiplyScalar(-k)); if (L && Math.atan2(Math.abs(L.hoog.x), -L.hoog.z) < 0.98){ post = {schuil:S2, uit:L.hoog, fase:'schuil', leun:L}; break; } } }
     if (s.deur && s.deur.g && !s.deur.trap){ const d = s.deur; d.trap = z; d.doel = d.open = 0; d.g.rotation.y = d.basis ?? d.g.rotation.y; d.b.uit = false; }   /* deur dicht: wordt open getrapt */
     z.ai.post = post; z.ai.deurObj = s.deur || null; z.ai.staat = 'arcade'; z.ai.t = 0.4 + Math.random()*1.2; z.dodelijk = Math.random() < 0.3; },
   hoeken(K){                            // gluurplekken: verstopt achter een hoek, met één stap opzij in beeld (eenmalig per stand berekend)
@@ -3023,7 +3024,27 @@ AFRAME.registerComponent('zombies', {
     for (let i=0;i<(W.huey || 0);i++) q.push({t:11 + i*15, geenSoldaat:true, f:() => this.heli('huey_groen')});
     this.wq = q.sort((a, b) => a.t - b.t); this.wt = 0; this.waveKlaar = false;
   },
+  script(K){ if (K._script) return K._script; const T = this.T, slots = [], hoek = v => Math.atan2(v[0], -v[1]);   /* vaste posten per plek, verdeeld over zones */
+    (K.spawns || []).filter(q => q.deur && q.via && q.via.length).forEach(q => slots.push({soort:'deur', q, a:hoek(q.via[0])}));
+    this.hoeken(K).forEach(h => slots.push({soort:'hoek', h, a:hoek([h.p.x, h.p.z])}));
+    const ramen = []; (K.plekken || []).forEach(g => g.lijst.forEach(q => { if (q.raam) ramen.push(q); })); if (ramen.length) slots.push({soort:'raam', a:0, raam:true});
+    for (let i = slots.length - 1; i >= 0; i--) if (!slots[i].raam && Math.abs(slots[i].a) > 0.85) slots.splice(i, 1);   /* ruim binnen de 120° (ook als hij uitleunt) */
+    slots.forEach(sl => sl.zone = sl.raam ? 'H' : sl.a < -0.33 ? 'L' : sl.a > 0.33 ? 'R' : 'M');
+    const basis = ['M', 'L', 'H', 'R', 'M', 'R', 'H', 'L'], st = this.el.components.stad, sh = ((st && st.i) || 0) % 4;
+    const volg = basis.slice(sh).concat(basis.slice(0, sh)).filter(zn => slots.some(sl => sl.zone === zn));
+    return K._script = {slots, volg:volg.length ? volg : ['M'], n:0}; },
+  scriptLoper(K){ const S = this.script(K); if (!S.slots.length) return null; const B = this.beat || {}, zone = B.zone || S.volg[0];
+    const vrij = sl => !(sl.bezet && !sl.bezet.dood) && !(sl.soort === 'deur' && sl.q.deurBezet && !sl.q.deurBezet.dood) && !(sl.soort === 'hoek' && sl.h.bezet && !sl.h.bezet.dood);
+    let kies = S.slots.filter(sl => sl.zone === zone && vrij(sl)); if (!kies.length) kies = S.slots.filter(vrij); if (!kies.length) return null;
+    kies.sort((a, b) => Math.abs(a.a) - Math.abs(b.a)); const sl = kies[(B.nIn || 0) % kies.length]; if (this.beat) this.beat.nIn = (this.beat.nIn || 0) + 1;
+    const opt = {soort:'dekking', soorten:this.wave && this.wave.soorten}; let z = null;
+    if (sl.soort === 'raam'){ z = this.raamLoper(); }
+    else if (sl.soort === 'deur'){ z = this.spawnOp(sl.q, opt); if (z && z.ai){ z.ai.arcade = true; this.arcadeDeur(z, sl.q); } }
+    else { const h = sl.h; z = this.soldaat(h.p.clone(), opt); if (z && z.ai){ h.bezet = z; z.ai.arcade = true;
+        z.ai.post = {schuil:h.p.clone(), uit:h.uit.clone(), laag:false, fase:'schuil', hoek:h, gehad:true, leun:this.leunPlek(h.p, h.uit.clone().sub(h.p).setY(0).normalize())}; z.ai.staat = 'arcade'; z.ai.t = 0.15 + Math.random()*0.35; } }
+    if (z && z.ai){ sl.bezet = z; z.ai.vast = true; z.ai.script = sl.soort; } return z; },
   loper(soort){
+    { const K = this.kaartNu(); if (K && this.arcadeAan && this.arcadeAan() && (!soort || soort === 'dekking')){ const z = this.scriptLoper(K); if (z) return z; } }
     { const K = this.kaartNu(); if (K && K.spawns.length){
       if (!soort && Math.random() < 0.4){ const zr = this.raamLoper(); if (zr) return zr; }
       if (soort === 'mg' && (!this.mgNest || (this.mgNest.plek.bezet && !this.mgNest.plek.bezet.dood))) soort = null;
@@ -3043,13 +3064,13 @@ AFRAME.registerComponent('zombies', {
     this.beschermd = Math.max(0, (this.beschermd || 0) - s);
     if (this.overleden){ this.doodTick(s); return; }
     { const sf = this.el.components.stad; if (sf && this.modus === 'lvl' && sf.fase !== 'open' && PLEKKEN[sf.doel ?? sf.i] && PLEKKEN[sf.doel ?? sf.i].kaart) return; }
-    { const so = this.el.components.stad; if (this.modus === 'lvl' && so && so.fase === 'open' && so.kaartNu() && this.onwStand !== so.i && this.wt > 0.5){ this.onwStand = so.i; this.zetOnwetend(); } }
+    { const so = this.el.components.stad; if (this.modus === 'lvl' && so && so.fase === 'open' && so.kaartNu() && this.onwStand !== so.i && this.wt > 0.5){ this.onwStand = so.i; if (!this.arcadeAan()) this.zetOnwetend(); } }   /* arcade: geen rondhangers, alles volgens het script */
     this.dirTick(s); const D = this.modus === 'lvl' && this.dir;
     this.wt += s*(D ? (D.fase === 'rust' && !this.arcadeAan() ? 0 : D.kalm > 6 ? 1.8 : 1) : 1);
     const arc = this.arcadeAan && this.arcadeAan();
     if (arc){ const B = this.beat || (this.beat = {fase:'rust', t:0.8}), lev = this.levend();   /* ritme: een groep springt tegelijk tevoorschijn, jij ruimt op, korte adempauze, volgende groep */
       if (B.fase === 'vol'){ if (lev <= (this.maxNu() >= 6 ? 1 : 0)){ B.fase = 'rust'; B.t = 0.8 + Math.random()*0.7; } }
-      else if ((B.t -= s) <= 0){ B.fase = 'vol'; let k = 0; for (const q of this.wq){ if (q.geenSoldaat) continue; if (k >= this.maxNu() - lev) break; q.t = this.wt + 0.05 + k*(0.16 + Math.random()*0.14); k++; } this.wq.sort((a, b) => a.t - b.t); } }
+      else if ((B.t -= s) <= 0){ B.fase = 'vol'; { const K = this.kaartNu(); if (K){ const S = this.script(K); B.zone = S.volg[S.n++ % S.volg.length]; B.nIn = 0; } } let k = 0; for (const q of this.wq){ if (q.geenSoldaat) continue; if (k >= this.maxNu() - lev) break; q.t = this.wt + 0.05 + k*(0.16 + Math.random()*0.14); k++; } this.wq.sort((a, b) => a.t - b.t); } }
     while (this.wq.length && this.wq[0].t <= this.wt && (this.wq[0].geenSoldaat || ((!arc || this.beat.fase === 'vol') && this.levend() + Math.min(this.wq[0].n || 1, this.maxNu()) - 1 < this.maxNu()))) this.wq.shift().f();
     for (let i=0;i<this.wq.length;i++){ const q = this.wq[i]; if (q.t > this.wt) break; if (q.geenSoldaat){ this.wq.splice(i, 1); i--; q.f(); } }
     // MG weer bemannen als de schutter dood is
@@ -3140,7 +3161,7 @@ AFRAME.registerComponent('zombies', {
     if (this.herlaadA > 0){ this.herlaadA -= s; if (this.herlaadA <= 0){ this.ammo.auto = this.clip('auto'); this.hudVuil = true; this.tril(this.gunHand, 0.4, 40); } }
     this.holsterA = inHand === 'auto' ? 0 : (this.holsterA || 0) + s;                // machinegeweer in de holster: na 1,5 s vol
     if (this.holsterA > 1.5 && this.ammo.auto < this.clip('auto')){ this.ammo.auto = this.clip('auto'); this.herlaadA = 0; this.hudVuil = true; }
-    this.bloei = (this.bloei || 0)*Math.exp(-5*s);
+    this.bloei = (this.bloei || 0)*Math.exp(-5*s); this.klim = (this.klim || 0)*Math.exp(-(this.klimHerstel || 5)*s);
     if (this.laserRust > 0.5 && this.ammo.laser < AMMO.laser){ this.ammo.laser = Math.min(AMMO.laser, this.ammo.laser + (inHand === 'laser' ? 14 : 35)*s); this.hudVuil = true; }
   },
   ammoTekst(){
@@ -5489,6 +5510,7 @@ AFRAME.registerComponent('zombies', {
   wachtTijd(w){ const l = this.lv(w);
     const S = this.wStat(w);
     if (S && w === 'shotgun') return 1.6*Math.pow(0.975, S.fr);        // pomp ~0,7 s ... AA-12 ~0,15 s
+    if (S && w === 'pistool' && !(AUTO_LV.pistool || []).includes(this.lv('pistool'))) return 0.06;   /* handgun: zo snel als je tikt (recoil en spread remmen het af) */
     if (S) return 0.6*Math.pow(0.975, S.fr);                           // revolver 0,36 s ... Vector 0,05 s
     return WAPENS[w].wacht; },
   kill(w){
@@ -6239,9 +6261,9 @@ AFRAME.registerComponent('zombies', {
     if (!this.heeftAmmo(w)){ this.droog(w); return; } this.gebruik(w); this.bronWapen = w;
     const WS = this.wStat(w); this.schotDmg = WS ? WS.dmg : 30; this.impactMul = WS ? (w === 'shotgun' ? 0.6 + WS.imp/45 : 0.5 + WS.imp/60) : 1;
     if (WS && (w === 'pistool' || w === 'auto')){                       // spreiding: accuracy + opbouwende recoil bij snel vuren
-      const rd = this.rc.ray.direction, sp = (100 - WS.acc)*0.0004 + Math.min(0.03, this.bloei || 0), a = Math.random()*6.283, r = Math.sqrt(Math.random())*sp;
+      const rd = this.rc.ray.direction, sp = (100 - WS.acc)*0.0005 + Math.min(0.05, this.bloei || 0), a = Math.random()*6.283, r = Math.sqrt(Math.random())*sp;   /* spread: accuracy + opgebouwde bloei */
       const re = new this.T.Vector3().crossVectors(rd, new this.T.Vector3(0, 1, 0)).normalize(), op = new this.T.Vector3().crossVectors(re, rd).normalize();
-      rd.addScaledVector(re, Math.cos(a)*r).addScaledVector(op, Math.sin(a)*r + r*0.3).normalize(); this.bloei = (this.bloei || 0) + WS.rec*0.00011; }
+      rd.addScaledVector(re, Math.cos(a)*r).addScaledVector(op, Math.sin(a)*r + r*0.3 + Math.min(0.06, this.klim || 0)).normalize(); this.bloei = (this.bloei || 0) + WS.rec*0.00016; this.klim = (this.klim || 0) + WS.rec*0.00028; this.klimHerstel = 3 + (100 - WS.rec)*0.06; }   /* recoil: loop klimt per schot (meer bij zwaar kaliber), herstelt sneller bij lichte wapens */
     const o = this.rc.ray.origin.clone(), d = this.rc.ray.direction.clone();
     if (w === 'pistool'){                                          // munitiekist: alleen met het pistool (verplicht wisselen)
       const b = this.blokRaak(); const t0 = this.treffers(true)[0];
