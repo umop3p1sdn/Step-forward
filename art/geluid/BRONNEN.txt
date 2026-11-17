@@ -5,3 +5,9 @@ Geluiden (allemaal CC0 / publiek domein):
 - motor_rij, motor_stil: Meta Open Sound / Oculus Audio Pack (github.com/facebookincubator/Meta-open-sound) — CC0 1.0
   VEHCar_CarEngineHigh_LOOP_01, VEHCar_CarEngineSlow_LOOP_01.
 - helikopter: zelf gemaakt in code (geen bestand).
+- w/ (v118): per wapen eigen opnames uit dezelfde Free Firearm Sound Library (CC0 1.0), 4 takes per wapen, ingekort, licht verzadigd en genormaliseerd:
+  ppq = Walther PPQ 9mm (X_39, X_41), m1911 = 1911 .45 (A_41, A_42), bersa = Bersa .380 (F_46, F_47), sw = S&W 642 .38 (V_25, V_27),
+  m45 = Carl Gustav M45 9mm (G_25, G_31), ppsh = PPSh (P_24, P_30), ak = AK-47 (C_25, C_28), ar = AR-15 (D_31, D_32),
+  m12 = Winchester Model 12 (K_20, K_22), nova = Benelli Nova (O_19, O_21), cd = Charles Daly (H_19, H_21), moss = Mossberg 190 (N_28, N_30).
+  Handelingen: pomp_nova (O_6), pomp_cd (H_6), patroon (O_7), mag_in/slede/mag_uit_ppq (X_4, X_11, X_5), mag_uit/in/rack_ar (D_5, D_4, D_14),
+  mag_in/rack_ak (C_10, C_14), cil_open/laad/dicht (V_11, V_18, V_12). Vijanden op middenafstand: v_pistool (X_31P), v_smg (G_20P).

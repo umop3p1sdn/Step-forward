@@ -1086,7 +1086,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v117";
+const VERSIE = "v118";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2338,7 +2338,7 @@ AFRAME.registerComponent('zombies', {
     const doel = ik.clone().add(new T.Vector3(gauss()*sig, -LIJF_LENGTE*0.5 + gauss()*sig*0.9 + (buk ? 0.25 : 0), 0));
     const v = doel.sub(van).normalize().multiplyScalar(Math.min(KOGEL_V, afst/0.3));
     this.kogel(van, v, schade); this.flits(van);
-    this.schotGeluid(van, loop ? 'mg' : 'geweer');
+    this.schotGeluid(van, loop ? 'mg' : z && z.vWapen === 'pistool' ? 'pistool' : z && z.vWapen === 'smg' ? 'smg' : 'geweer');
   },
   fluit(){ this.geluid((A,n) => { const o = A.createOscillator(), g = A.createGain(); o.frequency.setValueAtTime(3200, n); o.frequency.exponentialRampToValueAtTime(900, n+0.18);
     g.gain.setValueAtTime(0.08, n); g.gain.exponentialRampToValueAtTime(0.001, n+0.2); o.connect(g).connect(this.uit); o.start(n); o.stop(n+0.22); }); },
@@ -2746,7 +2746,7 @@ AFRAME.registerComponent('zombies', {
     else ai.strafe = {dir:zij, v:2.1 + Math.random()*0.8, t:0.7 + Math.random()*0.6, schot:0.12 + Math.random()*0.15, kniel:Math.random() < 0.3}; },
   shotgunSchot(bron, o, d){             // hagel: per soldaat tellen hoeveel korrels raken; slug: kleine explosie op de inslag
     const T = this.T, l = this.lv('shotgun'), slug = false, n = 12, SS = this.wStat('shotgun') || {acc:70, dmg:70}, sp = 0.012 + (100 - SS.acc)*0.0006; this.tonRaak('shotgun');   // strakke groep
-    this.knal(1.5); this.boem && this.geluid((A, t) => this.speel(A, this.ruisBuf(A, 0.35, 3), 'lowpass', 900, 1.1)); this.tril(bron, 1, 110);
+    if (!this.wapenKnal('shotgun', this.wStat('shotgun'))) this.knal(1.5); this.boem && this.geluid((A, t) => this.speel(A, this.ruisBuf(A, 0.35, 3), 'lowpass', 900, 0.7)); this.tril(bron, 1, 110);
     const rechts = new T.Vector3().crossVectors(d, new T.Vector3(0, 1, 0)).normalize(), op = new T.Vector3().crossVectors(rechts, d).normalize(), per = new Map();
     for (let i=0;i<n;i++){ const a = Math.random()*6.283, r = (n === 1 ? 0 : Math.sqrt(Math.random()))*sp;
       const dk = d.clone().addScaledVector(rechts, Math.cos(a)*r).addScaledVector(op, Math.sin(a)*r).normalize(); this.rc.set(o, dk); this.rc.far = 80;
@@ -3136,7 +3136,7 @@ AFRAME.registerComponent('zombies', {
     const a = this.ammo; if (!a || this.oneindigNu()) return;
     if (w === 'pistool'){ a.pistool--; if (a.pistool <= 0) setTimeout(() => this.herladen(), 120); }                     // leeg: vanzelf herladen
     else if (w === 'shotgun'){ a.shotgun = (a.shotgun ?? 0) - 1; if (a.shotgun <= 0){ this.herlaadS = this.herlaadTijd('shotgun'); this.herlaadGeluid && this.herlaadGeluid(); } }
-    else if (w === 'auto'){ a.auto--; this.autoRust = 0; if (a.auto <= 0){ this.herlaadA = this.herlaadTijd('auto'); } } else if (w === 'raket') a.raket--; else if (w === 'laser'){ a.laser -= 10; this.laserRust = 0; }
+    else if (w === 'auto'){ a.auto--; this.autoRust = 0; if (a.auto <= 0){ this.herlaadA = this.herlaadTijd('auto'); this.herlaadSnd('auto'); } } else if (w === 'raket') a.raket--; else if (w === 'laser'){ a.laser -= 10; this.laserRust = 0; }
     this.hudVuil = true;
   },
   droog(w){   // klik: leeg
@@ -3150,7 +3150,7 @@ AFRAME.registerComponent('zombies', {
   herladen(){
     if (!this.ammo || this.herlaad > 0 || this.ammo.pistool >= this.clip('pistool')) return;
     this.herlaad = this.herlaadTijd('pistool'); this.hudVuil = true;
-    if (!this.sample('herlaad', 1, {wiebel:0})) this.geluid((A,n) => { this.speel(A, this.ruisBuf(A, 0.05, 6), 'bandpass', 1800, 0.7); this.speel(A, this.ruisBuf(A, 0.06, 6), 'bandpass', 2600, 0.8, 0.6); });
+    if (!this.herlaadSnd('pistool') && !this.sample('herlaad', 1, {wiebel:0})) this.geluid((A,n) => { this.speel(A, this.ruisBuf(A, 0.05, 6), 'bandpass', 1800, 0.7); this.speel(A, this.ruisBuf(A, 0.06, 6), 'bandpass', 2600, 0.8, 0.6); });
   },
   ammoTick(s){
     if (!this.ammo || !this.gunHand) return;
@@ -5267,7 +5267,7 @@ AFRAME.registerComponent('zombies', {
     const T = this.T, cam = this.el.camera, ik = cam.getWorldPosition(new T.Vector3()), afst = Math.max(1.5, p.distanceTo(ik));
     const lok = p.clone(); cam.worldToLocal(lok); const pan = Math.max(-0.9, Math.min(0.9, lok.x/Math.max(1, Math.hypot(lok.x, lok.z))));
     const mg = soort === 'mg', vol = Math.min(1, 7/afst)*(mg ? 0.8 : 1);
-    if (this.sample(mg ? 'mg' : 'geweer', vol*0.85, {pan, dof:Math.max(1400, 9000 - afst*380), echo:0.35, wiebel:0.12})) return;   // opname
+    if (this.sample(soort === 'pistool' || soort === 'smg' ? 'v_' + soort + '_' + (1 + (Math.random()*2|0)) : mg ? 'mg' : 'geweer', vol*0.85, {pan, dof:Math.max(1400, 9000 - afst*380), echo:0.35, wiebel:0.12})) return;   // opname
     this.geluid((A, n) => {
       const uit = A.createStereoPanner ? A.createStereoPanner() : A.createGain(); if (uit.pan) uit.pan.value = pan; uit.connect(this.uit);
       const echo = this.echoBus(A), stuur = A.createGain(); stuur.gain.value = 0.55; uit.connect(stuur); stuur.connect(echo);
@@ -5368,6 +5368,9 @@ AFRAME.registerComponent('zombies', {
     try {
       const A = this.ac || (this.ac = new (window.AudioContext||window.webkitAudioContext)());
       const lijst = {pistool:'pistool.mp3', auto:'auto.mp3', geweer:'geweer.mp3', mg:'mg.mp3', herlaad:'herlaad.mp3', droog:'droog.mp3', motorRij:'motor_rij.ogg', motorStil:'motor_stil.ogg'};
+      for (const n of ['ppq', 'm1911', 'bersa', 'sw', 'm45', 'ppsh', 'ak', 'ar', 'm12', 'nova', 'cd', 'moss']) for (let i=1; i<=4; i++) lijst['w_' + n + '_' + i] = 'w/' + n + '_' + i + '.mp3';   /* per wapen 4 takes */
+      for (const n of ['pomp_nova', 'pomp_cd', 'patroon', 'mag_in_ppq', 'slede_ppq', 'mag_uit_ppq', 'mag_uit_ar', 'mag_in_ar', 'rack_ar', 'mag_in_ak', 'rack_ak', 'cil_open', 'cil_laad', 'cil_dicht']) lijst['d_' + n] = 'w/' + n + '.mp3';
+      for (const n of ['v_pistool_1', 'v_pistool_2', 'v_smg_1', 'v_smg_2']) lijst[n] = 'w/' + n + '.mp3';
       await Promise.all(Object.entries(lijst).map(async ([k, f]) => {
         try { const b = await (await fetch('art/geluid/' + f)).arrayBuffer(); this.snd[k] = await A.decodeAudioData(b); } catch(_){} }));
     } catch(_){}
@@ -5511,6 +5514,25 @@ AFRAME.registerComponent('zombies', {
   isAuto(w){ return w === 'auto' || (AUTO_LV[w] || []).includes(this.lv(w)); },
   maxLv(w){ return (LVL_NAAM[w] || [1, 2, 3, 4]).length; },
   wStat(w){ const L = WAPEN_STAT[w]; return L ? L[Math.min(L.length, this.lv(w)) - 1] : null; },
+  WAPEN_GELUID: {'GLOCK 17':['ppq', 1], 'BERETTA 92FS':['bersa', 0.95], 'SIG SAUER P226':['m1911', 1.06], 'FN FIVE-SEVEN':['bersa', 1.12], 'GLOCK 18':['ppq', 1.04], 'COLT PYTHON':['sw', 0.9], 'DESERT EAGLE':['m1911', 0.8], 'HEAVY REVOLVER':['sw', 0.74],
+    'MP5':['m45', 1.02], 'UMP45':['m45', 0.9], 'P90':['ppsh', 1.1], 'VECTOR':['ppsh', 1.02], 'AK-74':['ak', 1.06], 'M4A1':['ar', 1], 'SCAR-H':['ar', 0.86], 'RPK':['ak', 0.94], 'M249 SAW':['ar', 0.82], 'M240B':['ak', 0.8],
+    'REMINGTON 870':['m12', 1, 'nova'], 'MOSSBERG 500':['moss', 1, 'cd'], 'BENELLI M3':['nova', 1, 'nova'], 'BENELLI M4':['nova', 1.05], 'SAIGA-12':['cd', 1.04], 'SPAS-12':['cd', 0.94, 'cd'], 'AA-12':['cd', 1.08], 'ORIGIN-12':['m12', 0.94]},
+  wapenKnal(w, WS){                     // eigen opname per wapen: 4 takes, nooit twee keer dezelfde achter elkaar, plus een lage dreun voor de punch
+    const G = WS && this.WAPEN_GELUID[WS.naam]; if (!G || !this.snd || !this.snd['w_' + G[0] + '_1']) return false;
+    let i; do { i = 1 + (Math.random()*4|0); } while (i === this._wLaatst && Math.random() < 0.9); this._wLaatst = i;
+    const fp = (WS.fp || 50)/100, sg = w === 'shotgun';
+    this.sample('w_' + G[0] + '_' + i, Math.min(1.25, 0.8 + fp*0.45), {rate:G[1], wiebel:0.05, echo:sg ? 0.32 : 0.24});
+    this.geluid((A, n) => { const o = A.createOscillator(), og = A.createGain(), f0 = sg ? 110 : 150 - fp*50; o.frequency.setValueAtTime(f0, n); o.frequency.exponentialRampToValueAtTime(34, n + 0.16);
+      og.gain.setValueAtTime(0.25 + fp*(sg ? 0.75 : 0.55), n); og.gain.exponentialRampToValueAtTime(0.001, n + 0.2); o.connect(og).connect(this.uit); o.start(n); o.stop(n + 0.22); });
+    if (G[2]) this.sample('d_pomp_' + G[2], 0.75, {t0:0.34, wiebel:0.04});                       /* pomp-actie na het schot */
+    return true; },
+  herlaadSnd(w){                        // herladen in stappen, verdeeld over de echte herlaadtijd
+    const WS = this.wStat(w); if (!this.snd || !this.snd.d_mag_in_ppq || !WS) return false; const T = this.herlaadTijd(w), S = (k, t, v) => this.sample('d_' + k, v || 0.9, {t0:Math.max(0, t), wiebel:0.03});
+    if (w === 'pistool'){ if (/PYTHON|REVOLVER/.test(WS.naam)){ S('cil_open', 0.03); S('cil_laad', T*0.42); S('cil_dicht', T*0.8); } else { S('mag_uit_ppq', 0.03); S('mag_in_ppq', T*0.45); S('slede_ppq', T*0.78); } }
+    else if (w === 'auto'){ const ak = /AK|RPK|M240/.test(WS.naam); S('mag_uit_ar', 0.03); S(ak ? 'mag_in_ak' : 'mag_in_ar', T*0.48); S(ak ? 'rack_ak' : 'rack_ar', T*0.76); }
+    else if (w === 'shotgun'){ const n = Math.min(4, WS.mag || 4); for (let k=0; k<n; k++) S('patroon', 0.08 + k*T*0.62/n, 0.8); S('pomp_' + ((this.WAPEN_GELUID[WS.naam] || [])[2] || 'nova'), T*0.82); }
+    return true; },
+  herlaadGeluid(){ this.herlaadSnd('shotgun'); },
   herlaadTijd(w){ const S = this.wStat(w); return S ? Math.max(0.4, 2.8 - S.rs*0.026) : 1.0; },       // snelle reload is écht snel
   wachtTijd(w){ const l = this.lv(w);
     const S = this.wStat(w);
@@ -6280,7 +6302,7 @@ AFRAME.registerComponent('zombies', {
     if ((w === 'pistool' || w === 'auto') && this.tonRaak(w)) return;
     if (w === 'pistool' || w === 'auto'){
       const kanon = !!WS && WS.dmg >= DOOR_VEST;                         // zwaar kaliber: door vest en helm
-      this.knal(WS ? 0.55 + WS.fp/100*1.15 : 1); this.tril(bron, WS ? Math.min(1, 0.2 + WS.rec/110) : 0.6, WS ? 35 + WS.rec*0.7 : 50);
+      if (!this.wapenKnal(w, WS)) this.knal(WS ? 0.55 + WS.fp/100*1.15 : 1); this.tril(bron, WS ? Math.min(1, 0.2 + WS.rec/110) : 0.6, WS ? 35 + WS.rec*0.7 : 50);
       const t = this.treffers(true)[0], pr = this.propRaak(), rk = this.schietDoel(o, d);
       const dt = t ? t.d : 1e9, dp = pr ? pr.d : 1e9, dr = rk ? rk.d : 1e9;
       if (rk && dr < dt && dr < dp) rk.doe();
