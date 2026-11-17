@@ -1028,7 +1028,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v91";
+const VERSIE = "v92";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -4005,7 +4005,7 @@ AFRAME.registerComponent('zombies', {
     const aan = (bot, geo, mat, pos, rot) => { const b = S.bot[bot]; if (!b) return null; const ws = b.getWorldScale(new T.Vector3()).x || sch;
       const me = new T.Mesh(geo, mat); me.scale.setScalar(1/ws); me.position.set(pos[0]/ws, pos[1]/ws, pos[2]/ws); if (rot) me.rotation.set(rot[0], rot[1], rot[2]); b.add(me); return me; };
     const foto = !!S.kleding, eigenHelm = this.soorten[z.n] && this.soorten[z.n].j.helm != null;   // soort 1 en 5 hebben al een helm/pet op de foto
-    if (B.nieuw){ S.kopMesh = aan('Head', this.s3dKopGeo(), this.s3dKopMat(1 + (Math.random()*8|0)), [0, 0.075, 0.03]);                                   // eigen hoofd met gezichtsskin
+    if (B.nieuw){ S.kopMesh = aan('Head', this.s3dKopGeo(), this.s3dKopMat(1 + (Math.random()*16|0)), [0, 0.075, 0.03]);                                   // eigen hoofd met gezichtsskin
       if (S.helm || Math.random() < 0.7) S.helmMesh = aan('Head', this.s3dHelmGeo(), this.s3dNieuwMat({userData:{}}, 'h' + z.n), [0, 0.203, 0.008], [-0.14, 0, 0]);
       else S.helmMesh = aan('Head', this._mutsGeo || (this._mutsGeo = new T.SphereGeometry(0.13, 16, 8, 0, Math.PI*2, 0, Math.PI*0.5).scale(1.06, 0.9, 1.12)), this._mutsMat || (this._mutsMat = new T.MeshLambertMaterial({color:0x26282a})), [0, 0.2, 0.005], [-0.1, 0, 0]); }   // muts
     if (S.helm && !eigenHelm && !B.nieuw){ S.helmMesh = aan('Head', new T.SphereGeometry(0.172, 16, 9, 0, Math.PI*2, 0, Math.PI*0.56), groen, [0, 0.122, -0.022], [-0.24, 0, 0]); S.helmMesh.scale.multiply(new T.Vector3(1, 1.06, 1.1)); }
