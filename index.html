@@ -1028,7 +1028,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v100";
+const VERSIE = "v101";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -3913,13 +3913,25 @@ AFRAME.registerComponent('zombies', {
     if (soort === 'muts') return aan('Head', this.s3dSchaal('muts', [[0, 0.45], [1.0, 0.47], [1.6, 0.53], [Math.PI, 0.57]], 0.122, 0.146, 0.138), (this._mutsMat = this._mutsMat || {})[st.kleur] || (this._mutsMat[st.kleur] = new T.MeshLambertMaterial({color:st.kleur})), [0, 0.17, 0.022]);
     if (soort === 'baret'){
       const kl = st.kleur, M = this._baretMat = this._baretMat || {}, m = M[kl] || (M[kl] = new T.MeshLambertMaterial({color:kl}));
-      const G = this._baretGeo || (this._baretGeo = (() => { const g = new T.SphereGeometry(1, 26, 10), P = g.attributes.position;   /* platte schijf die over één oor zakt */
-        for (let i=0;i<P.count;i++){ let x = P.getX(i)*0.15, y = P.getY(i)*0.03, zz = P.getZ(i)*0.145; const t = Math.max(0, Math.min(1, (0.03 - x)/0.18)), d = t*t*(3 - 2*t);   /* overtollige stof naar het rechteroor (-x) */
-          y -= 0.095*d*d; x += 0.03*d*d; P.setXYZ(i, x, y, zz); }
-        g.computeVertexNormals(); return {top:g, band:new T.CylinderGeometry(0.114, 0.116, 0.016, 26, 1, true), spel:new T.BoxGeometry(0.02, 0.024, 0.006)}; })());
-      const h = aan('Head', this.s3dSchaal('baretKap', [[0, 0.47], [1.4, 0.49], [Math.PI, 0.51]], 0.116, 0.107, 0.133), m, [0, 0.195, 0.025]); if (!h) return null;   /* kapje om het hoofd */
-      kind(h, G.top, m, [-0.018, 0.087, -0.005]);
-      kind(h, G.spel, this._spelMat || (this._spelMat = new T.MeshLambertMaterial({color:0xc8a24a})), [0.041, 0.05, 0.114], [-0.5, 0.38, 0]);   /* insigne op de baret, boven het linkeroog */
+      const KK = [[0, 0.47], [1.4, 0.49], [Math.PI, 0.51]], RX = 0.116, RY = 0.107, RZ = 0.133;
+      const G = this._baretGeo || (this._baretGeo = (() => { const g = new T.SphereGeometry(1, 26, 10), P = g.attributes.position;   /* platte schijf die over het rechteroor zakt */
+        for (let i=0;i<P.count;i++){ let x = P.getX(i)*0.15, y = P.getY(i)*0.024, zz = P.getZ(i)*0.145; const t = Math.max(0, Math.min(1, (0.03 - x)/0.18)), d = t*t*(3 - 2*t);
+          y -= 0.11*d*d; x += 0.03*d*d; P.setXYZ(i, x, y, zz); }
+        g.computeVertexNormals();
+        /* dun zwart randje (met het touwtje erin) langs de onderrand van het kapje */
+        const L = a => { const f = Math.abs(a); for (let i=1;i<KK.length;i++) if (f <= KK[i][0]){ const u = (f - KK[i-1][0])/(KK[i][0] - KK[i-1][0]), e = u*u*(3 - 2*u); return (KK[i-1][1] + (KK[i][1] - KK[i-1][1])*e)*Math.PI; } return KK[KK.length-1][1]*Math.PI; };
+        const N = 40, pos = [], idx = [];
+        for (let i=0;i<=N;i++){ const a = -Math.PI + i/N*Math.PI*2, q1 = L(a), q0 = q1 - 0.07;
+          for (const q of [q0, q1]) pos.push(Math.sin(q)*Math.sin(a)*RX*1.012, Math.cos(q)*RY*1.012, Math.sin(q)*Math.cos(a)*RZ*1.012); }
+        for (let i=0;i<N;i++){ const a = i*2; idx.push(a, a + 1, a + 2, a + 2, a + 1, a + 3); }
+        const band = new T.BufferGeometry(); band.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); band.setIndex(idx); band.computeVertexNormals();
+        return {top:g, band, flash:new T.BoxGeometry(0.036, 0.046, 0.004), spel:new T.BoxGeometry(0.028, 0.038, 0.007)}; })());
+      const h = aan('Head', this.s3dSchaal('baretKap', KK, RX, RY, RZ), m, [0, 0.195, 0.025]); if (!h) return null;   /* kapje om het hoofd */
+      kind(h, G.top, m, [-0.018, 0.087, -0.005], [0, 0, 0.12]);                                            /* hoog aan de linkerkant, afhangend naar rechts */
+      kind(h, G.band, this._bandMat || (this._bandMat = new T.MeshLambertMaterial({color:0x111111, side:T.DoubleSide})), [0, 0, 0]);
+      const zw = this._flashMat || (this._flashMat = new T.MeshLambertMaterial({color:0x15171a})), goud = this._spelMat || (this._spelMat = new T.MeshLambertMaterial({color:0xd4ac4f, emissive:0x2a1e08}));
+      kind(h, G.flash, zw, [0.073, 0.045, 0.09], [-0.12, 0.75, 0]);                                         /* insigne links (boven linkeroog/slaap) */
+      kind(h, G.spel, goud, [0.0755, 0.046, 0.093], [-0.12, 0.75, 0]);
       return h; }
     const h = aan('Head', this.s3dSchaal('pet', [[0, 0.45], [1.2, 0.48], [Math.PI, 0.52]], 0.106, 0.118, 0.13, 0.88), this.s3dCamo(st.camo), [0, 0.2, 0.022]); if (!h) return null;   /* patrouillepet */
     kind(h, this._klepGeo || (this._klepGeo = new T.CylinderGeometry(0.075, 0.075, 0.006, 16, 1, false, -Math.PI/2, Math.PI).scale(1.08, 1, 1)), this.s3dCamo(st.camo), [0, 0.022, 0.116], [0.08, 0, 0]);   /* klep */
