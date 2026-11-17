@@ -1028,7 +1028,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v94";
+const VERSIE = "v95";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -3891,8 +3891,28 @@ AFRAME.registerComponent('zombies', {
       return new T.AnimationClip(c.name, c.duration, tr); });
     return {scene:wortel, animations:clips, nieuw:true};
   },
-  s3dHelmGeo(){ if (this._helmGeo) return this._helmGeo; const T = this.T, g = new T.SphereGeometry(0.128, 18, 9, 0, Math.PI*2, 0, Math.PI*0.56); g.scale(1.0, 0.95, 1.12);
-    return this._helmGeo = g; },
+  s3dSchaal(naam, K, rx, ry, rz){ this._schaal = this._schaal || {}; if (this._schaal[naam]) return this._schaal[naam];   /* bol met eigen randlijn per richting */
+    const T = this.T, pm = Math.PI*0.64, g = new T.SphereGeometry(1, 30, 14, 0, Math.PI*2, 0, pm), P = g.attributes.position;
+    const L = a => { const f = Math.abs(a); for (let i=1;i<K.length;i++) if (f <= K[i][0]){ const t = (f - K[i-1][0])/(K[i][0] - K[i-1][0]), e = t*t*(3 - 2*t); return (K[i-1][1] + (K[i][1] - K[i-1][1])*e)*Math.PI; } return K[K.length-1][1]*Math.PI; };
+    for (let i=0;i<P.count;i++){ const x = P.getX(i), y = P.getY(i), z = P.getZ(i), p = Math.acos(Math.max(-1, Math.min(1, y))), a = Math.atan2(x, z), q = p/pm*L(a);
+      P.setXYZ(i, Math.sin(q)*Math.sin(a)*rx, Math.cos(q)*ry, Math.sin(q)*Math.cos(a)*rz); }
+    g.computeVertexNormals(); return this._schaal[naam] = g; },
+  s3dCamo(k){ this._camo = this._camo || {}; if (this._camo[k]) return this._camo[k]; const T = this.T;
+    const PAL = [['#b29d74', '#8b7a55', '#6a5c40', '#cdbd95'], ['#5c6241', '#454b31', '#7b7b54', '#34362a'], ['#6c6a4a', '#3f4a2d', '#2b2a22', '#8a7a55']][k % 3];
+    const c = document.createElement('canvas'); c.width = 256; c.height = 128; const x = c.getContext('2d'); x.fillStyle = PAL[0]; x.fillRect(0, 0, 256, 128);
+    for (let n=0;n<70;n++){ x.fillStyle = PAL[1 + (n % 3)]; x.beginPath(); const px = Math.random()*256, py = Math.random()*128; x.ellipse(px, py, 6 + Math.random()*16, 4 + Math.random()*9, Math.random()*3, 0, Math.PI*2); x.fill(); }
+    for (let n=0;n<900;n++){ x.fillStyle = 'rgba(0,0,0,' + (Math.random()*0.12) + ')'; x.fillRect(Math.random()*256, Math.random()*128, 1, 1); }   /* stofstructuur */
+    const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; t.wrapS = T.RepeatWrapping; return this._camo[k] = new T.MeshLambertMaterial({map:t}); },
+  s3dHelm(aan, z){ const T = this.T, zw = this._helmZw || (this._helmZw = new T.MeshLambertMaterial({color:0x1e201c})), bin = this._helmBin || (this._helmBin = new T.MeshLambertMaterial({color:0x24261f, side:T.BackSide}));
+    const geo = this.s3dSchaal('helm', [[0, 0.42], [0.6, 0.43], [1.1, 0.53], [1.45, 0.505], [1.85, 0.55], [2.4, 0.61], [Math.PI, 0.62]], 0.124, 0.14, 0.124);
+    const h = aan('Head', geo, this.s3dCamo(z.n || 0), [0, 0.175, 0.02]); if (!h) return null;
+    const kind = (g, m, p, r) => { const o = new T.Mesh(g, m); o.position.set(p[0], p[1], p[2]); if (r) o.rotation.set(r[0], r[1], r[2]); o.raycast = () => {}; h.add(o); return o; };
+    kind(geo, bin, [0, 0, 0]).scale.setScalar(0.985);                                                                    /* binnenkant */
+    const B = this._helmDelen || (this._helmDelen = {nvg:new T.BoxGeometry(0.046, 0.034, 0.014), rail:new T.BoxGeometry(0.008, 0.017, 0.085), riem:new T.BoxGeometry(0.006, 0.1, 0.013)});
+    kind(B.nvg, zw, [0, 0.07, 0.113], [-0.53, 0, 0]);                                                                     /* NVG-houder voor */
+    for (const s of [-1, 1]){ kind(B.rail, zw, [s*0.126, 0.004, -0.004], [0, 0, -s*0.08]);                               /* zijrails */
+      kind(B.riem, zw, [s*0.098, -0.075, 0.025], [0.15, 0, s*0.1]); }                                                     /* kinriem */
+    return h; },
   s3dKopGeo(){ if (this._kopGeo) return this._kopGeo; const T = this.T, NU = 40, NV = 26, pos = [], uv = [], idx = [];
     const yAt = v => -0.075 + v*0.27, prof = v => v < 0.16 ? 0.058 + v*0.06 : v < 0.3 ? 0.068 + (v - 0.16)*0.08 : v < 0.8 ? 0.08 : 0.08*Math.sqrt(Math.max(0, 1 - Math.pow((v - 0.8)/0.2, 2)));
     const tv = y => { const K = [[-0.075, 0.0], [-0.025, 0.13], [0.015, 0.28], [0.045, 0.41], [0.085, 0.69], [0.195, 0.98]]; for (let i=1;i<K.length;i++) if (y <= K[i][0]){ const [a, va] = K[i - 1], [b, vb] = K[i]; return va + (y - a)/(b - a)*(vb - va); } return 0.98; };
@@ -4006,8 +4026,8 @@ AFRAME.registerComponent('zombies', {
       const me = new T.Mesh(geo, mat); me.scale.setScalar(1/ws); me.position.set(pos[0]/ws, pos[1]/ws, pos[2]/ws); if (rot) me.rotation.set(rot[0], rot[1], rot[2]); b.add(me); return me; };
     const foto = !!S.kleding, eigenHelm = this.soorten[z.n] && this.soorten[z.n].j.helm != null;   // soort 1 en 5 hebben al een helm/pet op de foto
     if (B.nieuw){ S.kopMesh = aan('Head', this.s3dKopGeo(), this.s3dKopMat(this._kopNr = ((this._kopNr || 0) % 16) + 1), [0, 0.075, 0.03]);                                   // eigen hoofd met gezichtsskin
-      if (S.helm || Math.random() < 0.7) S.helmMesh = aan('Head', this.s3dHelmGeo(), this.s3dNieuwMat({userData:{}}, 'h' + z.n), [0, 0.203, 0.008], [-0.14, 0, 0]);
-      else S.helmMesh = aan('Head', this._mutsGeo || (this._mutsGeo = new T.SphereGeometry(0.124, 16, 8, 0, Math.PI*2, 0, Math.PI*0.5).scale(0.98, 0.9, 1.1)), this._mutsMat || (this._mutsMat = new T.MeshLambertMaterial({color:0x26282a})), [0, 0.2, 0.005], [-0.1, 0, 0]); }   // muts
+      if (S.helm || Math.random() < 0.7) S.helmMesh = this.s3dHelm(aan, z);
+      else S.helmMesh = aan('Head', this.s3dSchaal('muts', [[0, 0.45], [1.0, 0.47], [1.6, 0.53], [Math.PI, 0.57]], 0.122, 0.146, 0.138), this._mutsMat || (this._mutsMat = new T.MeshLambertMaterial({color:0x26282a})), [0, 0.17, 0.022]); }   // muts
     if (S.helm && !eigenHelm && !B.nieuw){ S.helmMesh = aan('Head', new T.SphereGeometry(0.172, 16, 9, 0, Math.PI*2, 0, Math.PI*0.56), groen, [0, 0.122, -0.022], [-0.24, 0, 0]); S.helmMesh.scale.multiply(new T.Vector3(1, 1.06, 1.1)); }
     else if (!foto) aan('Head', new T.SphereGeometry(0.128, 12, 6, 0, Math.PI*2, 0, Math.PI*0.42), zwart, [0, 0.13, 0]);  // muts
     if (!foto) aan('Head', new T.BoxGeometry(0.15, 0.035, 0.03), zwart, [0, 0.1, 0.11]);                                  // bril / gezichtsband
