@@ -1028,7 +1028,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v95";
+const VERSIE = "v96";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -3891,11 +3891,28 @@ AFRAME.registerComponent('zombies', {
       return new T.AnimationClip(c.name, c.duration, tr); });
     return {scene:wortel, animations:clips, nieuw:true};
   },
-  s3dSchaal(naam, K, rx, ry, rz){ this._schaal = this._schaal || {}; if (this._schaal[naam]) return this._schaal[naam];   /* bol met eigen randlijn per richting */
+  s3dDeksel(aan, z, k){                 /* helm, muts, baret of pet; gezichten zonder voorhoofd houden hun hoofddeksel altijd op */
+    const T = this.T, S = z.s3d, vast = [3, 4, 8, 9, 10, 11, 12, 13, 14, 15, 16].includes(k), r = Math.random();
+    S.helmVast = vast;
+    const soort = S.helm ? 'helm' : vast ? (r < 0.36 ? 'muts' : r < 0.66 ? 'baret' : 'pet') : (r < 0.45 ? 'helm' : r < 0.62 ? 'muts' : r < 0.78 ? 'baret' : 'pet');
+    const kind = (h, g, m, p, rt) => { const o = new T.Mesh(g, m); o.position.set(p[0], p[1], p[2]); if (rt) o.rotation.set(rt[0], rt[1], rt[2]); o.raycast = () => {}; h.add(o); return o; };
+    if (soort === 'helm') return this.s3dHelm(aan, z);
+    if (soort === 'muts') return aan('Head', this.s3dSchaal('muts', [[0, 0.45], [1.0, 0.47], [1.6, 0.53], [Math.PI, 0.57]], 0.122, 0.146, 0.138), this._mutsMat || (this._mutsMat = new T.MeshLambertMaterial({color:0x26282a})), [0, 0.17, 0.022]);
+    if (soort === 'baret'){
+      const kl = [0x5a1a1e, 0x2e3a24, 0x1c1c20][(z.n || 0) % 3], M = this._baretMat = this._baretMat || {}, m = M[kl] || (M[kl] = new T.MeshLambertMaterial({color:kl, side:T.DoubleSide}));
+      const G = this._baretGeo || (this._baretGeo = {band:new T.CylinderGeometry(0.106, 0.108, 0.032, 26, 1, true).scale(1, 1, 1.02), top:new T.SphereGeometry(1, 22, 9).scale(0.138, 0.06, 0.142), spel:new T.BoxGeometry(0.02, 0.024, 0.006)});
+      const h = aan('Head', G.band, m, [0, 0.215, 0.03]); if (!h) return null;
+      kind(h, G.top, m, [-0.012, 0.05, -0.004], [0.08, 0, 0.2]);                                          /* platte bol, hangt naar één kant */
+      kind(h, G.spel, this._spelMat || (this._spelMat = new T.MeshLambertMaterial({color:0xc8a24a})), [0.042, 0.008, 0.1], [0, 0.4, 0]);   /* insigne */
+      return h; }
+    const h = aan('Head', this.s3dSchaal('pet', [[0, 0.45], [1.2, 0.48], [Math.PI, 0.52]], 0.12, 0.118, 0.13, 0.88), this.s3dCamo(z.n || 0), [0, 0.2, 0.022]); if (!h) return null;   /* patrouillepet */
+    kind(h, this._klepGeo || (this._klepGeo = new T.CylinderGeometry(0.075, 0.075, 0.006, 16, 1, false, -Math.PI/2, Math.PI).scale(1.25, 1, 1)), this.s3dCamo(z.n || 0), [0, 0.022, 0.116], [0.08, 0, 0]);   /* klep */
+    return h; },
+  s3dSchaal(naam, K, rx, ry, rz, plat){ this._schaal = this._schaal || {}; if (this._schaal[naam]) return this._schaal[naam];   /* bol met eigen randlijn per richting */
     const T = this.T, pm = Math.PI*0.64, g = new T.SphereGeometry(1, 30, 14, 0, Math.PI*2, 0, pm), P = g.attributes.position;
     const L = a => { const f = Math.abs(a); for (let i=1;i<K.length;i++) if (f <= K[i][0]){ const t = (f - K[i-1][0])/(K[i][0] - K[i-1][0]), e = t*t*(3 - 2*t); return (K[i-1][1] + (K[i][1] - K[i-1][1])*e)*Math.PI; } return K[K.length-1][1]*Math.PI; };
     for (let i=0;i<P.count;i++){ const x = P.getX(i), y = P.getY(i), z = P.getZ(i), p = Math.acos(Math.max(-1, Math.min(1, y))), a = Math.atan2(x, z), q = p/pm*L(a);
-      P.setXYZ(i, Math.sin(q)*Math.sin(a)*rx, Math.cos(q)*ry, Math.sin(q)*Math.cos(a)*rz); }
+      P.setXYZ(i, Math.sin(q)*Math.sin(a)*rx, plat ? Math.min(Math.cos(q)*ry, ry*plat) : Math.cos(q)*ry, Math.sin(q)*Math.cos(a)*rz); }
     g.computeVertexNormals(); return this._schaal[naam] = g; },
   s3dCamo(k){ this._camo = this._camo || {}; if (this._camo[k]) return this._camo[k]; const T = this.T;
     const PAL = [['#b29d74', '#8b7a55', '#6a5c40', '#cdbd95'], ['#5c6241', '#454b31', '#7b7b54', '#34362a'], ['#6c6a4a', '#3f4a2d', '#2b2a22', '#8a7a55']][k % 3];
@@ -4025,9 +4042,8 @@ AFRAME.registerComponent('zombies', {
     const aan = (bot, geo, mat, pos, rot) => { const b = S.bot[bot]; if (!b) return null; const ws = b.getWorldScale(new T.Vector3()).x || sch;
       const me = new T.Mesh(geo, mat); me.scale.setScalar(1/ws); me.position.set(pos[0]/ws, pos[1]/ws, pos[2]/ws); if (rot) me.rotation.set(rot[0], rot[1], rot[2]); b.add(me); return me; };
     const foto = !!S.kleding, eigenHelm = this.soorten[z.n] && this.soorten[z.n].j.helm != null;   // soort 1 en 5 hebben al een helm/pet op de foto
-    if (B.nieuw){ S.kopMesh = aan('Head', this.s3dKopGeo(), this.s3dKopMat(this._kopNr = ((this._kopNr || 0) % 16) + 1), [0, 0.075, 0.03]);                                   // eigen hoofd met gezichtsskin
-      if (S.helm || Math.random() < 0.7) S.helmMesh = this.s3dHelm(aan, z);
-      else S.helmMesh = aan('Head', this.s3dSchaal('muts', [[0, 0.45], [1.0, 0.47], [1.6, 0.53], [Math.PI, 0.57]], 0.122, 0.146, 0.138), this._mutsMat || (this._mutsMat = new T.MeshLambertMaterial({color:0x26282a})), [0, 0.17, 0.022]); }   // muts
+    if (B.nieuw){ const kNr = this._kopNr = ((this._kopNr || 0) % 16) + 1; S.kopMesh = aan('Head', this.s3dKopGeo(), this.s3dKopMat(kNr), [0, 0.075, 0.03]);                                   // eigen hoofd met gezichtsskin
+      S.helmMesh = this.s3dDeksel(aan, z, kNr); }
     if (S.helm && !eigenHelm && !B.nieuw){ S.helmMesh = aan('Head', new T.SphereGeometry(0.172, 16, 9, 0, Math.PI*2, 0, Math.PI*0.56), groen, [0, 0.122, -0.022], [-0.24, 0, 0]); S.helmMesh.scale.multiply(new T.Vector3(1, 1.06, 1.1)); }
     else if (!foto) aan('Head', new T.SphereGeometry(0.128, 12, 6, 0, Math.PI*2, 0, Math.PI*0.42), zwart, [0, 0.13, 0]);  // muts
     if (!foto) aan('Head', new T.BoxGeometry(0.15, 0.035, 0.03), zwart, [0, 0.1, 0.11]);                                  // bril / gezichtsband
@@ -4414,7 +4430,7 @@ AFRAME.registerComponent('zombies', {
     this.spat(b.getWorldPosition(new T.Vector3()), dir || new T.Vector3(0, 0, -1), 18);
     return !!stuk;
   },
-  s3dHelmWeg(z, dir){ const S = z.s3d, h = S.helmMesh; if (!h || !h.parent || S.helmAf) return; S.helmAf = true;
+  s3dHelmWeg(z, dir){ const S = z.s3d, h = S.helmMesh; if (!h || !h.parent || S.helmAf || (S.helmVast && !S.kopWeg)) return; S.helmAf = true;
     const T = this.T, wp = h.getWorldPosition(new T.Vector3()), ws = h.getWorldScale(new T.Vector3()); this.sc.add(h); h.position.copy(wp); h.scale.copy(ws);
     this.los.push({o:h, v:new T.Vector3((dir ? dir.x : 0)*2, 2.5, (dir ? dir.z : 0)*2), w:new T.Vector3(4, 6, 3), t:0, grond:false}); },
   s3dSpuitTick(z, s){                   // bloed uit de stompen
