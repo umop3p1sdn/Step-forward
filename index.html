@@ -1028,7 +1028,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v103";
+const VERSIE = "v104";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -3891,16 +3891,32 @@ AFRAME.registerComponent('zombies', {
       return new T.AnimationClip(c.name, c.duration, tr); });
     return {scene:wortel, animations:clips, nieuw:true};
   },
-  s3dVest(aan, z){ const VY = 0.13, VZ = 0.212, VA = 0.245, VX = 0.245;                      /* plate carrier: voor- en achterplaat, zijbanden, schouderbanden, magazijntassen */
-    const T = this.T, E = this.s3dEenheid(), camo = this.s3dCamo(E.camo), web = this._webMat || (this._webMat = new T.MeshLambertMaterial({color:0x34342a}));
-    const B = this._vestGeo || (this._vestGeo = {voor:new T.BoxGeometry(0.3, 0.32, 0.035), achter:new T.BoxGeometry(0.32, 0.34, 0.035), zij:new T.BoxGeometry(0.03, 0.12, 0.44),
-      band:new T.BoxGeometry(0.06, 0.025, 0.42), tas:new T.BoxGeometry(0.075, 0.1, 0.045), admin:new T.BoxGeometry(0.12, 0.06, 0.03)});
-    const h = aan('spine_02', B.voor, camo, [0, VY, VZ]); if (!h) return null;            /* spine_02: draait minder mee met het mikken dan spine_03 */
-    const kind = (g, m, p) => { const o = new T.Mesh(g, m); o.position.set(p[0], p[1] - VY, p[2] - VZ); o.raycast = () => {}; h.add(o); return o; };
-    kind(B.achter, camo, [0, VY + 0.01, -VA]);
-    for (const s of [-1, 1]){ kind(B.zij, web, [s*VX, VY - 0.07, (VZ - VA)/2]); kind(B.band, web, [s*0.11, VY + 0.235, (VZ - VA)/2]); }
-    for (const x of [-0.085, 0, 0.085]) kind(B.tas, camo, [x, VY - 0.07, VZ + 0.035]);
-    kind(B.admin, web, [0, VY + 0.06, VZ + 0.028]);
+  s3dVestGeo(){ if (this._vestG) return this._vestG; const T = this.T;   /* rondom-vest om de romp (spine_02-ruimte): halsuitsnede, armsgaten, taps naar de schouders */
+    const TOP = [[0, 0.255], [0.35, 0.285], [0.75, 0.335], [1.02, 0.33], [1.22, 0.2], [1.57, 0.165], [1.92, 0.2], [2.12, 0.345], [2.55, 0.36], [Math.PI, 0.33]];
+    const top = f => { f = Math.abs(f); for (let i=1;i<TOP.length;i++) if (f <= TOP[i][0]){ const u = (f - TOP[i-1][0])/(TOP[i][0] - TOP[i-1][0]), e = u*u*(3 - 2*u); return TOP[i-1][1] + (TOP[i][1] - TOP[i-1][1])*e; } return TOP[TOP.length-1][1]; };
+    const N = 56, M = 12, pos = [], uv = [], idx = [];
+    for (let i=0;i<=N;i++){ const th = -Math.PI + i/N*Math.PI*2, c = Math.cos(th), sn = Math.sin(th), y1 = top(th), y0 = c > 0 ? -0.05 - 0.02*c*c : -0.03;
+      for (let j=0;j<=M;j++){ const y = y0 + (y1 - y0)*j/M, tap = Math.max(0, y - 0.21);
+        const zf = 0.217 - tap*0.75, zb = 0.252 - tap*0.35, rx = 0.268 - tap*0.25;
+        pos.push(sn*rx, y, c > 0 ? c*zf : c*zb); uv.push(i/N*4, y*4); } }
+    for (let i=0;i<N;i++) for (let j=0;j<M;j++){ const a = i*(M + 1) + j, b = a + M + 1; idx.push(a, b, a + 1, a + 1, b, b + 1); }
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+    return this._vestG = g; },
+  s3dVest(aan, z){                      /* ballistisch vest zoals op de foto's: rondom, schouderstukken, klittenband-paneel, MOLLE-banden, zijsluitingen */
+    const T = this.T, E = this.s3dEenheid(), camo = this._vestCamo || (this._vestCamo = {}), web = this._webMat || (this._webMat = new T.MeshLambertMaterial({color:0x2e2f28})), zw = this._gespMat || (this._gespMat = new T.MeshLambertMaterial({color:0x18191a}));
+    const mat = camo[E.camo] || (camo[E.camo] = (() => { const m = this.s3dCamo(E.camo).clone(); m.side = T.DoubleSide; return m; })());
+    const B = this._vestDelen || (this._vestDelen = {plaat:new T.BoxGeometry(0.27, 0.21, 0.022), klit:new T.BoxGeometry(0.22, 0.075, 0.008), molle:new T.BoxGeometry(0.25, 0.011, 0.008),
+      schouder:new T.BoxGeometry(0.1, 0.026, 0.2), gesp:new T.BoxGeometry(0.022, 0.05, 0.035), zijband:new T.BoxGeometry(0.012, 0.016, 0.07)});
+    const h = aan('spine_02', this.s3dVestGeo(), mat, [0, 0, 0]); if (!h) return null;
+    const kind = (g, m, p, r) => { const o = new T.Mesh(g, m); o.position.set(p[0], p[1], p[2]); if (r) o.rotation.set(r[0], r[1], r[2]); o.raycast = () => {}; h.add(o); return o; };
+    kind(B.plaat, mat, [0, 0.07, 0.226]);                                                                  /* plaatvak voor */
+    for (let i=0;i<4;i++) kind(B.molle, web, [0, 0.0 + i*0.045, 0.24]);                                    /* MOLLE-banden */
+    kind(B.klit, web, [0, 0.215, 0.212], [-0.08, 0, 0]);                                                  /* klittenband ID-paneel */
+    kind(B.plaat, mat, [0, 0.1, -0.262]).scale.set(1.05, 1.15, 1);                                         /* plaatvak achter */
+    for (const sx of [-1, 1]){
+      kind(B.schouder, mat, [sx*0.125, 0.37, -0.03], [0.1, 0, sx*0.18]);                                   /* schouderstuk over de schouder */
+      for (const y of [0.02, 0.085]){ kind(B.gesp, zw, [sx*0.262, y, 0.105], [0, sx*0.5, 0]); kind(B.zijband, web, [sx*0.255, y, 0.05], [0, sx*0.3, 0]); }   /* zijsluitingen */
+    }
     return h; },
   s3dHouding(z){                       /* eigen houding: iets voorover, wapen gekanteld, hoofd schuin, bredere stand */
     const T = this.T, S = z.s3d, H = S.houding, mq = S.m.getWorldQuaternion(new T.Quaternion()), voor = new T.Vector3(0, 0, 1).applyQuaternion(mq), rechts = new T.Vector3(1, 0, 0).applyQuaternion(mq);
