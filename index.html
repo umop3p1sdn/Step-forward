@@ -1070,7 +1070,7 @@ KWERELD.basis = (T, R, seed) => {
   // ---- jouw uitkijkplatform (menu): poten, vloer, zijleuning (voorkant open voor het menu)
   [[-2.2, -1.6], [2.2, -1.6], [-2.2, 2.2], [2.2, 2.2]].forEach(([a, b]) => B.cilinder('kleur', a, b, 0.12, 0, PH, {tint:[0.38, 0.4, 0.36], geenBots:true}));
   B.doos('plank', -2.4, -1.8, 2.4, 2.4, PH - 0.12, PH - 0.02, {geenBots:true, tint:[0.62, 0.5, 0.36]});
-  [[-2.4, -1.8, -2.4, 2.4], [2.4, 2.4, 2.4, -1.8], [2.4, 2.4, -2.4, 2.4]].forEach(([a, b, c, d]) => { B.doos('kleur', Math.min(a, c) - 0.03, Math.min(b, d) - 0.03, Math.max(a, c) + 0.03, Math.max(b, d) + 0.03, PH + 0.95, PH + 1.02, {geenBots:true, tint:[0.5, 0.5, 0.48]}); });
+  // geen zijleuning meer: die zat in de weg bij het menu
   B.doos('kleur', -2.4, -1.85, 2.4, -1.75, PH - 0.4, PH - 0.12, {geenBots:true, tint:[0.3, 0.3, 0.3]});
   // ---- bos rondom (variant 2): eenvoudige dennen buiten de muur
   if (V.bos) for (let i = 0; i < 70; i++){ const zij = i % 4, t = R(), x = zij === 0 ? X0 - 6 - R()*30 : zij === 1 ? X1 + 6 + R()*30 : X0 - 30 + t*(X1 - X0 + 60), z = zij < 2 ? Z0 - 20 + t*(Z1 - Z0 + 30) : zij === 2 ? Z0 - 6 - R()*30 : Z1 + 8 + R()*20;
@@ -1086,7 +1086,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v113";
+const VERSIE = "v114";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
