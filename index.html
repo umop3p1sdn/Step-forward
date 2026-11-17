@@ -29,15 +29,16 @@
    bij een standwissel schuift de wereld onder je door. Alles van een stand (dekking, spawns, muren)
    staat in wereldcoördinaten en wordt bij het wisselen omgerekend. */
 const KAART_MAP = 'art/map/';
-const KAART_MAAT = {"weg":[1021,1024],"weg2":[512,512],"stoep":[1024,1021],"gevel_wit":[1024,1024],"gevel_beige":[1021,1024],"gevel_afbl":[1024,1021],"gevel_geel":[512,511],"gevel_grijs":[511,512],"grind":[512,511],"beton":[511,512],"muur_afbl":[1024,1024],"muur_afbl2":[512,512],"muur_afbl3":[512,512],"muur_vlek":[512,487],"plafond":[1024,982],"plank":[512,487],"baksteen":[944,1024],"baksteen2":[512,511],"dak_rood":[1024,947],"dak_grijs":[473,512],"dak_oud":[512,511],"golf_roest":[483,512],"golf_roest2":[483,512],"golf_grijs":[469,512],"dambord":[1024,1011],"dambord2":[512,500],"lambris":[1024,855],"deur_b1":[307,512],"deur_b2":[311,512],"deur_b3":[373,512],"deur_b4":[332,512],"deur_b5":[307,512],"raam_b1":[365,512],"raam_b2":[388,512],"raam_b3":[404,512],"raam_b4":[392,512],"raam_b5":[352,512],"raam_b6":[352,512],"raam_b7":[512,388],"raam_b8":[379,512],"raam_b9":[512,482],"deur_i1":[267,512],"deur_i2":[353,512],"deur_i3":[257,512],"deur_i4":[302,512],"deur_i5":[360,512],"raam_i1":[511,512],"raam_i2":[512,494],"raam_i3":[512,512],"asfalt":[1024,1024],"asfalt2":[1024,1024],"pleister1":[1024,1024],"pleister2":[1024,1024],"pleister3":[1024,1024],"pleister4":[1024,1024],"behang1":[1024,1024],"behang2":[1024,1024],"parket":[1024,1024],"tegels":[1024,1024],"stoep2":[1024,1024]};
+const KAART_MAAT = {"weg":[512,512],"weg2":[512,512],"stoep":[512,512],"gevel_wit":[512,512],"gevel_beige":[512,512],"gevel_afbl":[512,512],"gevel_geel":[512,512],"gevel_grijs":[512,512],"grind":[512,512],"beton":[512,512],"muur_afbl":[1024,1024],"muur_afbl2":[512,512],"muur_afbl3":[512,512],"muur_vlek":[512,487],"plafond":[1024,982],"plank":[512,487],"baksteen":[512,512],"baksteen2":[512,512],"dak_rood":[512,512],"dak_grijs":[512,512],"dak_oud":[512,512],"golf_roest":[512,512],"golf_roest2":[512,512],"golf_grijs":[512,512],"dambord":[1024,1011],"dambord2":[512,500],"lambris":[1024,855],"deur_b1":[307,512],"deur_b2":[311,512],"deur_b3":[373,512],"deur_b4":[332,512],"deur_b5":[307,512],"raam_b1":[365,512],"raam_b2":[388,512],"raam_b3":[404,512],"raam_b4":[392,512],"raam_b5":[352,512],"raam_b6":[352,512],"raam_b7":[512,388],"raam_b8":[379,512],"raam_b9":[512,482],"deur_i1":[267,512],"deur_i2":[353,512],"deur_i3":[257,512],"deur_i4":[302,512],"deur_i5":[360,512],"raam_i1":[511,512],"raam_i2":[512,494],"raam_i3":[512,512],"asfalt":[512,512],"asfalt2":[512,512],"pleister1":[1024,1024],"pleister2":[1024,1024],"pleister3":[1024,1024],"pleister4":[1024,1024],"behang1":[1024,1024],"behang2":[1024,1024],"parket":[1024,1024],"tegels":[1024,1024],"stoep2":[512,512],"gevel_rood":[512,512],"gevel_blauw":[512,512],"gevel_schil":[512,512],"gevel_ruw":[512,512],"baksteen3":[512,512],"baksteen4":[512,512],"baksteen5":[512,512],"baksteen6":[512,512],"beton2":[512,512],"kinderkop":[512,512],"zak":[256,256]};
 // hoe breed (m) één tegel van de texture in de wereld is
-const KAART_TEGEL = {weg:5.5, weg2:3.2, stoep:2.6, gevel_wit:2.8, gevel_beige:2.6, gevel_afbl:2.6, gevel_geel:2.4, gevel_grijs:2.6, grind:2.2, beton:2.2,
-  muur_afbl:1.3, muur_afbl2:1.3, muur_afbl3:1.4, muur_vlek:1.8, plafond:2.6, plank:1.8, baksteen:3.0, baksteen2:1.8, dak_rood:2.8, dak_grijs:1.8, dak_oud:2.2,
-  golf_roest:2.0, golf_roest2:2.0, golf_grijs:2.0, dambord:2.2, dambord2:1.3, lambris:1.4,
-  asfalt:4.5, asfalt2:3.6, pleister1:2.6, pleister2:2.4, pleister3:2.0, pleister4:2.2, behang1:1.1, behang2:1.1, parket:2.4, tegels:1.6, stoep2:2.6};
+const KAART_TEGEL = {weg:4.0, weg2:4.0, stoep:2.0, gevel_wit:2.6, gevel_beige:2.6, gevel_afbl:2.8, gevel_geel:2.6, gevel_grijs:2.6, grind:3.0, beton:2.6,
+  muur_afbl:1.3, muur_afbl2:1.3, muur_afbl3:1.4, muur_vlek:1.8, plafond:2.6, plank:1.8, baksteen:1.9, baksteen2:1.7, dak_rood:2.0, dak_grijs:2.0, dak_oud:2.0,
+  golf_roest:1.8, golf_roest2:1.8, golf_grijs:1.8, dambord:2.2, dambord2:1.3, lambris:1.4,
+  asfalt:4.0, asfalt2:4.0, pleister1:2.6, pleister2:2.4, pleister3:2.0, pleister4:2.2, behang1:1.1, behang2:1.1, parket:2.4, tegels:1.6, stoep2:3.0, kinderkop:2.2, gevel_rood:2.6, gevel_blauw:2.6, gevel_schil:2.4, gevel_ruw:2.4, baksteen3:2.0, baksteen4:1.7, baksteen5:1.9, baksteen6:1.7, beton2:2.6, zak:0.5};
 // gevels: texture + kleurtint (zo krijgt hetzelfde pleister verschillende kleuren)
-const KAART_GEVELS = [['gevel_wit',[1,1,1]], ['gevel_wit',[1,0.93,0.8]], ['gevel_beige',[1,1,1]], ['gevel_beige',[0.98,0.86,0.8]], ['gevel_afbl',[1,1,1]],
-  ['gevel_geel',[1,0.97,0.9]], ['gevel_grijs',[0.92,0.94,1]], ['baksteen',[1,1,1]], ['baksteen2',[0.92,0.86,0.84]], ['gevel_wit',[0.84,0.9,0.98]], ['gevel_afbl',[1,0.9,0.82]], ['baksteen',[0.8,0.72,0.68]]];
+const KAART_GEVELS = [['gevel_wit',[1,1,1]], ['gevel_beige',[1,1,1]], ['gevel_afbl',[1,1,1]], ['gevel_geel',[1,1,1]], ['gevel_grijs',[1,1,1]], ['gevel_rood',[1,1,1]],
+  ['gevel_blauw',[1,1,1]], ['gevel_schil',[1,1,1]], ['gevel_ruw',[1,1,1]], ['baksteen',[1,1,1]], ['baksteen2',[1,1,1]], ['baksteen3',[1,1,1]], ['baksteen4',[1,1,1]], ['baksteen5',[1,1,1]], ['baksteen6',[1,1,1]],
+  ['gevel_wit',[1,0.95,0.86]], ['gevel_beige',[0.95,0.92,0.9]]];   // echte foto-textures (Poly Haven, CC0): geen zware tint meer nodig
 const KAART_DEUR_B = ['deur_b1','deur_b2','deur_b3','deur_b4','deur_b5'], KAART_RAAM_B = ['raam_b1','raam_b2','raam_b3','raam_b5','raam_b6','raam_b7','raam_b8','raam_b9'],
       KAART_LUIK = ['raam_b4','raam_b5','raam_b6'], KAART_DEUR_I = ['deur_i1','deur_i2','deur_i3','deur_i4','deur_i5'], KAART_DAK = ['dak_rood','dak_oud','dak_grijs'];
 function kRng(seed){ let s = Math.floor(Math.abs(seed)*2654435761) % 4294967296 || 7; return () => (s = (s*1664525 + 1013904223) % 4294967296)/4294967296; }
@@ -399,9 +400,9 @@ function kZakken(B, R, cx, cz, langs, L, D, lagen){
     const P = (s, k) => { const [u, v] = [prof[k][0]*b*st[s][1], (prof[k][1] - 0.5)*h*st[s][1] + h*0.5], a = st[s][0]*l;
       return langs ? [ax + a, y0 + v, az + u] : [ax + u, y0 + v, az + a]; };
     for (let s=0; s<3; s++) for (let k=0; k<prof.length; k++){ const k2 = (k + 1) % prof.length, q = [P(s, k), P(s + 1, k), P(s + 1, k2), P(s, k2)], f = (prof[k][2] + prof[k2][2])/2;
-      B.quad('grind', q, [[s/3, 0], [(s + 1)/3, 0], [(s + 1)/3, 0.4], [s/3, 0.4]], q.map(p => B.kl(p[0], p[1], p[2], f, tint))); }
+      B.quad('zak', q, [[s/3, 0], [(s + 1)/3, 0], [(s + 1)/3, 0.4], [s/3, 0.4]], q.map(p => B.kl(p[0], p[1], p[2], f, tint))); }
     [0, 3].forEach(s => { const c = P(s, 0).map((v, i) => prof.reduce((m, _, k) => m + P(s, k)[i], 0)/prof.length);
-      for (let k=0; k<prof.length; k++){ const k2 = (k + 1) % prof.length, t = [c, P(s, k), P(s, k2)]; B.tri('grind', t, [[0.5, 0.5], [0, 0], [1, 0]], t.map(p => B.kl(p[0], p[1], p[2], 0.85, tint))); } }); };
+      for (let k=0; k<prof.length; k++){ const k2 = (k + 1) % prof.length, t = [c, P(s, k), P(s, k2)]; B.tri('zak', t, [[0.5, 0.5], [0, 0], [1, 0]], t.map(p => B.kl(p[0], p[1], p[2], 0.85, tint))); } }); };
   const zl = 0.62, zb = Math.min(0.42, D*0.6), zh = 0.22, n = Math.max(2, Math.round(L/zl));
   for (let r=0; r<lagen; r++){ const off = (r % 2) ? zl*0.5 : 0, inzet = r*0.03, m = r % 2 ? n - 1 : n;
     for (let rij=0; rij<2; rij++){ if (r === lagen - 1 && rij === 1) continue; const dw = (rij - 0.5)*zb*0.9;
@@ -892,7 +893,7 @@ KWERELD.markt = (T, R) => {
   const XL = -3.7, XR = 3.7, zM = 12, zP = -5, PX = 7.5, zB = -15, AX = 1.4, zH = -21, HX = 6, zE = -30;
   const e1 = (p, Rr) => true, o1 = (p, f, Rr) => Rr() < 0.92, vh = [2, 3];
   kStraat(B, XL + 1.2, zP, XR - 1.2, zM, {stoep:[[XL, zP, XL + 1.2, zM, [XL + 1.05, zP, XL + 1.2, zM]], [XR - 1.2, zP, XR, zM, [XR - 1.2, zP, XR - 1.05, zM]]]});
-  B.vlakH('tegels', -PX, zB, PX, zP, 0.006, {stap:3, tint:[0.92, 0.88, 0.82]});                 // plein
+  B.vlakH('kinderkop', -PX, zB, PX, zP, 0.006, {stap:3});                 // plein
   B.vlakH('grind', -AX, zH, AX, zB, 0.004); B.vlakH('stoep', -HX, zE, HX, zH, 0.005);        // steeg en binnenplaats
   const A = [], H = [];
   kRij(B, R, {x0:XL, z0:zM, x1:XL, z1:zP, n:[1, 0], verd:vh, D:6, hoekB:true, echteDeur:e1, raamOpen:o1});
@@ -1048,7 +1049,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v105";
+const VERSIE = "v106";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
