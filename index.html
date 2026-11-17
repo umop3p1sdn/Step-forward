@@ -78,6 +78,7 @@ const KAART = {
   wereld(T, soort, seed){ const k = soort + ':' + seed; if (this.werelden[k]) return this.werelden[k];
     Object.keys(this.werelden).forEach(q => { const w = this.werelden[q]; if (w.g.parent) return; w.g.traverse(o => { if (o.geometry) o.geometry.dispose(); }); delete this.werelden[q]; });   // oude werelden uit het geheugen
     const t0 = performance.now(), W = KWERELD[soort](T, kRng(seed), seed); W.ms = Math.round(performance.now() - t0); W.soort = soort; W.seed = seed;
+    kStandVerdeel(T, W, soort);
     kCentreer(T, W);
     kSpawnCheck(T, W);
     kDichtbij(W);
@@ -284,6 +285,42 @@ function kCentreer(T, W){
 
 // spawns zonder deur moeten écht ergens vandaan komen: uit het zicht achter een gebouwmuur (niet achter een container of krat),
 // en hun looproute mag niet door een muur gaan. Anders weg (dan blijven deuren, ramen en echte straathoeken over).
+// elke wave een nieuwe plek: tussen twee vaste standen kleine stapjes (vrij, bereikbaar, niet tegen een muur aan kijken); na de laatste rechtdoor verder
+function kStandVerdeel(T, W, soort){ if (typeof KAART_STAND === 'undefined' || !KAART_STAND[soort]) return; const org = W.standen.slice(); if (org.length !== KAART_STAND[soort].length) return;
+  const bx = W.boxen.filter(b => !b.uit && !b.deur && b.max.y - b.min.y > 1.2), ray = new T.Ray(), tmp = new T.Vector3();
+  const raak = (a, c) => { const d = c.clone().sub(a), L = d.length(); if (L < 0.01) return false; ray.origin.copy(a); ray.direction.copy(d.normalize());
+    return bx.some(q => { if (q.containsPoint(a)) return false; const h = ray.intersectBox(q, tmp); return !!h && h.distanceTo(a) < L; }); };
+  const vrij = (x, z) => !bx.some(q => q.max.y > 0.3 && q.min.y < 1.7 && Math.hypot(Math.max(q.min.x - x, 0, x - q.max.x), Math.max(q.min.z - z, 0, z - q.max.z)) < 0.75);
+  const alle = W.boxen.filter(b => !b.uit && b.max.y > 2.2);
+  const diepte = (x, z, a) => { ray.origin.set(x, 1.6, z); ray.direction.set(Math.sin(a), 0, -Math.cos(a)); let d = 99; for (const q of alle){ if (q.containsPoint(ray.origin)) continue; const h = ray.intersectBox(q, tmp); if (h) d = Math.min(d, h.distanceTo(ray.origin)); } return d; };
+  const vooruit = (x, z) => Math.min(diepte(x, z, 0), diepte(x, z, 0.12), diepte(x, z, -0.12));
+  const leeg = (x, z) => [-0.7, -0.5, -0.3, -0.1, 0.1, 0.3, 0.5, 0.7].filter(a => diepte(x, z, a) > 30).length > 3;   // buiten de wereld: nergens muren
+  const uniek = (...l) => [...new Set(l.flat().filter(Boolean))];
+  // alle geldige tussenplekken langs de route (parameter u: 0 = eerste stand, n-1 = laatste); elke vaste stand krijgt de plekken rond zichzelf
+  const n = org.length, kand = [];
+  const U0 = -0.5, U1 = n - 1 + 0.9;                                                           // ook iets vóór de eerste en voorbij de laatste stand
+  for (let u = U0; u <= U1 + 1e-6; u += 0.06){ const i = Math.max(0, Math.min(n - 2, Math.floor(u))), t = u - i, A = org[i], E = org[Math.min(n - 1, i + 1)];
+    if (n < 2) break; const ver = (u > n - 1) ? (u - (n - 1))*8 : (u < 0 ? u*8 : 0), bx0 = u > n - 1 || u < 0 ? org[u < 0 ? 0 : n - 1].x : A.x + (E.x - A.x)*t,
+      bz0 = u > n - 1 || u < 0 ? org[u < 0 ? 0 : n - 1].z - ver : A.z + (E.z - A.z)*t, eig = org[Math.max(0, Math.min(n - 1, Math.round(u)))];
+    for (const zij of [0, 1.2, -1.2, 2.4, -2.4]){ const x = bx0 + zij, z = bz0;
+      if (!vrij(x, z) || vooruit(x, z) < 4.5 || leeg(x, z)) continue;
+      if (raak(new T.Vector3(eig.x, 1.0, eig.z), new T.Vector3(x, 1.0, z)) || raak(new T.Vector3(eig.x, 0.4, eig.z), new T.Vector3(x, 0.4, z))) continue;
+      kand.push({u, x, z}); } }
+  const L = kStandLijst(soort), uit = [];
+  org.forEach((P, i) => { const m = L.filter(e => e.ouder === i).length, N = org[i + 1], V = org[i - 1];
+    const lo = i === 0 ? U0 : i - 0.5, hi = i === n - 1 ? U1 : i + 0.5, AF = 2.2;                   // kleine stapjes
+    let lijst = kand.filter(k => k.u >= lo && k.u < hi + 1e-6 && Math.hypot(k.x - P.x, k.z - P.z) >= AF);
+    const gek = [];   // gelijkmatig verdelen, minstens 3 m uit elkaar
+    for (let s = 0; s < m - 1 && lijst.length; s++){ const doel = lo + (hi - lo)*(s + 1)/m; lijst.sort((a, b) => Math.abs(a.u - doel) - Math.abs(b.u - doel));
+      const k = lijst.find(q => gek.every(g => Math.hypot(q.x - g.x, q.z - g.z) >= AF)); if (!k) break; gek.push(k); lijst = lijst.filter(q => q !== k); }
+    const groep = [{u:i, x:P.x, z:P.z, org:true}].concat(gek).sort((a, b) => a.u - b.u);
+    while (groep.length < m) groep.push(groep[groep.length - 1]);                                   // te weinig ruimte: zelfde plek nog een wave
+    groep.forEach(g => { if (g.org) { uit.push(P); return; }
+      const B = g.u > i ? N : V, c = [g.x, g.z];
+      uit.push(Object.assign({}, P, {x:c[0], z:c[1], tussen:true, wagZ:P.wagZ ? P.wagZ.map(v => v + P.z - c[1]) : P.wagZ, mg:P.mg ? [P.mg[0] + P.x - c[0], P.mg[1] + P.z - c[1]] : P.mg,
+        spawns:uniek(P.spawns || [], B ? B.spawns || [] : []), plek:uniek(P.plek || [], B ? B.plek || [] : []), props:uniek(P.props || [], B ? B.props || [] : [])})); }); });
+  W.standen = uit;
+}
 function kSpawnCheck(T, W){
   const ray = new T.Ray(), tmp = new T.Vector3(), boxen = (W.boxen || []).filter(b => !b.uit);
   const eerste = (a, b) => { const d = b.clone().sub(a), L = d.length(); if (L < 0.01) return null; ray.origin.copy(a); ray.direction.copy(d.normalize()); let best = null, bd = L;
@@ -1049,7 +1086,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v109";
+const VERSIE = "v110";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -1396,7 +1433,11 @@ const KAART_STAND = {   // vaste eigenschappen per stand (de rest komt uit de ge
   haven:[{naam:'QUAYSIDE', geenWagens:true, geenMuur:true}, {naam:'CONTAINER YARD', geenWagens:true, geenMuur:true}],
   bunker:[{naam:'BUNKER ENTRANCE', binnen:true, geenWagens:true, geenMuur:true}, {naam:'CONTROL ROOM', binnen:true, geenWagens:true, geenMuur:true}, {naam:'ESCAPE TUNNEL', binnen:true, geenWagens:true, geenMuur:true}]
 };
-const KAART_WISSEL = {dorp:[1, 4, 7, 10], loods:[1, 6], huis:[1, 6], kruis:[1, 4, 8], bunker:[1, 4, 8], markt:[1, 6], haven:[1, 6]};
+// elke wave een nieuwe plek: de vaste standen worden aangevuld tot 10, in kleine stapjes van de ene naar de volgende
+const KAART_N = 10;
+function kStandLijst(w){ const B = KAART_STAND[w], n = B.length, per = B.map((_, i) => Math.floor(KAART_N/n) + (i < KAART_N % n ? 1 : 0)), uit = [];
+  B.forEach((S, i) => { for (let k=0;k<per[i];k++) uit.push(Object.assign({}, S, {naam:k ? S.naam + ' ' + (k + 1) : S.naam, ouder:i, stap:k, van:per[i]})); }); return uit; }
+const KAART_WISSEL = new Proxy({}, {get:() => Array.from({length:KAART_N}, (_, i) => i + 1)});
 const KAART_TITELS = {dorp:['MILL LANE', 'OLD TOWN', 'MARKET STREET', 'RIVERSIDE', 'STATION ROAD'], loods:['THE DOCKS', 'RAIL YARD', 'FACTORY ROW', 'DEPOT', 'CANAL WHARF'],
   huis:['THE MANOR', 'THE OLD SCHOOL', 'THE HOTEL', 'THE CONVENT', 'THE RECTORY'], kruis:['CHURCH SQUARE', 'TOWN CROSS', 'HIGH STREET', 'MARKET CROSS', 'BRIDGE STREET'],
   bunker:['IRON VAULT', 'DEEP ARCHIVE', 'RED SECTOR', 'COLD STORE', 'THE PIT'], markt:['MARKET SQUARE', 'FISH MARKET', 'FLOWER SQUARE', 'OLD BAZAAR', 'TOWN SQUARE'],
@@ -1411,8 +1452,8 @@ function maakLevels(){
   return volg.map((w, i) => {
     const n = i + 1, f = i/19, r = (a, b) => +(a + (b - a)*f).toFixed(2), seed = 1000 + n*7919, k = tel[w] = (tel[w] || 0);
     tel[w]++;
-    const titel = KAART_TITELS[w][k % 5], plek = KAART_STAND[w].map((S, s) => { PLEKKEN.push(Object.assign({kaart:{w, seed, s}, nieuw:true, uitgangen:[{naam:'x', start:[0, 26]}], muren:[]}, S, {naam:titel + ' · ' + S.naam})); return PLEKKEN.length - 1; });
-    const L = {naam:titel, wereld:w, plek, wissel:KAART_WISSEL[w], stijl:KAART_STAND[w].map(S => S.binnen ? 'binnen' : 'stad'), dekking:KAART_STAND[w].map(() => []),
+    const titel = KAART_TITELS[w][k % 5], plek = kStandLijst(w).map((S, s) => { PLEKKEN.push(Object.assign({kaart:{w, seed, s}, nieuw:true, uitgangen:[{naam:'x', start:[0, 26]}], muren:[]}, S, {naam:titel + ' · ' + S.naam})); return PLEKKEN.length - 1; });
+    const L = {naam:titel, wereld:w, plek, wissel:KAART_WISSEL[w], stijl:kStandLijst(w).map(S => S.binnen ? 'binnen' : 'stad'), dekking:kStandLijst(w).map(() => []),
       lopers:[Math.round(10 + 8*f), Math.round(16 + 10*f)], max:[Math.round(9 + 5*f), Math.round(11 + 6*f)], raak:[r(0.28, 0.8), r(0.45, 1.1)],
       team:{groot:[Math.min(4, 1 + (n/4|0)), Math.min(4, 2 + (n/5|0))], bound:n >= 2, kniel:r(0.25, 0.6), rommel:r(1.2, 0.05), tussen:+(2 + 1.5*f).toFixed(1), flank:n >= 6, breed:7.5},
       cross:[n >= 2 ? 1 : 0, n >= 8 ? 2 : 1], crossVanaf:2, truck:0.5,
