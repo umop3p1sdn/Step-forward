@@ -1028,7 +1028,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v89";
+const VERSIE = "v90";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2887,13 +2887,13 @@ AFRAME.registerComponent('zombies', {
     if (this.waveNr > 1 && this.ammo) this.ammo.raket += 2;                  // elke wave 2 granaten/raketten erbij
     // tijdlijn: wanneer wat binnenkomt
     const q = [];
-    W.wagens.forEach((n, i) => q.push({t:2 + i*8, geenSoldaat:true, f:() => { const w = this.wagen(n, {jeep:3, jeep_zand:3, jeep_snorkel:3, truck:15, swat_truck:15 + 0*(Math.random()*4|0)}[n], {team:true}); if (w && W.vestLading) w.vest = true; }}));
+    W.wagens.forEach((n, i) => q.push({t:2 + i*8, geenSoldaat:true, f:() => { const w = this.wagen(n, {jeep:3, jeep_zand:3, jeep_snorkel:3, truck:this.truckLading(), swat_truck:this.truckLading() + 0*(Math.random()*4|0)}[n], {team:true}); if (w && W.vestLading) w.vest = true; }}));
     if (W.tank) q.push({t:4, geenSoldaat:true, f:() => this.tank()});
     if (this.modus === 'lvl' && this.waveNr >= 2 && Math.random() < (this.waveNr >= 10 ? 1 : 0.75)) q.push({t:8 + Math.random()*8, geenSoldaat:true, f:() => { const n = this.waveNr >= 8 ? 3 : this.waveNr >= 5 ? 2 : 1; for (let i=0;i<n;i++) this.drone(i*2.5); }});   // vaker drones (EMP!)
     if (this.modus === 'lvl' && this.waveNr >= 4 && Math.random() < 0.5) q.push({t:24 + Math.random()*10, geenSoldaat:true, f:() => { for (let i=0;i<(this.waveNr >= 8 ? 2 : 1);i++) this.drone(i*2.5); }});
     if (this.modus === 'lvl' && this.waveNr >= 2 && this.waveNr < 10 && (this.waveNr % 2 === 0 || Math.random() < 0.3)) q.push({t:7 + Math.random()*6, geenSoldaat:true, f:() => this.paraDrop(3 + (Math.random()*3|0))});
     if (this.modus === 'lvl' && this.kaartNu() && this.waveNr % 3 === 0 && this.waveNr < 10 && !W.wagens.length)       // af en toe een volle truck om de druk op te voeren
-      q.push({t:10, geenSoldaat:true, f:() => { if (this.wagen(Math.random() < 0.3 ? 'swat_truck' : 'truck', 15, {team:true})) this.melding('TRUCK INCOMING!', '#ff5a3a'); }});
+      q.push({t:10, geenSoldaat:true, f:() => { if (this.wagen(Math.random() < 0.3 ? 'swat_truck' : 'truck', this.truckLading(), {team:true})) this.melding('TRUCK INCOMING!', '#ff5a3a'); }});
     for (let k=0; W.vracht && k<(W.vracht.n || 1); k++) q.push({t:3 + k*11, geenSoldaat:true, f:() => this.wagen('vracht_open', 0, {mgBak:W.vracht.mg, rijdt:W.vracht.rijdt, boss:W.vracht.boss})});
     { const kw = W.team || TEAM_STD; let rest = W.lopers, i = 0;                    // lopers komen per team binnen
       const schild = W.schild || 0; for (let k=0;k<schild;k++){ q.push({t:7 + k*kw.tussen*1.2, n:3, f:() => this.spawnTeam(3, true)}); rest -= 2; }
@@ -5770,6 +5770,7 @@ AFRAME.registerComponent('zombies', {
   tonBoem(t, w){ if (t.weg) return; t.weg = true; t.g.removeFromParent(); const p = t.p.clone().setY(0.5), wb = this.bronWapen; this.bronWapen = w || 'pistool';
     this.knal(1.5); this.ontplof(p, 3.4, 1.5); this.vuurbal(p.clone().setY(1.2), 2.4); this.scherven && this.scherven(p, 40); this.bronWapen = wb;
     for (const q of this.tonnen) if (!q.weg && q !== t && q.p.distanceTo(t.p) < 3) setTimeout(() => this.tonBoem(q, w), 180); },   // kettingreactie
+  truckLading(){ return Math.min(15, 6 + Math.round(((this.lvlNr || 1) - 1)*8/19) + (Math.random() < 0.5 ? 1 : 0)); },   // level 1: 6-7 man, level 20: 14-15
   zichtRedding(s){ const K = this.kaartNu(); if (!K || !this.arcadeAan || !this.arcadeAan()) return; if ((this.zrT = (this.zrT || 0) - s) > 0) return; this.zrT = 1;
     const T = this.T, oog = this.el.camera.getWorldPosition(new T.Vector3()), deuren = (K.spawns || []).filter(q => q.deur && q.via && q.via.length);
     for (const z of this.lijst){ if (z.dood || !z.ai || !z.s3d || z.sprong || z.para || z.schild || ['bak', 'touw', 'mg', 'mgVuur', 'zwaar', 'sniper', 'onwetend'].includes(z.ai.staat) || z.ai.raamSniper) continue;
