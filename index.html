@@ -389,7 +389,7 @@ function kRij(B, R, o){
           gaten.push({a0:c - 0.62, a1:c + 0.62, b0:y + 0.95, b1:y + 2.25});
           const lw = 0.62, lh = 1.36; [[-1, 0, 0.5], [1, 0.5, 1]].forEach(([s, u0, u1]) => { const q = P(c + s*(0.62 + lw/2)); B.decal(luik, q[0] + nx*0.03, q[1] + nz*0.03, nx, nz, y + 0.92, lw, lh, {u0, u1}); });
           const ib = P(c, -0.3); B.kamer(ib[0], ib[1], nx, nz, Math.min(2.8, w/ns - 0.06), 3, y, 2.9, {f:0.34});
-          uit.ramen.push({p:P(c, -0.42), y0:y, buiten:P(c, 0.3), c:pc, n:[nx, nz]});
+          uit.ramen.push({p:P(c, -0.8), y0:y, buiten:P(c, 0.3), c:pc, n:[nx, nz]});
         } else { gaten.push({a0:c - rw/2, a1:c + rw/2, b0:y + 0.85, b1:y + 0.85 + rh}); B.nis(raamTex, pc[0], pc[1], nx, nz, y + 0.85, rw, rh); }   // dicht raam: in een nis, met vensterbank
       }
     }
@@ -1143,7 +1143,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v123";
+const VERSIE = "v124";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -3200,7 +3200,7 @@ AFRAME.registerComponent('zombies', {
     if (this.mgNest && this.wave.mg && (!this.mgNest.plek.bezet || this.mgNest.plek.bezet.dood) && this.wt > 5 && Math.random() < s*0.25 && this.levend() < this.maxNu()){ this.mgNest.plek.bezet = null; this.loper('mg'); }
     if (!this.wq.length && !this.levend() && (this.drones || []).some(d => !d.kapot && !d.weg)){ this.droneWacht = (this.droneWacht || 0) + s; if (this.droneWacht > 4) for (const d of this.drones) if (!d.kapot && !d.weg){ d.leef = 0; if (d.staat === 'komt') d.staat = 'hang'; } } else this.droneWacht = 0;
     const bezig = this.wq.length || this.levend() || (this.drones || []).some(d => !d.kapot && !d.weg) || (this.helis || []).some(h => !h.kapot && !h.weggaan) || (this.wagens || []).some(w => !w.kapot && (w.lading > 0 || (w.bak && !w.bemand))) || (this.tanks || []).some(t => !t.kapot);
-    this.paraLosTick(s); this.baasTick(s); if (this.los.length > 60){ const w = this.los.filter(l => l.klein && l.t > 8); if (w.length){ w.forEach(l => l.o.removeFromParent()); this.los = this.los.filter(l => !(l.klein && l.t > 8)); } }
+    this.paraLosTick(s); this.baasTick(s); this.merkTick(s); if (this.los.length > 60){ const w = this.los.filter(l => l.klein && l.t > 8); if (w.length){ w.forEach(l => l.o.removeFromParent()); this.los = this.los.filter(l => !(l.klein && l.t > 8)); } }
     if (this.modus === 'test'){ this.testTick(s); this.levenTick(s); return; }
     if (bezig && !this.waveKlaar) this.waakhond(s); else this.vastT = 0;
     if (bezig && !this.waveKlaar && this.modus === 'lvl' && this.waveNr <= 8 && !this.standWissel() && !this.wq.length && this.wt > 6 && this.levend() <= 2
@@ -4157,10 +4157,10 @@ AFRAME.registerComponent('zombies', {
   kaartVrij(p, r){ const K = this.kaartNu(); if (!K || !K.W) return true; const wx = p.x + K.o[0], wz = p.z + K.o[1], y = p.y || 0;   /* staat hier niemand half in een muur? */
     return !K.W.boxen.some(b => !b.uit && !b.deur && b.max.y - b.min.y > 1.2 && b.max.y > y + 0.3 && b.min.y < y + 1.7 && Math.hypot(Math.max(b.min.x - wx, 0, wx - b.max.x), Math.max(b.min.z - wz, 0, wz - b.max.z)) < r); },
   muurDuw(){ const K = this.kaartNu(); if (!K || !K.W) return; if (K._mbx !== K.W.boxen.length){ K._mbx = K.W.boxen.length; K._muren = K.W.boxen.filter(b => !b.uit && !b.deur && b.max.y - b.min.y > 1.2); }
-    const R = 0.24;   /* veiligheidsnet: wie (half) in een muur staat, schuift er netjes uit */
+    const R = 0.32;   /* veiligheidsnet: wie (half) in een muur staat, schuift er netjes uit (ook knieën) */
     for (const q of this.lijst){ if (q.dood || !q.ai || q.wagen || q.para || q.sprong || q.rag) continue; const st = q.ai.staat; if (st === 'bak' || st === 'touw' || st === 'zwaar') continue;
       const p = q.grp.position, y = p.y;
-      for (const b of K._muren){ if (b.uit || b.max.y < y + 1.0 || b.min.y > y + 1.6) continue; const wx = p.x + K.o[0], wz = p.z + K.o[1];
+      for (const b of K._muren){ if (b.uit || b.max.y < y + 0.35 || b.min.y > y + 1.6) continue; const wx = p.x + K.o[0], wz = p.z + K.o[1];
         if (wx < b.min.x - R || wx > b.max.x + R || wz < b.min.z - R || wz > b.max.z + R) continue;
         const cx = Math.min(Math.max(wx, b.min.x), b.max.x), cz = Math.min(Math.max(wz, b.min.z), b.max.z), dx = wx - cx, dz = wz - cz, d = Math.hypot(dx, dz);
         if (d >= R) continue;
@@ -4597,9 +4597,9 @@ AFRAME.registerComponent('zombies', {
       else if (o.hoofd && o.gezicht && w !== 'kanon'){                     // in het gezicht: handen ernaartoe (licht vertraagd), zakt door, dan slap
         S.wacht = 0.7 + Math.random()*0.25; S.gezichtT = 0; const hb = S.bot.Head;
         S.gezichtLok = hb ? hb.worldToLocal((o.p ? o.p.clone() : hb.getWorldPosition(new T.Vector3()).add(new T.Vector3(0, 0.1, 0))).addScaledVector(weg, -0.06)) : null;
-        S.impuls.push(['Head', weg.clone().multiplyScalar(0.7)], ['calf_l', weg.clone().multiplyScalar(-0.5)], ['calf_r', weg.clone().multiplyScalar(-0.5)]); }
+        S.impuls.push(['Head', weg.clone().multiplyScalar(0.55)], ['pelvis', new T.Vector3(0, -0.5, 0)]); }
       else if (o.hoofd){ S.wacht = 0; S.impuls.push(['Head', weg.clone().multiplyScalar(1.0).setY(-0.4)], ['spine_03', weg.clone().multiplyScalar(0.25)]); }   // hersenpan: alle controle weg, lijf loopt door in de val
-      else if (w === 'kanon'){ S.wacht = 0; S.impuls.push(['spine_03', weg.clone().multiplyScalar(2.2)], ['calf_l', weg.clone().multiplyScalar(-0.8)], ['calf_r', weg.clone().multiplyScalar(-0.8)]); }
+      else if (w === 'kanon'){ S.wacht = 0; S.impuls.push(['spine_03', weg.clone().multiplyScalar(2.2)], ['calf_l', weg.clone().multiplyScalar(-0.25)], ['calf_r', weg.clone().multiplyScalar(-0.25)]); }
       else { S.wacht = 0.1 + Math.random()*0.22;
         const naam = r < 0.35 ? 'Death01' : r < 0.7 ? 'Death02' : 'Hit_Stomach'; this.s3dStop(S); const a = this.s3dAct(z, naam); if (a){ a.reset(); a.setLoop(T.LoopOnce, 1); a.clampWhenFinished = true; a.play(); }
         const zij = new T.Vector3(-weg.z, 0, weg.x).multiplyScalar((Math.random() - 0.5)*1.6);
@@ -4835,6 +4835,19 @@ AFRAME.registerComponent('zombies', {
     this.s3dPlak(k, p, dir, 0.012, 0x2a0303);
     const hb = S.bot.Head; if (hb && n) this.spuiters.push({b:hb, lok:hb.worldToLocal(v === 'dak' ? L.kp.clone().addScaledVector(L.u, 0.06) : uitP.clone()), uit:(v === 'dak' ? new T.Vector3(0, 1, 0) : dir.clone()).transformDirection(hb.matrixWorld.clone().invert()), t:2.2, puls:true});
     return v; },
+  trefMerk(p, soort){                   // duidelijk verschil: hoofd = rood kruis, lijf = wit kruis, pantser = grijs kruis met vonk
+    const T = this.T, K = this._tmTex || (this._tmTex = {});
+    if (!K[soort]){ const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), kl = {kop:'#ff2a1a', lijf:'#ffffff', pantser:'#9fb3c4'}[soort] || '#fff';
+      x.lineCap = 'round'; x.strokeStyle = 'rgba(0,0,0,0.7)'; x.lineWidth = 16; const kr = () => { x.beginPath(); for (const [a, b, c2, d] of [[30, 30, 52, 52], [98, 30, 76, 52], [30, 98, 52, 76], [98, 98, 76, 76]]){ x.moveTo(a, b); x.lineTo(c2, d); } x.stroke(); };
+      kr(); x.strokeStyle = kl; x.lineWidth = soort === 'kop' ? 11 : 8; kr();
+      if (soort === 'kop'){ x.fillStyle = kl; x.beginPath(); x.arc(64, 64, 8, 0, Math.PI*2); x.fill(); }
+      if (soort === 'pantser'){ x.strokeStyle = '#e8f4ff'; x.lineWidth = 4; x.beginPath(); x.arc(64, 64, 16, 0, Math.PI*2); x.stroke(); }
+      K[soort] = new T.CanvasTexture(c); K[soort].colorSpace = T.SRGBColorSpace; }
+    const sp = new T.Sprite(new T.SpriteMaterial({map:K[soort], transparent:true, depthTest:false, depthWrite:false})); sp.raycast = () => {}; sp.renderOrder = 30;
+    const oog = this.el.camera.getWorldPosition(new T.Vector3()), d = p.distanceTo(oog); sp.scale.setScalar(Math.max(0.12, d*(soort === 'kop' ? 0.05 : 0.038))); sp.position.copy(p); this.sc.add(sp);
+    (this.merken = this.merken || []).push({sp, t:0});
+    if (soort === 'kop') this.geluid((A, n) => { const o = A.createOscillator(), g = A.createGain(); o.type = 'triangle'; o.frequency.setValueAtTime(1500, n); o.frequency.exponentialRampToValueAtTime(900, n + 0.07); g.gain.setValueAtTime(0.09, n); g.gain.exponentialRampToValueAtTime(0.001, n + 0.12); o.connect(g).connect(this.uit); o.start(n); o.stop(n + 0.13); }); },
+  merkTick(s){ if (!this.merken || !this.merken.length) return; for (const m of this.merken){ m.t += s; m.sp.material.opacity = Math.max(0, 1 - m.t/0.32); if (m.t > 0.32){ m.sp.removeFromParent(); m.sp.material.dispose(); m.weg = true; } } this.merken = this.merken.filter(m => !m.weg); },
   s3dKopGat(z, p, dir){                 // kogelgat in en uit het gezicht-hoofd
     const S = z.s3d, k = S.kopMesh; if (!k || !k.visible) return; const T = this.T; k.updateMatrixWorld(true);
     const rc = this._kopRc || (this._kopRc = new T.Raycaster()), mat = this._kopGatMat || (this._kopGatMat = new T.MeshBasicMaterial({color:0x2a0303, polygonOffset:true, polygonOffsetFactor:-4})), geo = this._kopGatGeo || (this._kopGatGeo = new T.CircleGeometry(1, 10));
@@ -4923,10 +4936,13 @@ AFRAME.registerComponent('zombies', {
     // ---- hoofd en nek
     if (deel === 'hoofd' || deel === 'nek'){
       const nek = deel === 'nek';
-      if (S.helm && !S.helmAf && !nek && !zwaar && !groteLaser){
-        this.s3dPlak(S.helmMesh, p, dir, 0.014, 0x3b3a33); this.ketst(p, dir, 16, true); this.helmTik();
+      const licht = wapen === 'pistool' || wapen === 'auto', opHelm = S.helm && !S.helmAf && !nek && !zwaar && !groteLaser && (!S.kopMesh || this.s3dKopLok(z, p).fy > 0.03);
+      if (opHelm){
+        this.s3dPlak(S.helmMesh, p, dir, 0.014, 0x3b3a33); this.ketst(p, dir, 16, true); this.helmTik(); this.trefMerk(p, 'pantser');
+        if (licht){ this.s3dHit(z, 'Hit_Head', p, dir, 1.6); this.wankel(z, dir, 0.25); if (Math.random() < 0.2) this.s3dHelmWeg(z, dir); this.s3dTreffer(z, p, dir, null); return; }   /* licht kaliber: ketst af, geen schade */
         if (Math.random() < (HELM_DOOD[wapen] || 0)){ this.s3dHoofd(z, p, dir, wapen); this.omver(z, dir, {wapen, hoofd:true}); return; }
         this.s3dHit(z, 'Hit_Head', p, dir, 2.0); this.wankel(z, dir, 0.3); if (Math.random() < 0.35) this.s3dHelmWeg(z, dir); this.s3dTreffer(z, p, dir, null); return; }
+      this.trefMerk(p, 'kop');
       if (nek && S.kopMesh && S.kopMesh.visible && (wapen === 'shotgun' || (wapen === 'auto' && this.lv('auto') >= 5)) && Math.random() < 0.5){ this.s3dKopEraf(z, dir); this.omver(z, dir, {wapen, hoofd:true}); return; }
       if (nek){ this.s3dPlak(S.kopMesh, p, dir, 0.014, 0x2a0303); this.s3dBits(p, dir, 4, 0.6); const nb = S.bot.neck_01; if (nb) this.spuiters.push({b:nb, lok:nb.worldToLocal(p.clone()), uit:dir.clone().negate().add(new T.Vector3(0, 0.4, 0)).normalize().transformDirection(nb.matrixWorld.clone().invert()), t:4.5, puls:true}); }   /* slagader */
       if (nek && !zwaar){ this.s3dGat(z, 'neck_01', p, dir, 0.035, 'vlees'); this.nekGrijp(z, dir); this.s3dGrijp(z, 'neck_01', p, 3, z.geweer && z.geweer.parent ? 'l' : 'r'); return; }
@@ -4938,8 +4954,8 @@ AFRAME.registerComponent('zombies', {
       this.omver(z, dir, {wapen, hoofd:true, gezicht, p}); return; }
     // ---- romp: gat (handkanon: ook een uitschot met een brok aan de achterkant)
     if (deel === 'borst' || deel === 'buik' || deel === 'bekken'){
-      if (z.vestHard && !zwaar && !laser && (z.vestT = (z.vestT || 0) + 1) <= VEST_TREFFERS){ this.s3dPlak(S.vestMesh, p, dir, 0.016, 0x2b2b26); this.ketst(p, dir, 10); this.s3dHit(z, 'Hit_Chest', p, dir, 1.5); this.wankel(z, dir, 0.25); this.s3dGrijp(z, bn, p, 1.4); this.s3dTreffer(z, p, dir, bn); return; }
-      this.s3dGat(z, bn, p, dir, zwaar ? 0.08 : groteLaser ? 0.09 : laser ? 0.05 : 0.035, groteLaser ? 'door' : laser ? 'gloei' : 'vlees');
+      if (z.vestHard && !zwaar && !laser && (wapen === 'pistool' || wapen === 'auto' || (z.vestT = (z.vestT || 0) + 1) <= VEST_TREFFERS)){ this.trefMerk(p, 'pantser'); this.helmTik && this.helmTik(); this.s3dPlak(S.vestMesh, p, dir, 0.016, 0x2b2b26); this.ketst(p, dir, 10); this.s3dHit(z, 'Hit_Chest', p, dir, 1.5); this.wankel(z, dir, 0.25); this.s3dGrijp(z, bn, p, 1.4); this.s3dTreffer(z, p, dir, bn); return; }
+      this.trefMerk(p, 'lijf'); this.s3dGat(z, bn, p, dir, zwaar ? 0.08 : groteLaser ? 0.09 : laser ? 0.05 : 0.035, groteLaser ? 'door' : laser ? 'gloei' : 'vlees');
       if (S.vestMesh){ this.s3dPlak(S.vestMesh, p, dir, zwaar ? 0.05 : 0.018, 0x3a0505); this.s3dPlak(S.vestMesh, p, dir, zwaar ? 0.07 : 0.03, 0x3a0505, true); this.s3dBits(p.clone().addScaledVector(dir, 0.2), dir, zwaar ? 10 : 3, 0.8); }   /* gat in het vest, uitschot achter */
       if (wapen === 'kanon'){ const uit = p.clone().addScaledVector(dir, 0.28); const R = this.s3dNaarRust(z, bn, uit);
         if (R){ const c = R.p; const eruit = this.s3dWeg(z, (I, t) => { const dx = I.cen[t*3] - c.x, dy = I.cen[t*3+1] - c.y, dz = I.cen[t*3+2] - c.z; return dx*dx + dy*dy + dz*dz < 0.016; }, [bn]);
