@@ -1143,7 +1143,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v124";
+const VERSIE = "v125";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2266,12 +2266,12 @@ AFRAME.registerComponent('zombies', {
             else ai.strafe = {dir:dv, v:Math.min(5.5, dl/0.55), t:dl/Math.min(5.5, dl/0.55), schot:0.18, kniel:false}; break; } }
         if (P.fase === 'schuil'){ ai.stil = !naar(P.schuil, 2.4); ai.mik = false; if (P.laag) ai.zakDoel = 1; if (ai.t <= 0){ P.fase = 'uit'; ai.t = 2; P.nuLaag = !!(P.leun && P.leun.laag && Math.random() < 0.45); P.doelUit = P.leun ? (P.nuLaag ? P.leun.laag : P.leun.hoog) : P.uit;
             const d = ai.deurObj; if (d && d.trap === z){ d.trap = true; d.doel = 1.55; d.b.uit = true; this.fxStart && this.fxStart('rook', d.g.getWorldPosition(new T.Vector3()).setY(0.4), 0.5, 0.6); this.boem && this.boem(0.18); } } }
-        else if (P.fase === 'uit'){ ai.mik = true; ai.stil = false; if (naar(P.doelUit || P.uit, P.laag ? 9 : (P.leun ? 4.6 : 2.8)) || ai.t <= 0){ P.fase = 'mik'; ai.t = P.mikT = (z.dodelijk ? 0.75 : 1.0) + Math.random()*0.5; this.arcadeRing(z, true); } }
+        else if (P.fase === 'uit'){ ai.mik = true; ai.stil = false; if (naar(P.doelUit || P.uit, P.laag ? 9 : (P.leun ? 4.6 : 2.8)) || ai.t <= 0){ P.fase = 'mik'; ai.t = P.mikT = 1.6 + Math.random()*0.7; this.arcadeRing(z, true); } }   /* eerst richten: je hebt tijd om hem neer te halen */
         else if (P.fase === 'mik'){ ai.mik = true; ai.stil = true; naar(P.doelUit || P.uit, 1.5); this.arcadeRing(z, true, 1 - ai.t/P.mikT);
-          if (ai.t <= 0){ P.fase = 'vuur'; P.n = 1 + (Math.random()*2|0); ai.t = 0; } }
+          if (ai.t <= 0){ P.fase = 'vuur'; P.n = 1; ai.t = 0; } }
         else if (P.fase === 'vuur'){ ai.mik = true; ai.stil = true; this.arcadeRing(z, true, 1);
           if (ai.t <= 0){ if (!this.overleden && !this.kaartBlok(z)) this.vijandSchot(z, SCHOT_SCHADE, 0.1); P.n--; ai.t = 0.24;
-            if (P.n <= 0){ this.arcadeRing(z, false); P.fase = 'mik'; ai.t = P.mikT = 1.5 + Math.random()*0.9; } } }   /* eenmaal in beeld: blijft staan en blijft schieten */
+            if (P.n <= 0){ this.arcadeRing(z, false); P.fase = 'mik'; ai.t = P.mikT = 2.4 + Math.random()*1.1; } } }   /* eenmaal in beeld: blijft staan en blijft schieten */
         break; }
       case 'onwetend': {                                                // heeft nog niets door: rookt, kletst, kaart, sleutelt of patrouilleert
         ai.mik = false; ai.zakDoel = 0;
@@ -2309,7 +2309,7 @@ AFRAME.registerComponent('zombies', {
         break; }
       case 'blijf':                                                     // blijft nog even staan, dan weer weg
         ai.stil = true; ai.mik = true; ai.zakDoel = ai.zij ? 0 : ai.plek ? ai.plek.op : 0;
-        if (ai.t <= 0 && ai.plek && this.arcadeAan()){ ai.staat = 'op'; ai.t = 1.4 + Math.random()*0.9; ai.schoten = 1 + (Math.random()*2|0); break; }   /* arcade: blijft in beeld */
+        if (ai.t <= 0 && ai.plek && this.arcadeAan()){ ai.staat = 'op'; ai.t = 2.4 + Math.random()*1.1; ai.schoten = 1; break; }   /* arcade: blijft in beeld */
         if (ai.t <= 0){ ai.staat = ai.plek ? 'dekking' : 'vrij'; ai.t = 0.8 + Math.random()*1.4*(1.2 - (this.waveNr || 1)*0.05);
           if (ai.plek && ai.zij) ai.schuifDoel = ai.plek.p.clone(); ai.zij = 0; }
         break;
@@ -2393,6 +2393,7 @@ AFRAME.registerComponent('zombies', {
     if (this.overleden || this.beschermd > 0) return;
     let kans = SCHOT_KANS*Math.max(0.45, Math.min(1.15, 11/afst))*(1 - (spreiding || 0)*0.5)*((this.wave && this.wave.raak) || 1)*(VW ? VW.kans : 1);   // wave 1 mild, wave 10 fel
     if (z && z.vWapen === 'sniper') kans = Math.min(0.85, kans);
+    if (z && z.ai && this.arcadeAan && this.arcadeAan()){ const tz = this.nu - (z._ziebT ?? this.nu); kans *= tz < 2.5 ? 0.3 : 0.8; }   /* net in beeld: eerste schoten missen meestal */
     if (buk) kans *= 0.3;
     if (z && z.ai && z.ai.arcade) kans = z.dodelijk ? (buk ? 0.06 : 0.72) : kans*0.35;
     if (z && (z.hoest || 0) > this.nu) kans *= 0.15;                     // aan het hoesten: raakt bijna niets
@@ -3085,10 +3086,10 @@ AFRAME.registerComponent('zombies', {
     const oog = this.el.camera.getWorldPosition(new T.Vector3()), rc = this._zeRc || (this._zeRc = new T.Raycaster()), S = z.s3d, pts = [];
     if (S && S.bot && S.bot.Head){ pts.push(S.bot.Head.getWorldPosition(new T.Vector3())); if (S.bot.spine_02) pts.push(S.bot.spine_02.getWorldPosition(new T.Vector3())); } else pts.push(z.grp.position.clone().setY(z.grp.position.y + 1.45));
     let v = false; for (const p of pts){ if (!this.zichtDicht(oog, p, 0.15)){ v = true; break; } }
-    z._zeT = this.nu; z._ze = v; return v; },
+    z._zeT = this.nu; z._ze = v; if (v && z._ziebT == null) z._ziebT = this.nu; return v; },
   levend(){ return this.lijst.filter(z => !z.dood && !(z.ai && z.ai.staat === 'rijder')).length; },
   arcadeAan(){ return this.modus === 'lvl' && !!this.kaartNu(); },
-  maxNu(){ if (this.arcadeAan()) return 3 + Math.round(((this.lvlNr || 1) - 1)*4/19) + ((this.nu % 24) < 10 ? 1 : 0) + ((this.wave && this.wave.baas) ? 1 : 0); /* level 1: 3-4 in beeld ... level 20: 7-8 */ return ((this.wave && this.wave.max) || MAX_TEGELIJK) + Math.round((this.modus === 'lvl' && this.dir && this.dir.extra) || 0); },
+  maxNu(){ if (this.arcadeAan()) return ((this.lvlNr || 1) <= 2 ? 2 + ((this.nu % 30) < 9 ? 1 : 0) : 3) + ((this.wave && this.wave.baas) ? 1 : 0);   /* 2-3 tegelijk in beeld */ /* level 1: 3-4 in beeld ... level 20: 7-8 */ return ((this.wave && this.wave.max) || MAX_TEGELIJK) + Math.round((this.modus === 'lvl' && this.dir && this.dir.extra) || 0); },
   oorlogStart(nr){
     this.leegOorlog(true); this.dir = null;
     this.waveNr = nr || 1; this.speler = this.speler || {hp:SPELER_HP}; this.overleden = false; this.hudVuil = true;
@@ -3156,7 +3157,8 @@ AFRAME.registerComponent('zombies', {
   scriptLoper(K){ const S = this.script(K); if (!S.slots.length) return null; const B = this.beat || {}, zone = B.zone || S.volg[0];
     const vrij = sl => !(sl.bezet && !sl.bezet.dood) && !(sl.soort === 'deur' && sl.q.deurBezet && !sl.q.deurBezet.dood) && !(sl.soort === 'hoek' && sl.h.bezet && !sl.h.bezet.dood);
     let kies = S.slots.filter(sl => sl.zone === zone && vrij(sl)); if (!kies.length) kies = S.slots.filter(vrij); if (!kies.length) return null;
-    kies.sort((a, b) => Math.abs(a.a) - Math.abs(b.a)); const sl = kies[(B.nIn || 0) % kies.length]; if (this.beat) this.beat.nIn = (this.beat.nIn || 0) + 1;
+    const her = sl => (sl.bezet && sl.bezet.dood) || (sl.soort === 'deur' && sl.q.deurBezet && sl.q.deurBezet.dood) || (sl.soort === 'hoek' && sl.h.bezet && sl.h.bezet.dood) ? 1 : 0;   /* net iemand neergeschoten op die plek: daar komt de volgende */
+    kies.sort((a, b) => (her(b) - her(a)) || (Math.abs(a.a) - Math.abs(b.a))); const sl = her(kies[0]) ? kies[0] : kies[(B.nIn || 0) % kies.length]; if (this.beat) this.beat.nIn = (this.beat.nIn || 0) + 1;
     const opt = {soort:'dekking', soorten:this.wave && this.wave.soorten}; let z = null;
     if (sl.soort === 'raam'){ z = this.raamLoper(); }
     else if (sl.soort === 'deur'){ z = this.spawnOp(sl.q, opt); if (z && z.ai){ z.ai.arcade = true; this.arcadeDeur(z, sl.q); } }
@@ -3189,7 +3191,7 @@ AFRAME.registerComponent('zombies', {
     this.wt += s*(D ? (D.fase === 'rust' && !this.arcadeAan() ? 0 : D.kalm > 6 ? 1.8 : 1) : 1);
     const arc = this.arcadeAan && this.arcadeAan();
     if (arc){ const B = this.beat || (this.beat = {fase:'vol', t:0}), lev = this.levend(), mx = this.maxNu(); B.fase = 'vol';
-      if (!B.zone || (B.nIn || 0) >= mx){ const K = this.kaartNu(); if (K){ const S = this.script(K); B.zone = S.volg[S.n++ % S.volg.length]; B.nIn = 0; } }   /* zone wisselt na een groepje */
+      if (!B.zone || (B.nIn || 0) >= mx*2 + 1){ const K = this.kaartNu(); if (K){ const S = this.script(K); B.zone = S.volg[S.n++ % S.volg.length]; B.nIn = 0; } }   /* zone wisselt na een groepje */
       if (lev < mx){ const q = this.wq.find(q => !q.geenSoldaat); if (q && q.t > this.wt + 0.65){ q.t = this.wt + 0.3 + Math.random()*0.3; this.wq.sort((a, b) => a.t - b.t); } } }
     if (false){ const B = {}, lev = 0;   /* ritme: een groep springt tegelijk tevoorschijn, jij ruimt op, korte adempauze, volgende groep */
       if (B.fase === 'vol'){ B.vt = (B.vt || 0) + s; if (B.vt > 1.5 && lev <= (this.maxNu() >= 6 ? 1 : 0)){ B.fase = 'rust'; B.t = 0.8 + Math.random()*0.7; } }   /* eerst de groep laten verschijnen (bij 72+ fps sprong hij te vroeg terug naar rust: niemand kwam) */
