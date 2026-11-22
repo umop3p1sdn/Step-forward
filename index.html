@@ -1945,7 +1945,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v141";
+const VERSIE = "v142";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2715,7 +2715,7 @@ AFRAME.registerComponent('zombies', {
     g.traverse(o => { if (o.isMesh) o.raycast = () => {}; }); g.position.copy(p); this.sc.add(g);
     const k = {g, kind, t:vast ? 1e9 : 22, vast, p:p.clone()}; (this.kisten = this.kisten || []).push(k); return k; },
   kistDrop(z){ if (!this.comboAan() || !z || !z.grp) return; const r = Math.random(), p = z.grp.position.clone(); p.y = Math.max(0, p.y);
-    if (r < 0.04 && this._uberDropW !== this.lvlNr + '/' + this.waveNr && !(this.kisten || []).some(k => k.kind === 'uber' && !k.weg)){ this._uberDropW = this.lvlNr + '/' + this.waveNr; setTimeout(() => this.gestart && this.kistMaak('uber', p), 500); return; }   /* max 1 speciale per wave */
+    if (false && r < 0.04 && this._uberDropW !== this.lvlNr + '/' + this.waveNr && !(this.kisten || []).some(k => k.kind === 'uber' && !k.weg)){ this._uberDropW = this.lvlNr + '/' + this.waveNr; setTimeout(() => this.gestart && this.kistMaak('uber', p), 500); return; }   /* max 1 speciale per wave */
     const vrij = ['shotgun', 'auto'].filter(w => this.wapenVrij(w)); if (!vrij.length || r > 0.16 || (this.kisten || []).filter(k => !k.weg && !k.vast).length >= 3) return; setTimeout(() => this.gestart && this.kistMaak(vrij[(Math.random()*vrij.length)|0], p), 500); },
   kistRaak(){ const ray = this.rc.ray; let best = null; for (const k of this.kisten || []){ if (k.weg) continue; const c = k.g.position.clone().setY(k.g.position.y + 0.12), t = c.clone().sub(ray.origin).dot(ray.direction); if (t < 0) continue;
       if (ray.distanceToPoint(c) < 0.24 && !(this.kaartNu() && this.kaartSegZ(ray.origin, c)) && (!best || t < best.d)) best = {k, d:t}; } return best; },
@@ -2727,7 +2727,7 @@ AFRAME.registerComponent('zombies', {
   kistTick(s){ if (!this.comboAan() || !this.gestart){ return; } const K = this.kaartNu(), st = this.el.components.stad, sk = this.lvlNr + '/' + this.waveNr + '/' + ((st && st.i) || 0);
     if (this._kistK !== sk){ this._kistK = sk; (this.kisten || []).forEach(k => { if (k.vast && !k.weg){ k.weg = true; k.g.removeFromParent(); } });   /* vaste boxen per plek: elke keer op dezelfde plek */
       if (K){ const r = this.rngVan((this.lvlNr || 1)*977 + (this.waveNr || 1)*131 + ((st && st.i) || 0)*17), T = this.T, oog = this.el.camera.getWorldPosition(new T.Vector3()), H = []; for (let i = 0; i < 40 && H.length < 6; i++){ const a = (r() - 0.5)*1.1, d = 3.2 + r()*5, q = new T.Vector3(oog.x + Math.sin(a)*d, 0, oog.z - Math.cos(a)*d); if (this.kaartVrij(q, 0.35) && !this.kaartSegZ(oog, q.clone().setY(0.2))) H.push(q); }
-        const vrij = ['shotgun', 'auto'].filter(w => this.wapenVrij(w)), uber = (this.waveNr === 3 || this.waveNr === 7) && this._uberVastW !== this.lvlNr + '/' + this.waveNr; if (uber) this._uberVastW = this.lvlNr + '/' + this.waveNr;
+        const vrij = ['shotgun', 'auto'].filter(w => this.wapenVrij(w)), uber = false;   /* speciale 20 s-box is eruit */ if (uber) this._uberVastW = this.lvlNr + '/' + this.waveNr;
         if (H.length && (vrij.length || uber)){ const p = H[(r()*H.length)|0].clone(); this.kistMaak(uber ? 'uber' : vrij[(r()*vrij.length)|0], p, true); } } }
     for (const k of this.kisten || []){ if (k.weg) continue; k.t -= s; if (k.t <= 0){ k.weg = true; k.g.removeFromParent(); continue; }
       k.g.rotation.y += s*(k.kind === 'uber' ? 2.4 : 0.8); if (k.kind === 'uber') k.g.position.y = k.p.y + 0.12 + Math.sin(this.nu*4)*0.05; }
@@ -7660,7 +7660,7 @@ AFRAME.registerComponent('zombies', {
       this.klimHerstel = 3 + (100 - WS.rec)*0.06; }   /* recoil: loop klimt per schot (meer bij zwaar kaliber), herstelt sneller bij lichte wapens */
     const o = this.rc.ray.origin.clone(), d = this.rc.ray.direction.clone();
     { const kb = this.kistRaak(); if (kb){ const t0 = this.treffers(true)[0]; if (!t0 || kb.d < t0.d){ this.knal(0.6); this.kistPak(kb.k, w); return; } } }   /* ammo-box: erop schieten = pakken */
-    if (w === 'pistool'){                                          // munitiekist: alleen met het pistool (verplicht wisselen)
+    {                                                              // munitie-/granaatkist: met elk wapen
       const b = this.blokRaak(); const t0 = this.treffers(true)[0];
       if (b && (!t0 || b.d < t0.d) && w !== 'laser'){ (w === 'auto' ? this.knal(0.75) : this.knal(this.upg.kanon ? 1.6 : 1)); this.pakBlok(b.blok); return; }
       if (b && w === 'laser') this.pakBlok(b.blok);
