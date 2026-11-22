@@ -1945,7 +1945,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v145";
+const VERSIE = "v146";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -3082,7 +3082,7 @@ AFRAME.registerComponent('zombies', {
     const g = z.geweer; if (!g || !g.parent) return; z.geweer = null;
     const wp = g.getWorldPosition(new this.T.Vector3()), wq = g.getWorldQuaternion(new this.T.Quaternion()), ws = g.getWorldScale(new this.T.Vector3());
     this.sc.add(g); g.position.copy(wp); g.quaternion.copy(wq); g.scale.copy(ws);
-    this.los.push({o:g, v:new this.T.Vector3((Math.random()-0.5)*1.5, 1 + Math.random(), (Math.random()-0.5)*1.5), w:new this.T.Vector3((Math.random()-0.5)*6, (Math.random()-0.5)*6, (Math.random()-0.5)*8), t:0, grond:false});
+    (this.valWeg = this.valWeg || []).push({o:g, v:new this.T.Vector3((Math.random()-0.5)*1.2, 0.6 + Math.random()*0.6, (Math.random()-0.5)*1.2), w:new this.T.Vector3((Math.random()-0.5)*6, (Math.random()-0.5)*6, (Math.random()-0.5)*8)});   /* geen rommel: valt door de vloer en is weg */
   },
   // stilstaan: benen recht, armen in de aanslag (of het schild vasthouden)
   staPose(z, mik){
@@ -4221,6 +4221,9 @@ AFRAME.registerComponent('zombies', {
       if (this.pauze <= 0 && this.modus === 'lvl' && !this.auto && !this.doorOk && this.wachtLevel){ if (!this.wachtKnop) this.wachtToon(); this.pauze = 0; return; }   // alleen na een level: wachten op de trekker
       if (this.pauze <= 0){ this.doorOk = false; this.wachtWeg(); this.waveNr = this.waveNr >= WAVES.length ? 1 : this.waveNr + 1; this.opruimen(); this.waveBegin(); } }
   },
+  valWegTick(s){ const L = this.valWeg; if (!L || !L.length) return;
+    for (const q of L){ q.v.y -= 9.8*s; q.o.position.addScaledVector(q.v, s); q.o.rotation.x += q.w.x*s; q.o.rotation.y += q.w.y*s; q.o.rotation.z += q.w.z*s; if (q.o.position.y < -0.8){ q.o.removeFromParent(); q.weg = true; } }
+    this.valWeg = L.filter(q => !q.weg); },
   lijkCap(s){ if ((this._lcT = (this._lcT || 0) + s) < 1) return; this._lcT = 0;   /* max 6 lijken: de oudste (die al stil ligt) verdwijnt */
     const dood = this.lijst.filter(q => q.dood && q.grp && q.grp.parent && !q.wagen); if (dood.length <= 6) return;
     for (const q of dood.slice(0, dood.length - 6)){ if (q.s3d && q.s3d.rag && !q.s3d.rag.slaap && q.s3d.rag.t < 6) continue; q.grp.removeFromParent(); this.darmWeg && this.darmWeg(q); q.opgeruimd = true; }
@@ -8224,7 +8227,7 @@ AFRAME.registerComponent('zombies', {
   wapenUpdate(s){
     this.nu += s;
     ['handL','handR','muis'].forEach(id => { if (this.vuurt[id] && this.isAuto(this.wapen[id === 'muis' ? (this.gunHand || 'handR') : id])) this.vuur(id); });
-    this.projectielTick(s); this.granTick(s); this.schildTick(s); this.zichtRedding(s); this.muurDuw(); this.liftTick(s); this.comboTick(s); this.kistTick(s); this.comboBalk(s); this.tonTick(s); this.vuurTick(s); this.vliegTick(s); this.bomTick(s); this.effectTick(s); this.blokTick(s);
+    this.projectielTick(s); this.granTick(s); this.schildTick(s); this.zichtRedding(s); this.muurDuw(); this.liftTick(s); this.comboTick(s); this.kistTick(s); this.comboBalk(s); this.valWegTick(s); this.tonTick(s); this.vuurTick(s); this.vliegTick(s); this.bomTick(s); this.effectTick(s); this.blokTick(s);
   },
   /* ---------- geluiden ---------- */
   geluid(f){ try { const A = this.ac || (this.ac = new (window.AudioContext||window.webkitAudioContext)()); if (A.state === 'suspended') A.resume(); this.knal(0); f(A, A.currentTime); } catch(_){} },
