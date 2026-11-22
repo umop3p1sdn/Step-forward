@@ -5582,7 +5582,7 @@ AFRAME.registerComponent('zombies', {
     const f0 = F();
     rust.pelvis = {q:wq(S.bot.pelvis), B:new T.Quaternion().setFromRotationMatrix(f0.pel)};
     rust.spine_03 = {q:wq(S.bot.spine_03), B:new T.Quaternion().setFromRotationMatrix(f0.bor)};
-    S.rag = {P, C, knik, rust, F, dirs, rustT:0, t:0, vloer:(z.para || z.sprong || (z.ai && ['bak','touw'].includes(z.ai.staat))) ? 0 : Math.max(0, (z.ai && z.ai.y0 > 0.4) ? z.ai.y0 : 0)};
+    S.rag = {P, C, knik, rust, F, dirs, rustT:0, t:0, vloer:(z.para || z.sprong || (z.ai && ['bak','touw'].includes(z.ai.staat))) ? 0 : Math.max(0, (z.ai && z.ai.y0 > 0.4) ? Math.min(z.ai.y0, z.grp.position.y + 0.05) : 0)};   /* nooit hoger dan zijn voeten: anders schieten de benen omhoog */
   },
   s3dRagDuw(z, p, dir, kracht){         // treffer op een liggend lijk: dat stuk krijgt een duw
     const R = z.s3d && z.s3d.rag; if (!R) return; let best = null, bd = 1e9;
@@ -5593,7 +5593,7 @@ AFRAME.registerComponent('zombies', {
     const S = z.s3d, R = S.rag, T = this.T; if (!R || R.slaap) return;
     R.t += s; const h = Math.min(s, 1/30), G = ZWAARTE*0.72*h*h, demp = 0.985;   // iets trager vallen: met gevoel
     let beweging = 0;
-    for (const q of R.P){ const v = q.p.clone().sub(q.o).multiplyScalar(demp); q.o.copy(q.p); q.p.add(v); q.p.y -= G; beweging += v.lengthSq();
+    for (const q of R.P){ const v = q.p.clone().sub(q.o).multiplyScalar(demp); if (R.t < 1.2 && v.y > 0 && (q.voet ?? (q.voet = /foot|calf/.test(q.n)))) v.y *= 0.2; q.o.copy(q.p);   /* benen schieten niet omhoog */ q.p.add(v); q.p.y -= G; beweging += v.lengthSq();
       if (q.p.y < q.r + R.vloer){ q.p.y = q.r + R.vloer; const vx = q.p.x - q.o.x, vz = q.p.z - q.o.z; q.o.x = q.p.x - vx*0.55; q.o.z = q.p.z - vz*0.55; } }   // grond: wrijving
     for (let it=0; it<8; it++){
       for (const [i, j, L] of R.C){ const a = R.P[i].p, b = R.P[j].p, d = b.clone().sub(a), l = d.length() || 1e-6, f = (l - L)/l*0.5; a.addScaledVector(d, f); b.addScaledVector(d, -f); }
@@ -5623,7 +5623,7 @@ AFRAME.registerComponent('zombies', {
         S.wacht = 0.7 + Math.random()*0.25; S.gezichtT = 0; const hb = S.bot.Head;
         S.gezichtLok = hb ? hb.worldToLocal((o.p ? o.p.clone() : hb.getWorldPosition(new T.Vector3()).add(new T.Vector3(0, 0.1, 0))).addScaledVector(weg, -0.06)) : null;
         S.impuls.push(['Head', weg.clone().multiplyScalar(0.55)], ['pelvis', new T.Vector3(0, -0.5, 0)]); }
-      else if (o.hoofd){ S.wacht = 0; S.impuls.push(['Head', weg.clone().multiplyScalar(1.0).setY(-0.4)], ['spine_03', weg.clone().multiplyScalar(0.25)]); }   // hersenpan: alle controle weg, lijf loopt door in de val
+      else if (o.hoofd){ S.wacht = 0; S.impuls.push(['Head', weg.clone().multiplyScalar(0.55).setY(-0.3)], ['spine_03', weg.clone().multiplyScalar(0.3)], ['pelvis', weg.clone().multiplyScalar(0.2).setY(-0.9)], ['thigh_l', new T.Vector3(0, -0.4, 0)], ['thigh_r', new T.Vector3(0, -0.4, 0)]); }   /* zakt in elkaar i.p.v. als een wip achterover (benen omhoog) */   // hersenpan: alle controle weg, lijf loopt door in de val
       else if (w === 'kanon'){ S.wacht = 0; S.impuls.push(['spine_03', weg.clone().multiplyScalar(2.2)], ['calf_l', weg.clone().multiplyScalar(-0.25)], ['calf_r', weg.clone().multiplyScalar(-0.25)]); }
       else { S.wacht = 0.1 + Math.random()*0.22;
         const naam = r < 0.35 ? 'Death01' : r < 0.7 ? 'Death02' : 'Hit_Stomach'; this.s3dStop(S); const a = this.s3dAct(z, naam); if (a){ a.reset(); a.setLoop(T.LoopOnce, 1); a.clampWhenFinished = true; a.play(); }
