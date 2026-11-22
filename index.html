@@ -1913,7 +1913,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v136";
+const VERSIE = "v137";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2402,7 +2402,7 @@ const HAP_MAAT   = {kanon:0.075, auto:0.05};                // straal van de hap
 const HAP_MAX    = 6;                                       // hooguit zoveel happen per zombie
 const STRUIKEL_KANS = {kanon:0.45, pistool:0.06};           // kans dat een romptreffer hem laat struikelen
 const STRUIKEL_VAL  = 0.4;                                  // ...en dat hij dan ook echt valt (en weer opstaat)
-const HELM_LOS = 0.6, HELM_TREFFERS = [2, 4];               // helm: zoveel kans dat hij eraf kan, na zoveel treffers (kanon: meteen)
+const HELM_LOS = 1, HELM_TREFFERS = [2, 4];               // helm: zoveel kans dat hij eraf kan, na zoveel treffers (kanon: meteen)
 const ZIJ_KANS = 0.75, ZIJ_SNEL = [1.1, 2.0], ZIJ_DUUR = [0.5, 1.6], ZIJ_PAUZE = [0.4, 1.6];   // schuifelen links/rechts
 const RING = [0.25, 0.5, 0.75];                             // explosie: grenzen van ring 1/2/3 als deel van de straal (daarbuiten tot de straal: ring 4, drukgolf)
 const VONK_N = 160;
@@ -2953,7 +2953,7 @@ AFRAME.registerComponent('zombies', {
     if (!this.soorten[n]) return null;
     const z = this.maak(n); z.grp.position.copy(pos); this.wortel.object3D.add(z.grp); this.lijst.push(z);
     const j = this.soorten[n].j;
-    if (j.helm == null && n !== 5 && Math.random() < (W.helm || 0)) this.zetHelm(z);
+    if (j.helm == null && n !== 5 && !(this.modus === 'lvl' && this.lvlNr === 1) && Math.random() < (W.helm || 0)) this.zetHelm(z);
     z.vestHard = !!j.vest;     // draagt hij een vest, dan houdt het kleine kalibers tegen
     if (opt.schild) this.zetSchild(z); else this.zetGeweer(z);
     z.ai = {soort:opt.soort || 'dekking', staat:'rennen', doel:null, plek:null, zak:0, zakDoel:0, t:0, stil:false, mik:false, schoten:0};
@@ -5181,13 +5181,13 @@ AFRAME.registerComponent('zombies', {
     const n = lv <= 1 ? 1 : lv === 2 ? 2 : lv === 3 ? 2 + (rnd() < 0.5 ? 1 : 0) : 3, camo = (rnd()*5)|0;
     const baret = [0x5a1a1e, 0x2e3a24, 0x1c1c20, 0xa08a5e, 0x1f3d7a], muts = [0x26282a, 0x3b4130, 0x55585a];
     const KL = this.modus === 'lvl' && LEVELS[lv - 1] && LEVELS[lv - 1].kit && SOLDAAT_KITS[LEVELS[lv - 1].kit], KK = KL && !KL.mix ? KL : null;
-    const typen = KK ? KK.koppen.slice().sort(() => rnd() - 0.5).slice(0, Math.max(1, Math.min(KK.koppen.length, n))) : ['helm', 'baret', 'pet', 'muts'].sort(() => rnd() - 0.5).slice(0, n);
+    const typen = KK ? KK.koppen.slice().sort(() => rnd() - 0.5).slice(0, Math.max(1, Math.min(KK.koppen.length, n))) : (this.modus === 'lvl' && lv === 1 ? ['baret', 'pet', 'muts'].sort(() => rnd() - 0.5) : this.modus === 'lvl' && lv === 2 ? ['helm', ['baret', 'pet', 'muts'][(rnd()*3)|0]] : ['helm', 'baret', 'pet', 'muts'].sort(() => rnd() - 0.5).slice(0, n));   /* lvl 1 zonder helmen, lvl 2 helmen */
     if (KK){ return this._een = {nr, camo:KK.naam, tel:0, soorten:typen.map(d => ({d, camo:KK.naam, kleur:KK.mutsKl || muts[(rnd()*muts.length)|0]}))}; }
     return this._een = {nr, camo, tel:0, soorten:typen.map(d => ({d, camo, kleur:d === 'baret' ? baret[(rnd()*baret.length)|0] : muts[(rnd()*muts.length)|0]}))}; },
   s3dDeksel(aan, z, k){                 /* helm, muts, baret of pet; gezichten zonder voorhoofd houden hun hoofddeksel altijd op */
     const T = this.T, S = z.s3d, vast = [3, 4, 8, 9, 10, 11, 12, 13, 14, 15, 16].includes(k), E = this.s3dEenheid();
     S.helmVast = vast;
-    const st = (S.helm || z.vestHard) ? {d:'helm', camo:E.camo} :   /* helm-, vest- en M60-types: altijd een helm */
+    const st = (S.helm || (z.vestHard && !(this.modus === 'lvl' && this.lvlNr === 1))) ? {d:'helm', camo:E.camo} :   /* helm-, vest- en M60-types: altijd een helm */
        E.soorten[(E.tel++) % E.soorten.length], soort = st.d;   /* eenheid van deze wave: vaste stijlen, om de beurt */
     const kind = (h, g, m, p, rt) => { const o = new T.Mesh(g, m); o.position.set(p[0], p[1], p[2]); if (rt) o.rotation.set(rt[0], rt[1], rt[2]); o.raycast = () => {}; h.add(o); return o; };
     if (soort === 'helm') return this.s3dHelm(aan, z, z._kit ? z._kit.naam : st.camo);
@@ -5386,7 +5386,7 @@ AFRAME.registerComponent('zombies', {
     const KIT = z._kit = this.kitVoor(z); if (KIT && (KIT.dun || KIT.breed)){ const f = KIT.dun || KIT.breed; m.scale.x *= f; m.scale.z *= f; }   /* SWAT dunner, zware jongens breder */
     m.traverse(o => { if (o.isSkinnedMesh) o.material = B.nieuw ? this.s3dNieuwMat(o, z.n, KIT) : (kl || (o.userData.joint ? B.naad : (B.stoffen[kit] || B.stof))); });
     const bot = {}; m.traverse(o => { if (o.isBone) bot[o.name] = o; });
-    const S = z.s3d = Object.assign(S0, {m, bot, mixer:new T.AnimationMixer(m), acts:{}, benen:null, boven:null, yaw:0, vorige:z.grp.position.clone(), snel:0, kick:0, helm:!!z.helmSprite || (this.soorten[z.n] && this.soorten[z.n].j.helm != null)});
+    const S = z.s3d = Object.assign(S0, {m, bot, mixer:new T.AnimationMixer(m), acts:{}, benen:null, boven:null, yaw:0, vorige:z.grp.position.clone(), snel:0, kick:0, helm:!(this.modus === 'lvl' && this.lvlNr === 1) && (!!z.helmSprite || (this.soorten[z.n] && this.soorten[z.n].j.helm != null))});   /* lvl 1: geen helmen, makkelijk */
     const bs = new T.Vector3(); m.getWorldScale(bs); const sch = bs.x || 1;
     // trefzones aan de botten
     const zone = (deel, bot, w, h, d, dy) => { const b = S.bot[bot]; if (!b) return; const ws = b.getWorldScale(new T.Vector3()).x || sch;
@@ -5401,7 +5401,7 @@ AFRAME.registerComponent('zombies', {
     const aan = (bot, geo, mat, pos, rot) => { const b = S.bot[bot]; if (!b) return null; const ws = b.getWorldScale(new T.Vector3()).x || sch;
       const me = new T.Mesh(geo, mat); me.scale.setScalar(1/ws); me.position.set(pos[0]/ws, pos[1]/ws, pos[2]/ws); if (rot) me.rotation.set(rot[0], rot[1], rot[2]); b.add(me); return me; };
     const foto = !!S.kleding, eigenHelm = this.soorten[z.n] && this.soorten[z.n].j.helm != null;   // soort 1 en 5 hebben al een helm/pet op de foto
-    if (B.nieuw){ const kNr = this._kopNr = ((this._kopNr || 0) % 24) + 1; S.kopMesh = aan('Head', this.s3dKopGeo(), this.s3dKopMat(kNr), [0, 0.075, 0.03]);                                   // eigen hoofd met gezichtsskin
+    if (B.nieuw){ const KOPV = [1, 2, 5, 6, 7, 17, 18, 19, 20, 21, 22, 23, 24], kNr = KOPV[this._kopNr = ((this._kopNr || 0) + 1) % KOPV.length];   /* alleen gezichten met voorhoofd: de helm kan er altijd af */ S.kopMesh = aan('Head', this.s3dKopGeo(), this.s3dKopMat(kNr), [0, 0.075, 0.03]);                                   // eigen hoofd met gezichtsskin
       S.helmMesh = this.s3dDeksel(aan, z, kNr);
       if (KIT && KIT.kap && S.kopMesh){ const h = ((this._kapN = (this._kapN || 0) + 1)*2654435761 >>> 0) % 100; const kp = h < (KIT.kapKans ?? 70) ? KIT.kap : (KIT.kap2 && h < (KIT.kapKans ?? 70) + 25 ? KIT.kap2 : null);
         if (kp){ const o = new T.Mesh(this.s3dKopGeo(), this.kitKap(kp, KIT)); o.scale.setScalar(1.04); o.raycast = () => {}; S.kopMesh.add(o); S.kapMesh = o; } }
@@ -5814,7 +5814,8 @@ AFRAME.registerComponent('zombies', {
     const uit = p.clone().addScaledVector(dir, 0.22);
     this.spat(uit, dir, 18);                                                              // uitschot aan de achterkant
     if (wapen === 'kanon' || (wapen === 'laser' && this.lv('laser') >= 4) || wapen === 'explosie'){ this.s3dKopWeg(z, dir); return; }
-    if (S.kopMesh && S.kopMesh.visible && (wapen === 'shotgun' || n >= 2) && n < 4 && !(n === 3 && Math.random() < 0.4)){ this.s3dKopVariant(z, p, dir, wapen); if (n >= 2) return; }   /* kaak, schedeldak, zijkant, achterhoofd */
+    const zacht = !S.helm; if (zacht && S.helmMesh && !S.helmAf) this.s3dHelmWeg(z, dir);   /* pet, baret, muts houden niks tegen: eraf, en het hoofd is meteen kapot */
+    if (S.kopMesh && S.kopMesh.visible && (wapen === 'shotgun' || n >= 2 || zacht) && n < 4 && !(n === 3 && Math.random() < 0.4)){ this.s3dKopVariant(z, p, dir, wapen); if (n >= 2) return; }   /* kaak, schedeldak, zijkant, achterhoofd */
     if (n === 1 && S.kopMesh && S.kopMesh.visible && wapen !== 'shotgun'){ const uP = p.clone().addScaledVector(dir, 0.17); this.s3dKopKnip(z, m => m.distanceTo(uP) < 0.045, dir, 1, 0.03); this.s3dBits(uP, dir, 8, 1); this.spat(uP, dir, 26); }   /* uitschot: brokje achterhoofd */
     if (n === 1){ this.s3dKopGat(z, p, dir); this.s3dGat(z, 'Head', p, dir, wapen === 'laser' ? 0.04 : 0.03, wapen === 'laser' ? 'gloei' : 'vlees'); this.s3dGat(z, 'Head', uit, dir, 0.05, 'vlees'); return; }
     if (Math.random() < (n === 2 ? 0.25 : 0.45)){ this.s3dHalfHoofd(z, p, dir); return; }
