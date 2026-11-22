@@ -1054,6 +1054,152 @@ KWERELD.galerij = (T, R) => {
   return B.maak();
 };
 
+/* === STAD: 10 losse "schiettenten" à la Virtua Cop / Time Crisis — elke wave een andere set (straat, steeg, gang, kantoor, markt, magazijn,
+   binnenplaats, garage, hal, plein). Je kijkt steeds een andere kant op; soldaten komen uit deuren, ramen, om hoeken en van achter dekking. === */
+// muur met echte deuren en open ramen; n = de kant waar jij staat
+function kGevel(B, R, o){
+  const {x0, z0, x1, z1} = o, [nx, nz] = o.n, L = Math.hypot(x1 - x0, z1 - z0), tx = (x1 - x0)/L, tz = (z1 - z0)/L, H = o.H || 3.2;
+  const P = (a, off) => [x0 + tx*a + nx*off, z0 + tz*a + nz*off], gaten = [], uit = {deuren:[], ramen:[]};
+  (o.deuren || []).forEach(a => { gaten.push({a0:a - 0.56, a1:a + 0.56, b0:0, b1:2.28}); const pc = P(a, 0), d = B.deur(kKies(R, KAART_DEUR_I), pc[0], pc[1], nx, nz, 1.1, 2.26);
+    const ib = P(a, -0.3); B.kamer(ib[0], ib[1], nx, nz, 2.4, 3, 0, 2.9, {f:0.38}); uit.deuren.push({d, buiten:P(a, 1.0), drempel:P(a, 0.15), binnen:P(a, -1.6)}); });
+  (o.ramen || []).forEach(([a, y]) => { gaten.push({a0:a - 0.62, a1:a + 0.62, b0:y + 0.95, b1:y + 2.25}); const ib = P(a, -0.3); B.kamer(ib[0], ib[1], nx, nz, 2.4, 3, y, 2.9, {f:0.34});
+    uit.ramen.push({p:P(a, -0.8), y0:y, buiten:P(a, 0.3), c:P(a, 0), n:[nx, nz]}); });
+  (o.gaten || []).forEach(g => gaten.push(g));
+  B.wand(o.mat || 'pleister1', x0, z0, x1, z1, 0, H, {dik:0.3, tint:o.tint, gaten, dagMat:o.dag || 'plank', plaf:o.plaf});
+  return uit;
+}
+// kraampje: toonbank (lage dekking) + doek erboven
+function kKraam(B, R, x, z, w){ const kl = kKies(R, [[0.8, 0.2, 0.18], [0.2, 0.45, 0.25], [0.85, 0.7, 0.2], [0.25, 0.35, 0.6]]);
+  B.doos('plank', x - w/2, z - 0.45, x + w/2, z + 0.45, 0, 0.98, {tint:[0.8, 0.66, 0.5]});
+  B.doos('kleur', x - w/2 - 0.2, z - 0.8, x + w/2 + 0.2, z + 0.7, 2.2, 2.28, {tint:kl, geenBots:true, geenAo:true});
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => B.cilinder('kleur', x + a*(w/2 + 0.1), z + b*0.6, 0.04, 0.98, 2.2, {tint:[0.3, 0.3, 0.3], geenBots:true}));
+  return {x, z, w, d:0.9, h:0.98}; }
+function kPilaar(B, x, z, H, n){ B.doos(n || 'beton', x - 0.32, z - 0.32, x + 0.32, z + 0.32, 0, H, {}); }
+
+KWERELD.stad = (T, R) => {
+  const B = new KBouw(T); B.lucht(); B.weg = 'asfalt'; B.stoep = 'stoep';
+  const ST = [], dS = (deuren, x, z, extra) => kDeurSpawns(deuren, {x, z}, p => p[1] < z - 2.5).concat(extra || []);
+  const binnen = (xa, za, xb, zb, H, vloer, muur, tint) => { const r = B.ruimte(xa, zb, xb, za, H, 0.3); B.vlakH(vloer, xa, zb, xb, za, 0.005, {stap:1.4}); B.vlakH('plafond', xa, zb, xb, za, H, {plafond:true, stap:1.5}); return r; };
+  const zw = (n, x0, z0, x1, z1, H, o) => B.wand(n, x0, z0, x1, z1, 0, H, Object.assign({dik:0.3}, o || {}));
+
+  // 0 · WINKELSTRAAT: straat recht vooruit, winkels links en rechts, op 12 m een dwarsstraat met een gevel vol ramen
+  { const oz = 0, HW = 5, zK = oz - 7.5, zO = oz - 11.6; B.vlakH('asfalt', -16, zO, 16, oz + 5, 0, {stap:2.2});
+    const L = kRij(B, R, {x0:-HW, z0:oz + 4, x1:-HW, z1:zK, n:[1, 0], verd:[2, 3], echteDeur:() => true, raamOpen:(p, f, Rr) => Rr() < 0.7, hoekB:true});
+    const Rr = kRij(B, R, {x0:HW, z0:zK, x1:HW, z1:oz + 4, n:[-1, 0], verd:[2, 3], echteDeur:() => true, raamOpen:(p, f, Rr2) => Rr2() < 0.7, hoekA:true});
+    const O = kGevel(B, R, {x0:-15, z0:zO, x1:15, z1:zO, n:[0, 1], H:9.5, mat:kKies(R, ['gevel_beige', 'gevel_geel', 'gevel_blauw']), deuren:[9.5, 20.5], ramen:[[12, 0], [18, 0], [9.5, 3.4], [15, 3.4], [20.5, 3.4], [12, 6.6], [18, 6.6]]});
+    zw('baksteen', -15, zK, -15, zO, 6); zw('baksteen2', 15, zO, 15, zK, 6); zw('baksteen', -HW, oz + 4, HW, oz + 4, 7);
+    const props = [kProp(B, R, 'auto', -2.9, oz - 4.6, {as:'z'}), kProp(B, R, 'kratten', 3.1, oz - 6.2, {as:'x', hoog:true}), kProp(B, R, 'vaten', 1.2, zK - 2)].filter(Boolean);
+    const ramen = L.ramen.concat(Rr.ramen, O.ramen), deuren = L.deuren.concat(Rr.deuren, O.deuren);
+    ST.push({x:0, z:oz, naam:'SHOPPING STREET', lucht:true, geenWagens:true, breed:3, props, plek:kRaamPlekken(ramen, c => c[1] < oz - 3).concat([kHoek([-HW - 1, zK - 1.2], [-HW + 0.5, zK - 1.2]), kHoek([HW + 1, zK - 1.2], [HW - 0.5, zK - 1.2])]),
+      spawns:dS(deuren, 0, oz, [{p:[-14, zK - 2.2], via:[[-HW - 0.5, zK - 2.2]]}, {p:[14, zK - 2.6], via:[[HW + 0.5, zK - 2.6]]}])}); }
+
+  // 1 · STEEG MET BOCHT: smalle steeg, op 11 m gaat hij haaks naar links — ze rollen de hoek om
+  { const oz = -100, zB = oz - 8.5, zE = oz - 12.4; B.vlakH('kinderkop', -14, zE - 1, 2.5, oz + 4, 0, {stap:2.2});
+    const L = kGevel(B, R, {x0:-2.2, z0:oz + 4, x1:-2.2, z1:zB, n:[1, 0], H:7, mat:'baksteen3', deuren:[8], ramen:[[10.5, 3.4]]});
+    const Rr = kGevel(B, R, {x0:2.2, z0:zE, x1:2.2, z1:oz + 4, n:[-1, 0], H:7, mat:'baksteen5', deuren:[9.5], ramen:[[3, 3.4], [6.5, 3.4], [11, 0]]});
+    const E = kGevel(B, R, {x0:-14, z0:zE, x1:2.2, z1:zE, n:[0, 1], H:7, mat:'gevel_afbl', deuren:[13.6, 6], ramen:[[10, 3.4], [2.5, 0], [13.6, 3.4]]});
+    zw('baksteen3', -14, zB, -2.2, zB, 7); zw('baksteen', -14, zE, -14, zB, 7); zw('baksteen', -2.2, oz + 4, 2.2, oz + 4, 7);
+    const props = [kProp(B, R, 'vaten', 1.3, oz - 5.5), kProp(B, R, 'pallets', -1.4, oz - 3.6, {as:'x'})].filter(Boolean);
+    ST.push({x:0, z:oz, naam:'BACK ALLEY', lucht:true, geenWagens:true, breed:2, props, plek:kRaamPlekken(L.ramen.concat(Rr.ramen, E.ramen), () => true).concat([kHoek([-3.4, zB - 2.2], [-1.6, zB - 2.2])]),
+      spawns:dS(L.deuren.concat(Rr.deuren, E.deuren), 0, oz, [{p:[-12, zB - 2.2], via:[[-3, zB - 2.2]]}, {p:[-12.5, zB - 3.4], via:[[-3.6, zB - 3.4]]}])}); }
+
+  // 2 · GANG: binnen, lange gang met deuren links en rechts, T-splitsing aan het eind
+  { const oz = -200, H = 3, zT = oz - 12, zE = oz - 15.2, gw = 1.7; const r = binnen(-7.5, oz + 3, 7.5, zE, H, 'tegels', 'pleister1');
+    const tint = kKies(R, [[0.95, 0.93, 0.88], [0.85, 0.9, 0.95], [0.95, 0.9, 0.82]]);
+    const L = kGevel(B, R, {x0:-gw, z0:oz + 3, x1:-gw, z1:zT, n:[1, 0], H, tint, deuren:[6.5, 11.5]});
+    const Rr = kGevel(B, R, {x0:gw, z0:zT, x1:gw, z1:oz + 3, n:[-1, 0], H, tint, deuren:[2.5, 7.8]});
+    const E = kGevel(B, R, {x0:-7.5, z0:zE, x1:7.5, z1:zE, n:[0, 1], H, tint, deuren:[7.5, 3, 12]});
+    zw('pleister1', -7.5, zT, -gw, zT, H, {tint}); zw('pleister1', gw, zT, 7.5, zT, H, {tint}); zw('pleister1', -7.5, zE, -7.5, zT, H, {tint}); zw('pleister1', 7.5, zT, 7.5, zE, H, {tint}); zw('pleister1', -gw, oz + 3, gw, oz + 3, H, {tint});
+    for (let z = oz; z > zE; z -= 4) B.lamp(r, 0, H - 0.02, z, 0.8); B.lamp(r, -5, H - 0.02, zT - 1.6, 0.7); B.lamp(r, 5, H - 0.02, zT - 1.6, 0.7);
+    ST.push({x:0, z:oz, naam:'CORRIDOR', binnen:true, geenWagens:true, geenMuur:true, breed:1.2, props:[], plek:[kHoek([-gw - 1.2, zT - 1.6], [-gw + 0.4, zT - 1.6]), kHoek([gw + 1.2, zT - 1.6], [gw - 0.4, zT - 1.6])],
+      spawns:dS(L.deuren.concat(Rr.deuren, E.deuren), 0, oz, [{p:[-7, zT - 1.6], via:[[-gw - 0.4, zT - 1.6]]}, {p:[7, zT - 1.6], via:[[gw + 0.4, zT - 1.6]]}])}); }
+
+  // 3 · KANTOOR: grote kantoortuin, bureaus als dekking, pilaren, deuren naar kamertjes
+  { const oz = -300, H = 3.2, xa = -7.5, xb = 7.5, zE = oz - 13; const r = binnen(xa, oz + 3, xb, zE, H, 'parket', 'pleister1'); const tint = [0.92, 0.94, 0.96];
+    const E = kGevel(B, R, {x0:xa, z0:zE, x1:xb, z1:zE, n:[0, 1], H, tint, deuren:[3, 12], ramen:[[7.5, 0]]});
+    const L = kGevel(B, R, {x0:xa, z0:oz + 3, x1:xa, z1:zE, n:[1, 0], H, tint, deuren:[11]});
+    const Rr = kGevel(B, R, {x0:xb, z0:zE, x1:xb, z1:oz + 3, n:[-1, 0], H, tint, deuren:[4.5]});
+    zw('pleister1', xa, oz + 3, xb, oz + 3, H, {tint});
+    kPilaar(B, -3.6, oz - 6.5, H); kPilaar(B, 3.6, oz - 6.5, H);
+    const props = [kProp(B, R, 'kast', -4.6, oz - 4.2, {as:'x'}), kProp(B, R, 'kast', 4.4, oz - 4.6, {as:'x'}), kProp(B, R, 'kast', -1.2, oz - 9.3, {as:'x'}), kProp(B, R, 'kast', 2.4, oz - 9.6, {as:'x'})].filter(Boolean);
+    for (let z = oz - 1; z > zE; z -= 4) [-4, 0, 4].forEach(x => B.lamp(r, x, H - 0.02, z, 0.6));
+    ST.push({x:0, z:oz, naam:'OPEN OFFICE', binnen:true, geenWagens:true, geenMuur:true, breed:3, props, plek:[],
+      spawns:dS(L.deuren.concat(Rr.deuren, E.deuren), 0, oz)}); }
+
+  // 4 · MARKT: pleintje vol kraampjes, huizen rondom, een poortje in de hoek
+  { const oz = -400, HW = 7.5, zE = oz - 12.4; B.vlakH('kinderkop', -HW - 1, zE - 1, HW + 1, oz + 4, 0, {stap:2.2});
+    const L = kRij(B, R, {x0:-HW, z0:oz + 4, x1:-HW, z1:zE + 2.4, n:[1, 0], verd:[2, 3], echteDeur:() => true, raamOpen:(p, f, Rr2) => Rr2() < 0.75});
+    const Rr = kRij(B, R, {x0:HW, z0:zE, x1:HW, z1:oz + 4, n:[-1, 0], verd:[2, 3], echteDeur:() => true, raamOpen:(p, f, Rr2) => Rr2() < 0.75, hoekA:true});
+    const O = kRij(B, R, {x0:-HW + 2.4, z0:zE, x1:HW, z1:zE, n:[0, 1], verd:[2, 3], echteDeur:() => true, raamOpen:(p, f, Rr2) => Rr2() < 0.85, hoekA:true});
+    zw('baksteen2', -HW - 3, zE, -HW + 2.4, zE, 6); zw('baksteen', -HW - 3, zE, -HW - 3, zE + 2.4, 6); zw('baksteen', -HW, oz + 4, HW, oz + 4, 7);   // poortje linksachter
+    const props = [kKraam(B, R, -3.4, oz - 6, 2.4), kKraam(B, R, 2.8, oz - 7.5, 2.6), kKraam(B, R, -0.6, oz - 10.4, 2.4)];
+    ST.push({x:0, z:oz, naam:'MARKET', lucht:true, geenWagens:true, breed:3, props, plek:kRaamPlekken(L.ramen.concat(Rr.ramen, O.ramen), c => c[1] < oz - 4).concat([kHoek([-HW - 1.2, zE + 1.2], [-HW + 0.5, zE + 1.2])]),
+      spawns:dS(L.deuren.concat(Rr.deuren, O.deuren), 0, oz, [{p:[-HW - 2.4, zE + 1.2], via:[[-HW + 0.6, zE + 1.2]]}])}); }
+
+  // 5 · MAGAZIJN: hoge hal, stellingen met gangpaden, roldeur achterin
+  { const oz = -500, H = 7, xa = -9, xb = 9, zE = oz - 16; const r = binnen(xa, oz + 3, xb, zE, H, 'beton', 'golf_grijs');
+    const E = kGevel(B, R, {x0:xa, z0:zE, x1:xb, z1:zE, n:[0, 1], H, mat:'golf_grijs', deuren:[3.5, 14.5], gaten:[{a0:7, a1:11, b0:0, b1:4}]});
+    const L = kGevel(B, R, {x0:xa, z0:oz + 3, x1:xa, z1:zE, n:[1, 0], H, mat:'golf_grijs', deuren:[9], ramen:[[5, 3.4], [13, 3.4]]});
+    const Rr = kGevel(B, R, {x0:xb, z0:zE, x1:xb, z1:oz + 3, n:[-1, 0], H, mat:'golf_roest', deuren:[6], ramen:[[11, 3.4]]});
+    zw('golf_grijs', xa, oz + 3, xb, oz + 3, H); B.kamer(0, zE - 0.3, 0, 1, 4, 4, 0, 4, {f:0.3});
+    [-5.2, 5.2].forEach(x => [oz - 5, oz - 10.5].forEach(z => B.doos('plank', x - 0.6, z - 1.8, x + 0.6, z + 1.8, 0, 3.2, {tint:[0.55, 0.42, 0.3]})));   // stellingen
+    const props = [kProp(B, R, 'kratten', -1.8, oz - 7.5, {as:'x'}), kProp(B, R, 'pallets', 2, oz - 12.5, {as:'x'}), kProp(B, R, 'vaten', 1.8, oz - 4.5)].filter(Boolean);
+    for (let z = oz - 2; z > zE; z -= 5) [-4.5, 4.5].forEach(x => B.lamp(r, x, H - 0.05, z, 0.8));
+    ST.push({x:0, z:oz, naam:'WAREHOUSE', binnen:true, geenWagens:true, geenMuur:true, breed:3, props, plek:kRaamPlekken(L.ramen.concat(Rr.ramen), () => true),
+      spawns:dS(L.deuren.concat(Rr.deuren, E.deuren), 0, oz, [{p:[0, zE - 3], via:[[0, zE + 1.2]]}, {p:[1.2, zE - 3], via:[[1.6, zE + 1.2]]}])}); }
+
+  // 6 · BINNENPLAATS: hoge gevels rondom met veel ramen (ook boven), poorten in de hoeken, een put in het midden
+  { const oz = -600, HW = 6, zE = oz - 12; B.vlakH('kinderkop', -HW, zE, HW, oz + 4, 0, {stap:2.2});
+    const g = kKies(R, ['gevel_beige', 'gevel_geel', 'gevel_rood', 'gevel_wit']);
+    const E = kGevel(B, R, {x0:-HW + 1.8, z0:zE, x1:HW - 1.8, z1:zE, n:[0, 1], H:10, mat:g, deuren:[4.2], ramen:[[1.6, 0], [6.8, 0], [1.6, 3.2], [4.2, 3.2], [6.8, 3.2], [1.6, 6.4], [6.8, 6.4]]});
+    const L = kGevel(B, R, {x0:-HW, z0:oz + 4, x1:-HW, z1:zE + 1.8, n:[1, 0], H:10, mat:g, deuren:[9], ramen:[[6, 3.2], [11.5, 3.2], [9, 6.4], [6, 0]]});
+    const Rr = kGevel(B, R, {x0:HW, z0:zE + 1.8, x1:HW, z1:oz + 4, n:[-1, 0], H:10, mat:g, deuren:[5], ramen:[[2.5, 3.2], [7.5, 3.2], [5, 6.4], [9.5, 0]]});
+    [-1, 1].forEach(s => { zw('baksteen', s*(HW - 1.8), zE, s*(HW - 1.8), zE - 3, 10); zw('baksteen', s*HW, zE + 1.8, s*(HW + 3), zE + 1.8, 10); zw('baksteen', s*(HW + 3), zE + 1.8, s*(HW + 3), zE - 3, 10); zw('baksteen', s*(HW - 1.8), zE - 3, s*(HW + 3), zE - 3, 10); });
+    zw(g, -HW, oz + 4, HW, oz + 4, 10); B.cilinder('baksteen', 0, oz - 6.5, 0.85, 0, 0.95, {}); B.box(-0.85, 0, oz - 7.35, 0.85, 0.95, oz - 5.65);
+    ST.push({x:0, z:oz, naam:'COURTYARD', lucht:true, geenWagens:true, geenMuur:true, breed:3, props:[{x:0, z:oz - 6.5, w:1.7, d:1.7, h:0.95}], plek:kRaamPlekken(L.ramen.concat(Rr.ramen, E.ramen), () => true)
+      .concat([kHoek([-HW - 0.2, zE - 1], [-HW + 1.2, zE + 0.4]), kHoek([HW + 0.2, zE - 1], [HW - 1.2, zE + 0.4])]),
+      spawns:dS(L.deuren.concat(Rr.deuren, E.deuren), 0, oz, [{p:[-HW - 1.5, zE - 2.2], via:[[-HW + 0.6, zE + 0.6]]}, {p:[HW + 1.5, zE - 2.2], via:[[HW - 0.6, zE + 0.6]]}])}); }
+
+  // 7 · GARAGE: lage parkeergarage, pilaren en auto's, uitrit achterin
+  { const oz = -700, H = 2.7, xa = -8, xb = 8, zE = oz - 15; const r = binnen(xa, oz + 3, xb, zE, H, 'beton', 'beton');
+    const E = kGevel(B, R, {x0:xa, z0:zE, x1:xb, z1:zE, n:[0, 1], H, mat:'beton2', deuren:[2.5, 13.5], gaten:[{a0:6, a1:10, b0:0, b1:H}]});
+    const L = kGevel(B, R, {x0:xa, z0:oz + 3, x1:xa, z1:zE, n:[1, 0], H, mat:'beton2', deuren:[8]});
+    const Rr = kGevel(B, R, {x0:xb, z0:zE, x1:xb, z1:oz + 3, n:[-1, 0], H, mat:'beton2', deuren:[10]});
+    zw('beton', xa, oz + 3, xb, oz + 3, H); B.kamer(0, zE - 0.3, 0, 1, 4, 5, 0, H, {f:0.25});
+    [-3.4, 3.4].forEach(x => [oz - 4, oz - 9, oz - 13].forEach(z => kPilaar(B, x, z, H)));
+    const props = [kProp(B, R, 'auto', -5.6, oz - 6.5, {as:'z'}), kProp(B, R, 'auto', 5.6, oz - 11, {as:'z'}), kProp(B, R, 'auto', -0.2, oz - 11.2, {as:'x'})].filter(Boolean);
+    for (let z = oz - 1.5; z > zE; z -= 4.5) [-3.4, 3.4].forEach(x => B.lamp(r, x, H - 0.02, z, 0.55));
+    ST.push({x:0, z:oz, naam:'PARKING GARAGE', binnen:true, geenWagens:true, geenMuur:true, breed:2.6, props, plek:[], licht:[0.5, 0.45],
+      spawns:dS(L.deuren.concat(Rr.deuren, E.deuren), 0, oz, [{p:[-1.2, zE - 3.5], via:[[-1.2, zE + 1]]}, {p:[1.4, zE - 3.5], via:[[1.4, zE + 1]]}])}); }
+
+  // 8 · HAL: hoge stationshal met zuilen, balie, galerij met ramen boven
+  { const oz = -800, H = 7.5, xa = -8, xb = 8, zE = oz - 12.6; const r = binnen(xa, oz + 3, xb, zE, H, 'dambord', 'pleister2'); const tint = [0.95, 0.9, 0.82];
+    const E = kGevel(B, R, {x0:xa, z0:zE, x1:xb, z1:zE, n:[0, 1], H, mat:'pleister2', tint, deuren:[4, 12], ramen:[[2, 3.6], [6, 3.6], [10, 3.6], [14, 3.6]]});
+    const L = kGevel(B, R, {x0:xa, z0:oz + 3, x1:xa, z1:zE, n:[1, 0], H, mat:'pleister2', tint, deuren:[10], ramen:[[6, 3.6], [13, 3.6]]});
+    const Rr = kGevel(B, R, {x0:xb, z0:zE, x1:xb, z1:oz + 3, n:[-1, 0], H, mat:'pleister2', tint, deuren:[7], ramen:[[3, 3.6], [11, 3.6]]});
+    zw('pleister2', xa, oz + 3, xb, oz + 3, H, {tint});
+    [-3.8, 3.8].forEach(x => [oz - 4.5, oz - 9.5].forEach(z => { B.cilinder('beton', x, z, 0.42, 0, H, {}); B.box(x - 0.42, 0, z - 0.42, x + 0.42, H, z + 0.42); }));
+    B.doos('plank', -1.8, oz - 8.6, 1.8, oz - 7.8, 0, 1.05, {tint:[0.5, 0.32, 0.22]});
+    for (let z = oz - 2; z > zE; z -= 5) [-4, 4].forEach(x => B.lamp(r, x, H - 0.05, z, 0.85));
+    ST.push({x:0, z:oz, naam:'STATION HALL', binnen:true, geenWagens:true, geenMuur:true, breed:3, props:[{x:0, z:oz - 8.2, w:3.6, d:0.8, h:1.05}], plek:kRaamPlekken(L.ramen.concat(Rr.ramen, E.ramen), () => true),
+      spawns:dS(L.deuren.concat(Rr.deuren, E.deuren), 0, oz)}); }
+
+  // 9 · PLEIN: stadhuisplein met een dwarsweg (de gun truck komt langs), trappen en muurtjes
+  { const oz = -900, HW = 7.5, zW0 = oz - 4.4, zW1 = oz - 8.6, zE = oz - 12.6; B.vlakH('kinderkop', -HW, zE, HW, oz + 4, 0, {stap:2.2}); B.vlakH('asfalt', -40, zW1, 40, zW0, 0.004, {stap:2.2});
+    [-1, 1].forEach(s => { kRij(B, R, s < 0 ? {x0:-HW, z0:oz + 4, x1:-HW, z1:zW0, n:[1, 0], verd:[2, 3], hoekB:true} : {x0:HW, z0:zW0, x1:HW, z1:oz + 4, n:[-1, 0], verd:[2, 3], hoekA:true}); B.wand('baksteen', s*40, zW1, s*40, zW0, 0, 6, {}); });
+    const L = kRij(B, R, {x0:-HW, z0:zW1, x1:-HW, z1:zE, n:[1, 0], verd:[2, 3], echteDeur:() => true, raamOpen:(p, f, Rr2) => Rr2() < 0.8, hoekA:true});
+    const Rr = kRij(B, R, {x0:HW, z0:zE, x1:HW, z1:zW1, n:[-1, 0], verd:[2, 3], echteDeur:() => true, raamOpen:(p, f, Rr2) => Rr2() < 0.8, hoekB:true});
+    const E = kGevel(B, R, {x0:-HW, z0:zE, x1:HW, z1:zE, n:[0, 1], H:11, mat:'gevel_wit', deuren:[5.5, 9.5], ramen:[[2.5, 0], [12.5, 0], [2.5, 3.6], [5.5, 3.6], [9.5, 3.6], [12.5, 3.6], [7.5, 7.2]]});
+    zw('baksteen', -HW, oz + 4, HW, oz + 4, 7);
+    const props = [kProp(B, R, 'muurtje', -3.2, zW1 - 1.6, {as:'x'}), kProp(B, R, 'muurtje', 3.4, zW1 - 2, {as:'x'})].filter(Boolean);
+    ST.push({x:0, z:oz, naam:'TOWN HALL', lucht:true, breed:3, props, wagZ:[zW1 + 0.6 - oz, zW0 - 0.6 - oz], plek:kRaamPlekken(L.ramen.concat(Rr.ramen, E.ramen), c => c[1] < oz - 5),
+      spawns:dS(L.deuren.concat(Rr.deuren, E.deuren), 0, oz, [{p:[-16, zW1 + 1.5], via:[[-6, zW1 + 1.5]]}, {p:[16, zW0 - 1.5], via:[[6, zW0 - 1.5]]}])}); }
+
+  { const lu = B.extra[0]; ST.forEach(S => { if (S.lucht && Math.abs(S.z) > 150){ const m = lu.clone(); m.position.set(S.x, 0, S.z); B.extra.push(m); } }); }   // elke buitenset zijn eigen hemel (koepel is 320 m)
+  B.standen.push(...ST);
+  return B.maak();
+};
+
 /* === LEGERKAMP: menu-achtergrond (uitkijkplatform) en schietbaan (TEST). 3 varianten: woestijn, bos bij schemer, nacht === */
 const BASIS_VAR = [
   {naam:'DESERT BASE', mul:[1.06, 0.98, 0.84], grond:[1.12, 0.96, 0.72], lucht:[['0', '#3f78c0'], ['0.42', '#9cc3e6'], ['0.5', '#efe6d2'], ['1', '#d8c49c']], wolk:0.08, licht:[1.0, 1.05], mist:[0xe2d6bc, 60, 230], bos:false, nacht:false},
@@ -1144,7 +1290,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v128";
+const VERSIE = "v129";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -1493,6 +1639,7 @@ const KAART_STAND = {   // vaste eigenschappen per stand (de rest komt uit de ge
   markt:[{naam:'MARKET SQUARE', geenWagens:true, geenMuur:true}, {naam:'BACK COURT', geenWagens:true, geenMuur:true}],
   haven:[{naam:'QUAYSIDE', geenWagens:true, geenMuur:true}, {naam:'CONTAINER YARD', geenWagens:true, geenMuur:true}],
   galerij:['GATE SQUARE', 'GATE SQUARE 2', 'WELL SQUARE', 'WELL SQUARE 2', 'BAKERS ROW', 'BAKERS ROW 2', 'CHAPEL YARD', 'CHAPEL YARD 2', 'TOWN HALL', 'TOWN HALL 2'].map((naam, i) => ({naam, lucht:true, geenWagens:i < 8})),
+  stad:[{naam:'SHOPPING STREET', lucht:true, geenWagens:true}, {naam:'BACK ALLEY', lucht:true, geenWagens:true}, {naam:'CORRIDOR', binnen:true, geenWagens:true, geenMuur:true}, {naam:'OPEN OFFICE', binnen:true, geenWagens:true, geenMuur:true}, {naam:'MARKET', lucht:true, geenWagens:true}, {naam:'WAREHOUSE', binnen:true, geenWagens:true, geenMuur:true}, {naam:'COURTYARD', lucht:true, geenWagens:true, geenMuur:true}, {naam:'PARKING GARAGE', binnen:true, geenWagens:true, geenMuur:true}, {naam:'STATION HALL', binnen:true, geenWagens:true, geenMuur:true}, {naam:'TOWN HALL', lucht:true}],
   bunker:[{naam:'BUNKER ENTRANCE', binnen:true, geenWagens:true, geenMuur:true}, {naam:'CONTROL ROOM', binnen:true, geenWagens:true, geenMuur:true}, {naam:'ESCAPE TUNNEL', binnen:true, geenWagens:true, geenMuur:true}]
 };
 // elke wave een nieuwe plek: de vaste standen worden aangevuld tot 10, in kleine stapjes van de ene naar de volgende
@@ -1500,7 +1647,7 @@ const KAART_N = 10;
 function kStandLijst(w){ const B = KAART_STAND[w], n = B.length, per = B.map((_, i) => Math.floor(KAART_N/n) + (i < KAART_N % n ? 1 : 0)), uit = [];
   B.forEach((S, i) => { for (let k=0;k<per[i];k++) uit.push(Object.assign({}, S, {naam:k ? S.naam + ' ' + (k + 1) : S.naam, ouder:i, stap:k, van:per[i]})); }); return uit; }
 const KAART_WISSEL = new Proxy({}, {get:() => Array.from({length:KAART_N}, (_, i) => i + 1)});
-const KAART_TITELS = {galerij:['VILLAGE STREET', 'VILLAGE STREET', 'VILLAGE STREET', 'VILLAGE STREET', 'VILLAGE STREET'], dorp:['MILL LANE', 'OLD TOWN', 'MARKET STREET', 'RIVERSIDE', 'STATION ROAD'], loods:['THE DOCKS', 'RAIL YARD', 'FACTORY ROW', 'DEPOT', 'CANAL WHARF'],
+const KAART_TITELS = {stad:['DOWNTOWN', 'DOWNTOWN', 'DOWNTOWN', 'DOWNTOWN', 'DOWNTOWN'], galerij:['VILLAGE STREET', 'VILLAGE STREET', 'VILLAGE STREET', 'VILLAGE STREET', 'VILLAGE STREET'], dorp:['MILL LANE', 'OLD TOWN', 'MARKET STREET', 'RIVERSIDE', 'STATION ROAD'], loods:['THE DOCKS', 'RAIL YARD', 'FACTORY ROW', 'DEPOT', 'CANAL WHARF'],
   huis:['THE MANOR', 'THE OLD SCHOOL', 'THE HOTEL', 'THE CONVENT', 'THE RECTORY'], kruis:['CHURCH SQUARE', 'TOWN CROSS', 'HIGH STREET', 'MARKET CROSS', 'BRIDGE STREET'],
   bunker:['IRON VAULT', 'DEEP ARCHIVE', 'RED SECTOR', 'COLD STORE', 'THE PIT'], markt:['MARKET SQUARE', 'FISH MARKET', 'FLOWER SQUARE', 'OLD BAZAAR', 'TOWN SQUARE'],
   haven:['NORTH QUAY', 'CONTAINER PORT', 'DRY DOCK', 'PIER 9', 'CUSTOMS YARD']};
@@ -1509,7 +1656,7 @@ const BASIS_PLEK = [0, 1, 2].map(v => [0, 1].map(s => { PLEKKEN.push({kaart:{w:'
 let BASIS_VAR_NU = 0;
 function basisVolgende(){ let n = 0; try { n = (+(localStorage.getItem('sf_basis') || 0) + 1) % 3; localStorage.setItem('sf_basis', String(n)); } catch(_){ n = (BASIS_VAR_NU + 1) % 3; } BASIS_VAR_NU = n; return n; }
 function maakLevels(){
-  const volg = ['galerij', 'huis', 'loods', 'kruis', 'bunker', 'markt', 'huis', 'haven', 'dorp', 'kruis', 'markt', 'bunker', 'haven', 'huis', 'loods', 'markt', 'dorp', 'haven', 'bunker', 'kruis'];
+  const volg = ['galerij', 'stad', 'loods', 'kruis', 'bunker', 'markt', 'huis', 'haven', 'dorp', 'kruis', 'markt', 'bunker', 'haven', 'huis', 'loods', 'markt', 'dorp', 'haven', 'bunker', 'kruis'];
   const tel = {};
   return volg.map((w, i) => {
     const n = i + 1, f = i/19, r = (a, b) => +(a + (b - a)*f).toFixed(2), seed = 1000 + n*7919, k = tel[w] = (tel[w] || 0);
@@ -1528,7 +1675,7 @@ function maakLevels(){
     if (w === 'kruis' && n >= 4) L.extra[5] = {apache:1};
     if (w === 'kruis') L.extra[6] = {wagens:['jeep']};
     if (w === 'dorp') L.extra[5] = {wagens:[n >= 9 ? 'swat_truck' : 'truck']};
-    L.baas = (w === 'dorp' || w === 'galerij') ? (n < 9 ? {tekst:'GUN TRUCK', vracht:{mg:true, rijdt:true}, lopers:7, max:7} : {tekst:'GUN TRUCK + JEEP', vracht:{mg:true, rijdt:true}, wagens:['jeep_snorkel'], lopers:9, max:8})
+    L.baas = (w === 'dorp' || w === 'galerij' || w === 'stad') ? (n < 9 ? {tekst:'GUN TRUCK', vracht:{mg:true, rijdt:true}, lopers:7, max:7} : {tekst:'GUN TRUCK + JEEP', vracht:{mg:true, rijdt:true}, wagens:['jeep_snorkel'], lopers:9, max:8})
            : w === 'loods' ? (n < 10 ? {tekst:'TRUCK + HEAVY GUNNER', wagens:['truck'], zwaar:1, lopers:8, max:8} : {tekst:'SWAT TRUCK + HEAVY GUNNER', wagens:['swat_truck', 'truck'], zwaar:1, vest:1, lopers:10, max:9})
            : w === 'huis' ? (n < 10 ? {tekst:'GUN TRUCKS', vracht:{mg:true, rijdt:true, boss:true, n:2}, lopers:7, max:7} : {tekst:'GUN TRUCK + ARMORED JEEP', vracht:{mg:true, rijdt:true}, wagens:['jeep'], vestLading:true, lopers:9, max:8})
            : w === 'bunker' ? {tekst:'HEAVY GUNNER + SHIELDS', zwaar:1, schild:2, lopers:9, max:8}
@@ -3058,7 +3205,7 @@ AFRAME.registerComponent('zombies', {
     for (const o of L){ const g = o.geometry, P = g.attributes.position; if (!P) continue; if (!g.boundingBox) g.computeBoundingBox(); const bb = g.boundingBox; if (bb.max.x - bb.min.x > 250) continue;
       const I = g.index ? g.index.array : null, n = I ? I.length : P.count, M = o.matrixWorld;
       for (let t = 0; t < n; t += 3){ const i0 = I ? I[t] : t, i1 = I ? I[t + 1] : t + 1, i2 = I ? I[t + 2] : t + 2; a.fromBufferAttribute(P, i0).applyMatrix4(M); b.fromBufferAttribute(P, i1).applyMatrix4(M); c.fromBufferAttribute(P, i2).applyMatrix4(M);
-        if (a.y < 0.12 && b.y < 0.12 && c.y < 0.12) continue; tri.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z); } }
+        if (a.y < 0.12 && b.y < 0.12 && c.y < 0.12) continue; if ((Math.abs(a.x) > 48 || Math.abs(a.z) > 48) && (Math.abs(b.x) > 48 || Math.abs(b.z) > 48) && (Math.abs(c.x) > 48 || Math.abs(c.z) > 48)) continue; tri.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z); } }
     const F = new Float32Array(tri), N = F.length/9, C = 1.0; let x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9;
     for (let i = 0; i < N; i++) for (let k = 0; k < 3; k++){ const x = F[i*9 + k*3], z = F[i*9 + k*3 + 2]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (z < z0) z0 = z; if (z > z1) z1 = z; }
     const nx = Math.max(1, Math.ceil((x1 - x0)/C) + 1), nz = Math.max(1, Math.ceil((z1 - z0)/C) + 1), cel = new Array(nx*nz);
@@ -3150,9 +3297,11 @@ AFRAME.registerComponent('zombies', {
   script(K){ if (K._script) return K._script; const T = this.T, slots = [], hoek = v => Math.atan2(v[0], -v[1]);   /* vaste posten per plek, verdeeld over zones */
     (K.spawns || []).filter(q => q.deur && q.via && q.via.length).forEach(q => slots.push({soort:'deur', q, a:hoek(q.via[0])}));
     this.hoeken(K).forEach(h => slots.push({soort:'hoek', h, a:hoek([h.p.x, h.p.z])}));
-    const ramen = []; (K.plekken || []).forEach(g => g.lijst.forEach(q => { if (q.raam) ramen.push(q); })); if (ramen.length) slots.push({soort:'raam', a:0, raam:true});
+    const ramen = []; (K.plekken || []).forEach(g => g.lijst.forEach(q => { if (q.raam) ramen.push(q); })); for (let i = 0; i < Math.min(3, Math.ceil(ramen.length/3)); i++) slots.push({soort:'raam', a:0, raam:true});   /* veel ramen = vaker iemand in een raam */
+    (K.plekken || []).forEach(g => { if (!(g.h >= 0.8 && g.h <= 1.35)) return; const q = g.lijst.filter(q => !q.raam)[(g.lijst.length/2)|0]; if (!q) return; const p = new T.Vector3(q.p[0], 0, q.p[1]);   /* achter een lage dekking: gehurkt verstopt, komt omhoog */
+      if (p.length() > 3.5 && this.kaartVrij(p, 0.3)) slots.push({soort:'dek', q, p, a:hoek([p.x, p.z])}); });
     for (let i = slots.length - 1; i >= 0; i--) if (!slots[i].raam && Math.abs(slots[i].a) > 0.85) slots.splice(i, 1);
-    for (let i = slots.length - 1; i >= 0; i--){ const sl = slots[i]; const pt = sl.soort === 'hoek' ? sl.h.uit.clone().setY((sl.h.uit.y || 0) + 1.45) : sl.soort === 'deur' ? new T.Vector3(sl.q.via[0][0], 1.45, sl.q.via[0][1]) : null; if (pt && !this.puntZicht(pt, 0.5)) slots.splice(i, 1); }   /* post moet je echt zien */   /* ruim binnen de 120° (ook als hij uitleunt) */
+    for (let i = slots.length - 1; i >= 0; i--){ const sl = slots[i]; const pt = sl.soort === 'dek' ? sl.p.clone().setY(1.45) : sl.soort === 'hoek' ? sl.h.uit.clone().setY((sl.h.uit.y || 0) + 1.45) : sl.soort === 'deur' ? new T.Vector3(sl.q.via[0][0], 1.45, sl.q.via[0][1]) : null; if (pt && !this.puntZicht(pt, 0.5)) slots.splice(i, 1); }   /* post moet je echt zien */   /* ruim binnen de 120° (ook als hij uitleunt) */
     slots.forEach(sl => sl.zone = sl.raam ? 'H' : sl.a < -0.33 ? 'L' : sl.a > 0.33 ? 'R' : 'M');
     const basis = ['M', 'L', 'H', 'R', 'M', 'R', 'H', 'L'], st = this.el.components.stad, sh = ((st && st.i) || 0) % 4;
     const volg = basis.slice(sh).concat(basis.slice(0, sh)).filter(zn => slots.some(sl => sl.zone === zn));
@@ -3169,22 +3318,23 @@ AFRAME.registerComponent('zombies', {
     for (let i = 0; i < 60; i++){ const recent = E.slice(Math.max(0, E.length - mem)).map(e => e.sl); let kand = sl.filter(s => !recent.includes(s)); if (!kand.length) kand = sl.slice();
       const anders = kand.filter(s => s.zone !== vz); if (anders.length) kand = anders;   /* steeds een andere kant: links, midden, rechts, boven */
       const s = kand[r()*kand.length|0]; vz = s.zone;
-      const hoe = s.soort === 'loop' ? 'loop' : s.soort === 'raam' ? 'raam' : s.soort === 'deur' ? (gehad.has(s) ? 'uit' : 'trap') : ['leun', 'leun', 'rol', 'stap', 'rol', 'leun'][r()*6|0]; gehad.add(s);
+      const hoe = s.soort === 'dek' ? 'dek' : s.soort === 'loop' ? 'loop' : s.soort === 'raam' ? 'raam' : s.soort === 'deur' ? (gehad.has(s) ? 'uit' : 'trap') : ['leun', 'leun', 'rol', 'stap', 'rol', 'leun'][r()*6|0]; gehad.add(s);
       E.push({sl:s, hoe, k:r()*997|0, wacht:WACHT[i % WACHT.length]*(0.85 + r()*0.3), t0:0.25 + r()*0.6, dodelijk:r() < 0.22, seed:(r()*4294967296) >>> 0}); }
     return K._db = {k:sleutel, E, i:0}; },
   scriptLoper(K){ const D = this.draaiboek(K); if (!D) return null; const e = D.E[D.i % D.E.length], sl = e.sl, T = this.T;
-    const vrij = s => !(s.bezet && !s.bezet.dood) && !(s.soort === 'deur' && s.q.deurBezet && !s.q.deurBezet.dood) && !(s.soort === 'hoek' && s.h.bezet && !s.h.bezet.dood);
+    const leeft = q => q && !q.dood && q.grp && q.grp.parent, vrij = s => !leeft(s.bezet) && !(s.soort === 'deur' && leeft(s.q.deurBezet)) && !(s.soort === 'hoek' && leeft(s.h.bezet));   /* weggehaald (vervangen) telt als vrij */
     if (sl.soort !== 'raam' && !vrij(sl)) return null;   /* zijn plek is nog bezet: even wachten, de volgorde blijft gelijk */
     const opt = {soort:'dekking', soorten:this.wave && this.wave.soorten}; let z = null;
     if (sl.soort === 'raam'){ z = this.raamLoper(e.k); }
     else if (sl.soort === 'loop'){ z = this.spawnOp(sl.q, opt); }
+    else if (sl.soort === 'dek'){ z = this.soldaat(sl.p.clone(), opt); if (z && z.ai){ z.ai.arcade = true; z.ai.zak = z.ai.zakDoel = 1; z.ai.post = {schuil:sl.p.clone(), uit:sl.p.clone(), laag:true, fase:'schuil', gehad:true}; z.ai.staat = 'arcade'; } }
     else if (sl.soort === 'deur'){ z = this.spawnOp(sl.q, opt); if (z && z.ai){ z.ai.arcade = true; this.arcadeDeur(z, sl.q, e); } }
     else { const h = sl.h, rich = h.uit.clone().sub(h.p).setY(0).normalize(); let post = null;
       if (e.hoe === 'rol'){ const eind = h.uit.clone().addScaledVector(rich, 1.0);   /* rolt de hoek om en blijft geknield schieten */
         if (this.kaartVrij(eind, 0.34) && !this.kaartSegZ(h.uit.clone().setY(0.9), eind.clone().setY(0.9)) && Math.atan2(Math.abs(eind.x), -eind.z) < 0.98 && this.bladVrij(K, h.p, eind, 0.3)) post = {schuil:eind, uit:eind, laag:true, fase:'schuil', hoek:h, gehad:false, rolIn:true}; }
       if (!post) post = {schuil:h.p.clone(), uit:h.uit.clone(), laag:false, fase:'schuil', hoek:h, gehad:true, leun:e.hoe === 'stap' ? null : this.leunPlek(h.p, rich)};
       z = this.soldaat(h.p.clone(), opt); if (z && z.ai){ h.bezet = z; z.ai.arcade = true; z.ai.post = post; z.ai.staat = 'arcade'; } }
-    if (!z || !z.ai) return null;
+    if (!z || !z.ai){ if (sl.soort !== 'deur' && sl.soort !== 'hoek') D.i++; return null; }
     D.i++; z.r = this.rngVan(e.seed); z.dodelijk = e.dodelijk; if (z.ai.staat === 'arcade') z.ai.t = e.t0 + (sl.soort === 'deur' ? 0.4 : 0);
     sl.bezet = z; sl.lastT = this.nu; z.ai.vast = true; z.ai.script = sl.soort; z.ai.hoe = e.hoe; return z; },
   loper(soort){
