@@ -1913,7 +1913,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v135";
+const VERSIE = "v136";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -5294,6 +5294,19 @@ AFRAME.registerComponent('zombies', {
     const B = this.s3dBron || {}; this._nmat = this._nmat || {}; const k = (o.userData.vizier ? 'v' : 'l') + n; if (this._nmat[k]) return this._nmat[k];
     const tint = o.userData.vizier ? [0.8, 0.8, 0.8] : ({1:[0.86, 0.84, 0.8], 2:[0.44, 0.5, 0.36], 3:[0.5, 0.56, 0.68], 4:[0.3, 0.31, 0.34], 5:[0.72, 0.6, 0.46], zw:[0.36, 0.42, 0.3], h1:[0.8, 0.74, 0.62], h2:[0.42, 0.48, 0.34], h3:[0.42, 0.46, 0.54], h4:[0.22, 0.23, 0.25], h5:[0.6, 0.5, 0.38]}[n] || [0.8, 0.8, 0.8]);
     const m = (this._nmat0[o.name] || Object.values(this._nmat0).find(q => q.map) || Object.values(this._nmat0)[0]).clone(); m.color = new this.T.Color(tint[0], tint[1], tint[2]); return this._nmat[k] = m; },
+  SLANK: {pelvis:[0.88, 'spine_01'], spine_01:[0.86, 'spine_02'], spine_02:[0.84, 'spine_03'], spine_03:[0.85, 'neck_01'], clavicle_l:[0.9, 'upperarm_l'], clavicle_r:[0.9, 'upperarm_r'],
+    upperarm_l:[0.8, 'lowerarm_l'], upperarm_r:[0.8, 'lowerarm_r'], lowerarm_l:[0.84, 'hand_l'], lowerarm_r:[0.84, 'hand_r'], thigh_l:[0.84, 'calf_l'], thigh_r:[0.84, 'calf_r'], calf_l:[0.88, 'foot_l'], calf_r:[0.88, 'foot_r']},
+  s3dSlank(sc){                         /* pantser-look eraf: elke vertex schuift naar de lijn van zijn bot (gewogen over de skin-gewichten, dus geen naden) */
+    const T = this.T, F = this.SLANK; sc.updateMatrixWorld(true);
+    sc.traverse(o => { if (!o.isSkinnedMesh || o.geometry.userData.slank) return; const g = o.geometry, pos = g.attributes.position, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, sk = o.skeleton;
+      const naam = sk.bones.map(b => b.name), bp = sk.boneInverses.map(m => new T.Vector3().setFromMatrixPosition(m.clone().invert())), seg = naam.map((nm, i) => { const f = F[nm]; if (!f) return null; const k = naam.indexOf(f[1]); return k < 0 ? null : {a:bp[i], b:bp[k], f:f[0]}; });
+      const v = new T.Vector3(), w = new T.Vector3(), uit = new T.Vector3(), q = new T.Vector3(), ab = new T.Vector3(), inv = o.bindMatrixInverse;
+      for (let i = 0; i < pos.count; i++){ v.fromBufferAttribute(pos, i).applyMatrix4(o.bindMatrix); uit.set(0, 0, 0); let som = 0;
+        for (let k = 0; k < 4; k++){ const wt = sw.getComponent(i, k); if (wt <= 0) continue; const S = seg[si.getComponent(i, k)]; som += wt;
+          if (!S){ uit.addScaledVector(v, wt); continue; } ab.subVectors(S.b, S.a); const t = Math.max(0, Math.min(1, w.subVectors(v, S.a).dot(ab)/Math.max(1e-6, ab.lengthSq())));
+          q.copy(S.a).addScaledVector(ab, t); uit.addScaledVector(q.clone().addScaledVector(v.clone().sub(q), S.f), wt); }
+        if (som > 0){ uit.multiplyScalar(1/som); uit.applyMatrix4(inv); pos.setXYZ(i, uit.x, uit.y, uit.z); } }
+      pos.needsUpdate = true; g.computeBoundingSphere(); g.userData.slank = 1; }); },
   s3dVoorbereid(g){
     const T = this.T, sc = g.scene;
     const naad = new T.MeshLambertMaterial({color:0x15170f}), stoffen = {};
@@ -5307,6 +5320,7 @@ AFRAME.registerComponent('zombies', {
       clips[c.name] = c;
       const b = c.clone(); b.name = c.name + '|benen'; b.tracks = b.tracks.filter(t => BENEN.test(t.name)); clips[b.name] = b;
       const o = c.clone(); o.name = c.name + '|boven'; o.tracks = o.tracks.filter(t => !BENEN.test(t.name)); clips[o.name] = o; });
+    if (g.nieuw) this.s3dSlank(sc);
     const atlas = g.nieuw ? null : this.s3dUV(sc), knipInfo = this.s3dKnipPrep(sc);
     return {scene:sc, clips, schaal:ZLENGTE/hoog, stof, stoffen, naad, atlas, knipInfo, nieuw:!!g.nieuw};
   },
