@@ -1913,7 +1913,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v133";
+const VERSIE = "v134";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2621,6 +2621,22 @@ AFRAME.registerComponent('zombies', {
     const M = H[id]; M.g.visible = true; M.kick = Math.max(0, M.kick - s*7); const k = M.kick*M.kick;
     M.g.position.set(0, 0, 0); M.g.translateZ(k*0.035); M.g.rotation.x = -RICHT_OMLAAG*Math.PI/180 + k*0.16; if (M.slede) M.slede.position.z = M.sledeZ + k*0.03;
     return M.vizier; },
+  WAPEN_GLB: {pistool:{f:'pistol-1', len:0.2, greep:0.2, hoog:0.32}, auto:{f:'submachinegun-2', len:0.38, greep:0.36, hoog:0.3}, shotgun:{f:'shotgun-shortstock', len:0.62, greep:0.16, hoog:0.32}},
+  wapenGlb(){ if (this._wGlb || !this.T.GLTFLoader) return; this._wGlb = {}; const L = new this.T.GLTFLoader();
+    Object.entries(this.WAPEN_GLB).forEach(([k, d]) => L.load('art/wapens/' + d.f + '.glb', g => { try { this._wGlb[k] = {scene:g.scene, d}; if (this._hw) Object.values(this._hw).forEach(M => { if (M && M.w === k) M.w = ''; }); } catch(e){ this.fout && this.fout(e); } }, undefined, () => {})); },
+  wapenNorm(w){                          /* glb → loop langs -z, greep op (0,0,0); geeft groep + vizierhoogte */
+    const T = this.T, G = this._wGlb && this._wGlb[w]; if (!G) return null; const d = G.d, sc = G.scene.clone(true); sc.updateMatrixWorld(true);
+    const P = []; sc.traverse(o => { if (o.isMesh){ const pos = o.geometry.attributes.position, v = new T.Vector3(); for (let i=0;i<pos.count;i++){ v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld); P.push(v.clone()); }
+      const c = o.material && o.material.color ? o.material.color.clone() : new T.Color(0x222222); o.material = new T.MeshLambertMaterial({color:c.multiplyScalar(1.15)}); o.raycast = () => {}; o.renderOrder = 2; } });
+    const bb = new T.Box3().setFromPoints(P), dx = bb.max.x - bb.min.x, dz = bb.max.z - bb.min.z, as = dx >= dz ? 'x' : 'z', lo = bb.min[as], hi = bb.max[as], ext = hi - lo;
+    const minY = (a, b) => P.filter(p => p[as] >= a && p[as] <= b).reduce((m, p) => Math.min(m, p.y), 1e9);
+    const loMin = minY(lo, lo + ext*0.12), hiMin = minY(hi - ext*0.12, hi), mondHi = hiMin > loMin;   /* aan de loopkant hangt niets naar beneden */
+    const rot = as === 'x' ? (mondHi ? Math.PI/2 : -Math.PI/2) : (mondHi ? Math.PI : 0), s = d.len/ext;
+    const M = new T.Matrix4().makeRotationY(rot).premultiply(new T.Matrix4().makeScale(s, s, s)), Q = P.map(p => p.clone().applyMatrix4(M)), b2 = new T.Box3().setFromPoints(Q);
+    const L = b2.max.z - b2.min.z, H = b2.max.y - b2.min.y, gz = b2.max.z - L*d.greep, gy = b2.min.y + H*d.hoog;   /* greep: fractie van achter, hoogte: fractie van onder */
+    const voor = Q.filter(p => p.z < b2.min.z + L*0.1), topV = voor.reduce((m, p) => Math.max(m, p.y), -1e9), gx = (b2.min.x + b2.max.x)/2;
+    const g = new T.Group(), inner = new T.Group(); inner.add(sc); inner.rotation.y = rot; inner.scale.setScalar(s); inner.position.set(-gx, -gy, -gz); g.add(inner);
+    return {g, v:topV - gy + 0.0045, zV:b2.min.z - gz + 0.012, zA:Math.min(0.03, b2.max.z - gz - 0.01)}; },
   wapenKick(id){ const M = this._hw && this._hw[id]; if (M) M.kick = 1; },
   wapenModel(w){                         /* loop langs -z, greep rond (0,0,0), vizier bovenop; korrel met een gloeipuntje in de wapenkleur */
     const T = this.T, g = new T.Group(), MM = this._wmat = this._wmat || {};
@@ -2631,7 +2647,9 @@ AFRAME.registerComponent('zombies', {
     const bol = (r, x, y, z, m) => { const o = new T.Mesh(new T.SphereGeometry(r, 10, 8), m); o.position.set(x, y, z); g.add(o); return o; };
     const vizier = (y, zKorrel, zKeep, breed) => { doos(0.004, 0.009, 0.007, 0, y - 0.004, zKorrel, zw); bol(0.0024, 0, y, zKorrel + 0.002, gloei);   /* korrel + gloeipunt */
       [-1, 1].forEach(s => { doos(0.008, 0.01, 0.008, s*(breed || 0.0085), y - 0.004, zKeep, zw); bol(0.0016, s*(breed || 0.0085), y, zKeep - 0.0045, wit); }); return y; };   /* keep: twee paaltjes met witte stipjes */
-    let v = 0.103, slede = null;
+    let v = 0.103, slede = null; const N = this.wapenNorm(w);
+    if (N){ g.add(N.g); bol(0.0026, 0, N.v, N.zV, gloei); [-1, 1].forEach(s => bol(0.0017, s*0.0085, N.v, N.zA, wit)); v = N.v;   /* gloeiende korrel + twee stipjes achter, op één lijn met de schotlijn */
+      g.traverse(o => { if (o.isMesh){ o.raycast = () => {}; o.renderOrder = 2; } }); return {g, vizier:v, slede:null, sledeZ:0}; }
     if (w === 'shotgun'){
       doos(0.034, 0.05, 0.2, 0, 0.07, -0.05, zw); buis(0.011, 0.44, 0, 0.083, -0.37, staal); buis(0.009, 0.3, 0, 0.06, -0.3, zw);
       doos(0.04, 0.036, 0.13, 0, 0.056, -0.27, hout); doos(0.03, 0.11, 0.045, 0, 0.0, 0.02, hout, -0.32); doos(0.006, 0.03, 0.05, 0, 0.032, -0.03, zw);
@@ -7327,7 +7345,7 @@ AFRAME.registerComponent('zombies', {
     if (this.gestart) return; this.testWeg(); if (modus !== 'test') this.levenStop(); this.logboek('startMet ' + id + ' ' + modus); const auto = modus === 'auto'; if (auto) modus = 'lvl'; this.modus = modus || 'demo'; this.lvlNr = this.modus === 'lvl' ? Math.min(LEVELS.length, this.startLvl || 1) : 1;
     if (auto) this.autoStart();
     setTimeout(() => { try { const R = this.el.sceneEl.renderer; for (let i=1; i<=24; i++) this.s3dKopMat(i); for (let k=0; k<5; k++){ const m = this.s3dCamo(k); if (R && R.initTexture && m && m.map) R.initTexture(m.map); } } catch(_){} }, 50);   /* gezichten en camo vooraf naar de GPU: geen hapering als een nieuwe soldaat verschijnt */
-    this.gunHand = id; this.gestart = true; try { localStorage.setItem('sf_hand', id); } catch(_){}
+    this.wapenGlb(); this.gunHand = id; this.gestart = true; try { localStorage.setItem('sf_hand', id); } catch(_){}
     if (this.menu){ this.menu.removeFromParent(); this.menu = null; }
     const ander = id === 'handL' ? 'handR' : 'handL', h = document.getElementById(ander), g = document.getElementById(id);
     if (h) h.setAttribute('raycaster', 'showLine', false);       // andere hand: geen straal, alleen grip = bommenwerper
