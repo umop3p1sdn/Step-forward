@@ -1582,6 +1582,247 @@ KWERELD.woestijn = (T, R) => {
   return B.maak();
 };
 
+/* === HOTEL (level 5, SWAT): penthouse, dan 3x de LIFT naar beneden (pling — deuren open — schieten), lobby, restaurant, keuken, balzaal,
+   wasserij en de oprit (baas: SWAT-truck). === */
+KWERELD.hotel = (T, R) => {
+  const B = new KBouw(T); B.lucht(); B.weg = 'asfalt'; B.stoep = 'stoep';
+  const ST = [], liften = [], dS = (deuren, x, z, extra) => kDeurSpawns(deuren, {x, z}, p => p[1] < z - 2.5).concat(extra || []);
+  const binnen = (xa, za, xb, zb, H, vloer, vt, plaf) => { const r = B.ruimte(xa, zb, xb, za, H, 0.3); B.vlakH(vloer, xa, zb, xb, za, 0.005, {stap:1.4, tint:vt}); B.vlakH(plaf || 'plafond', xa, zb, xb, za, H, {plafond:true, stap:1.5}); return r; };
+  const zw = (n, x0, z0, x1, z1, H, o) => B.wand(n, x0, z0, x1, z1, 0, H, Object.assign({dik:0.3}, o || {}));
+  const ROOM = [0.95, 0.88, 0.76], TAPIJT = [0.72, 0.26, 0.24], GOUD = [0.85, 0.7, 0.35];
+  const gev = o => kGevel(B, R, Object.assign({mat:'pleister1', tint:ROOM}, o));
+  const blok = (x, z, w, d, h, n, tint) => { B.doos(n || 'plank', x - w/2, z - d/2, x + w/2, z + d/2, 0, h, {tint}); return {x, z, w, d, h}; };
+  const zuil = (x, z, H) => { B.cilinder('pleister1', x, z, 0.38, 0, H, {tint:[1, 0.96, 0.88]}); B.box(x - 0.38, 0, z - 0.38, x + 0.38, H, z + 0.38); };
+  // liftcabine om de stand heen; de deuren schuiven open als de wave begint (pling)
+  const lift = (oz, H) => { const W = 1.6, zD = oz - 1.0;
+    B.vlakH('beton', -W, zD, W, oz + 1.4, 0.006, {tint:[0.55, 0.55, 0.58]}); B.vlakH('golf_grijs', -W, zD, W, oz + 1.4, 2.5, {plafond:true, tint:[0.7, 0.7, 0.72]});
+    [[-W, oz + 1.4, -W, zD], [W, zD, W, oz + 1.4], [W, oz + 1.4, -W, oz + 1.4]].forEach(([a, b, c, d]) => B.wand('golf_grijs', a, b, c, d, 0, 2.5, {dik:0.12, tint:[0.62, 0.62, 0.66]}));
+    B.doos('kleur', -W + 0.05, oz + 1.2, W - 0.05, oz + 1.3, 0.9, 0.95, {tint:[0.8, 0.8, 0.82], geenBots:true});
+    const mat = new T.MeshLambertMaterial({color:0xb4b8bd}), g = new T.Group(), a = new T.Mesh(new T.BoxGeometry(1.12, 2.28, 0.05), mat), b = a.clone();
+    a.position.set(-0.56, 1.14, zD + 0.1); b.position.set(0.56, 1.14, zD + 0.1); g.add(a, b); a.userData.blad = b.userData.blad = true; B.extra.push(g);
+    liften.push({a, b, x:0, z:oz, open:0, doel:0});
+    return H; };
+
+  // 0 · PENTHOUSE: grote suite, banken en een bar als dekking, deuren naar slaapkamers
+  { const oz = 0, H = 3.4, xa = -7, xb = 7, zE = oz - 11; const r = binnen(xa, oz + 3, xb, zE, H, 'parket', [0.9, 0.75, 0.6]);
+    const E = gev({x0:xa, z0:zE, x1:xb, z1:zE, n:[0, 1], H, deuren:[3, 11], ramen:[[7, 0]]}), L = gev({x0:xa, z0:oz + 3, x1:xa, z1:zE, n:[1, 0], H, deuren:[10]}), Rr = gev({x0:xb, z0:zE, x1:xb, z1:oz + 3, n:[-1, 0], H, deuren:[4]});
+    zw('pleister1', xa, oz + 3, xb, oz + 3, H, {tint:ROOM});
+    const props = [blok(-3, oz - 4.6, 2.6, 0.9, 0.9, 'kleur', [0.25, 0.22, 0.3]), blok(2.6, oz - 6, 2.4, 0.9, 0.9, 'kleur', [0.25, 0.22, 0.3]), blok(-0.4, oz - 8.8, 3, 0.7, 1.08, 'plank', [0.35, 0.22, 0.15])];
+    blok(5.6, oz - 9, 0.8, 0.8, 2.2, 'plank', [0.4, 0.28, 0.2]); blok(-5.8, oz - 7, 0.8, 0.8, 2.2, 'plank', [0.4, 0.28, 0.2]);
+    for (let z = oz - 1; z > zE; z -= 3.5) [-3, 3].forEach(x => B.lamp(r, x, H - 0.03, z, 0.75));
+    ST.push({x:0, z:oz, naam:'PENTHOUSE', binnen:true, geenWagens:true, geenMuur:true, breed:3, props, plek:kRaamPlekken(E.ramen, () => true), spawns:dS(E.deuren.concat(L.deuren, Rr.deuren), 0, oz)}); }
+
+  // 1 · LIFT → 3e VERDIEPING: gang dwars voor de lift, een gang recht vooruit, kamerdeuren
+  { const oz = -100, H = 2.8; lift(oz, H); const r = binnen(-9, oz - 1, 9, oz - 12.2, H, 'parket', TAPIJT);
+    B.wand('pleister1', -9, oz - 1, 9, oz - 1, 0, H, {dik:0.2, tint:ROOM, gaten:[{a0:7.9, a1:10.1, b0:0, b1:2.3}]});
+    const F1 = gev({x0:-9, z0:oz - 4.2, x1:-1.5, z1:oz - 4.2, n:[0, 1], H, deuren:[2.4, 5.8]}), F2 = gev({x0:1.5, z0:oz - 4.2, x1:9, z1:oz - 4.2, n:[0, 1], H, deuren:[1.7, 5.1]});
+    const L = gev({x0:-1.5, z0:oz - 4.2, x1:-1.5, z1:oz - 12, n:[1, 0], H, deuren:[2.8]}), Rr = gev({x0:1.5, z0:oz - 12, x1:1.5, z1:oz - 4.2, n:[-1, 0], H, deuren:[2.6]}), E = gev({x0:-1.5, z0:oz - 12, x1:1.5, z1:oz - 12, n:[0, 1], H, deuren:[1.5]});
+    zw('pleister1', -9, oz - 1, -9, oz - 4.2, H, {tint:ROOM}); zw('pleister1', 9, oz - 4.2, 9, oz - 1, H, {tint:ROOM});
+    const props = [blok(-3.6, oz - 2.6, 1.0, 0.6, 1.0, 'golf_grijs', [0.85, 0.85, 0.88])];   // roomservice-karretje
+    for (let x = -6; x <= 6; x += 4) B.lamp(r, x, H - 0.02, oz - 2.6, 0.7); B.lamp(r, 0, H - 0.02, oz - 7, 0.7); B.lamp(r, 0, H - 0.02, oz - 10.5, 0.7); B.lamp(r, 0, 2.45, oz + 0.2, 0.6);
+    ST.push({x:0, z:oz, naam:'LIFT · FLOOR 3', binnen:true, geenWagens:true, geenMuur:true, breed:0.8, lift:true, props, plek:[kHoek([-2.6, oz - 4.6], [-1.2, oz - 3.2]), kHoek([2.6, oz - 4.6], [1.2, oz - 3.2])],
+      spawns:dS(F1.deuren.concat(F2.deuren, L.deuren, Rr.deuren, E.deuren), 0, oz)}); }
+
+  // 2 · LIFT → 2e VERDIEPING: binnenzwembad, ligbedden, kleedkamerdeuren, galerij met ramen
+  { const oz = -200, H = 5.2; lift(oz, H); const r = binnen(-8, oz - 1, 8, oz - 12.4, H, 'tegels', [0.85, 0.92, 0.95]);
+    B.wand('pleister1', -8, oz - 1, 8, oz - 1, 0, H, {dik:0.2, tint:[0.85, 0.92, 0.95], gaten:[{a0:6.9, a1:9.1, b0:0, b1:2.3}]});
+    const E = gev({x0:-8, z0:oz - 12.4, x1:8, z1:oz - 12.4, n:[0, 1], H, tint:[0.85, 0.92, 0.95], deuren:[4, 8, 12], ramen:[[2, 2.9], [6, 2.9], [10, 2.9], [14, 2.9]]});
+    zw('pleister1', -8, oz - 1, -8, oz - 12.4, H, {tint:[0.85, 0.92, 0.95]}); zw('pleister1', 8, oz - 12.4, 8, oz - 1, H, {tint:[0.85, 0.92, 0.95]});
+    B.vlakH('kleur', -4.6, oz - 9.6, 1.4, oz - 4, 0.02, {tint:[0.25, 0.6, 0.75]}); B.box(-4.6, -0.5, oz - 9.6, 1.4, 0.95, oz - 4);   // zwembad
+    [4.2, -6.4].forEach(x => [oz - 4.6, oz - 9].forEach(z => zuil(x, z, H)));
+    const props = [blok(3.4, oz - 7, 1.8, 0.8, 0.95, 'kleur', [0.95, 0.95, 0.95]), blok(-1.6, oz - 11, 2.2, 0.7, 0.95, 'plank', [0.6, 0.45, 0.3])];
+    for (let z = oz - 3; z > oz - 12; z -= 4) [-3, 3].forEach(x => B.lamp(r, x, H - 0.05, z, 0.8)); B.lamp(r, 0, 2.45, oz + 0.2, 0.6);
+    ST.push({x:0, z:oz, naam:'LIFT · FLOOR 2', binnen:true, geenWagens:true, geenMuur:true, breed:0.8, lift:true, props, plek:kRaamPlekken(E.ramen, () => true), spawns:dS(E.deuren, 0, oz, [{p:[-7.4, oz - 11.6], via:[[-6.2, oz - 10.6]]}, {p:[7.4, oz - 11.6], via:[[6, oz - 10.8]]}])}); }
+
+  // 3 · LIFT → 1e VERDIEPING: congresfoyer met zuilen, garderobe-balie, deuren naar zalen
+  { const oz = -300, H = 3.6; lift(oz, H); const r = binnen(-8, oz - 1, 8, oz - 12, H, 'parket', [0.55, 0.4, 0.3]);
+    B.wand('pleister1', -8, oz - 1, 8, oz - 1, 0, H, {dik:0.2, tint:ROOM, gaten:[{a0:6.9, a1:9.1, b0:0, b1:2.3}]});
+    const E = gev({x0:-8, z0:oz - 12, x1:8, z1:oz - 12, n:[0, 1], H, deuren:[4.5, 8, 11.5], ramen:[[2, 0], [14, 0]]});
+    const L = gev({x0:-8, z0:oz - 1, x1:-8, z1:oz - 12, n:[1, 0], H, deuren:[7.5]}), Rr = gev({x0:8, z0:oz - 12, x1:8, z1:oz - 1, n:[-1, 0], H, deuren:[3.8]});
+    [-2.6, 2.6].forEach(x => [oz - 5.2, oz - 9.2].forEach(z => zuil(x, z, H)));
+    const props = [blok(-4.6, oz - 7, 2.6, 0.7, 1.05, 'plank', [0.45, 0.3, 0.2]), blok(4.4, oz - 8, 1.6, 0.9, 0.95, 'kleur', [0.3, 0.3, 0.34])];
+    for (let z = oz - 3; z > oz - 12; z -= 4) [-4, 0, 4].forEach(x => B.lamp(r, x, H - 0.03, z, 0.6)); B.lamp(r, 0, 2.45, oz + 0.2, 0.6);
+    ST.push({x:0, z:oz, naam:'LIFT · FLOOR 1', binnen:true, geenWagens:true, geenMuur:true, breed:0.8, lift:true, props, plek:kRaamPlekken(E.ramen, () => true), spawns:dS(E.deuren.concat(L.deuren, Rr.deuren), 0, oz)}); }
+
+  // 4 · LOBBY: marmer, receptiebalie, zuilen, mezzanine met ramen, draaideur achterin
+  { const oz = -400, H = 7, xa = -8, xb = 8, zE = oz - 12.2; const r = binnen(xa, oz + 3, xb, zE, H, 'tegels', [1, 0.95, 0.88]);
+    const E = gev({x0:xa, z0:zE, x1:xb, z1:zE, n:[0, 1], H, deuren:[3.5, 12.5], ramen:[[2, 3.8], [6, 3.8], [10, 3.8], [14, 3.8]], gaten:[{a0:6.8, a1:9.2, b0:0, b1:2.8}]}); B.kamer(0, zE - 0.3, 0, 1, 2.4, 3, 0, 2.8, {f:0.45});
+    const L = gev({x0:xa, z0:oz + 3, x1:xa, z1:zE, n:[1, 0], H, deuren:[10]}), Rr = gev({x0:xb, z0:zE, x1:xb, z1:oz + 3, n:[-1, 0], H, deuren:[5]});
+    zw('pleister1', xa, oz + 3, xb, oz + 3, H, {tint:ROOM});
+    [-3.6, 3.6].forEach(x => [oz - 4.4, oz - 9].forEach(z => zuil(x, z, H)));
+    const props = [blok(0, oz - 6.6, 4, 0.8, 1.1, 'plank', [0.4, 0.26, 0.16]), blok(-5.6, oz - 8.6, 1.4, 1.4, 0.95, 'kleur', [0.2, 0.32, 0.22])];
+    B.doos('kleur', -1.2, oz - 7.8, 1.2, oz - 5.4, 5.6, 6.2, {tint:GOUD, geenBots:true});
+    for (let z = oz - 1; z > zE; z -= 4) [-4, 4].forEach(x => B.lamp(r, x, H - 0.05, z, 0.85));
+    ST.push({x:0, z:oz, naam:'LOBBY', binnen:true, geenWagens:true, geenMuur:true, breed:3, props, plek:kRaamPlekken(E.ramen, () => true), spawns:dS(E.deuren.concat(L.deuren, Rr.deuren), 0, oz, [{p:[0, zE - 2.6], via:[[0, zE + 1]]}])}); }
+
+  // 5 · RESTAURANT: zitjes met hoge rug als dekking, bar, klapdeuren naar de keuken
+  { const oz = -500, H = 3.4, xa = -7, xb = 7, zE = oz - 11; const r = binnen(xa, oz + 3, xb, zE, H, 'parket', [0.7, 0.5, 0.36]);
+    const E = gev({x0:xa, z0:zE, x1:xb, z1:zE, n:[0, 1], H, tint:[0.9, 0.8, 0.65], deuren:[4, 10], ramen:[[7, 0]]}), L = gev({x0:xa, z0:oz + 3, x1:xa, z1:zE, n:[1, 0], H, tint:[0.9, 0.8, 0.65], deuren:[9.5]}), Rr = gev({x0:xb, z0:zE, x1:xb, z1:oz + 3, n:[-1, 0], H, tint:[0.9, 0.8, 0.65], deuren:[3]});
+    zw('pleister1', xa, oz + 3, xb, oz + 3, H, {tint:[0.9, 0.8, 0.65]});
+    const props = [[-3.4, oz - 4.2], [2.6, oz - 5], [-1, oz - 7.4], [4, oz - 8.2]].map(([x, z]) => blok(x, z, 2, 0.35, 1.15, 'kleur', [0.5, 0.12, 0.12]));
+    blok(-5.6, oz - 8.4, 1.2, 2.6, 1.1, 'plank', [0.35, 0.22, 0.14]);
+    for (let z = oz - 1; z > zE; z -= 3.5) [-3, 3].forEach(x => B.lamp(r, x, H - 0.03, z, 0.55));
+    ST.push({x:0, z:oz, naam:'RESTAURANT', binnen:true, geenWagens:true, geenMuur:true, breed:2.4, props, plek:kRaamPlekken(E.ramen, () => true), spawns:dS(E.deuren.concat(L.deuren, Rr.deuren), 0, oz)}); }
+
+  // 6 · KEUKEN: RVS-werkbanken, hoge rekken, doorgeefluik, koelcel
+  { const oz = -600, H = 3.2, xa = -6.5, xb = 6.5, zE = oz - 11; const r = binnen(xa, oz + 3, xb, zE, H, 'tegels', [0.9, 0.9, 0.9]);
+    const E = gev({x0:xa, z0:zE, x1:xb, z1:zE, n:[0, 1], H, mat:'tegels', tint:[0.95, 0.95, 0.95], deuren:[2.5, 10.5], ramen:[[6.5, 0]]}), L = gev({x0:xa, z0:oz + 3, x1:xa, z1:zE, n:[1, 0], H, mat:'tegels', tint:[0.95, 0.95, 0.95], deuren:[9]}), Rr = gev({x0:xb, z0:zE, x1:xb, z1:oz + 3, n:[-1, 0], H, mat:'tegels', tint:[0.95, 0.95, 0.95], deuren:[4.5]});
+    zw('tegels', xa, oz + 3, xb, oz + 3, H, {tint:[0.95, 0.95, 0.95]});
+    const props = [blok(-2.8, oz - 4.6, 3, 0.8, 0.95, 'golf_grijs', [0.85, 0.87, 0.9]), blok(2.6, oz - 6.2, 3, 0.8, 0.95, 'golf_grijs', [0.85, 0.87, 0.9]), blok(-1.2, oz - 8.6, 2.6, 0.8, 0.95, 'golf_grijs', [0.85, 0.87, 0.9])];
+    blok(5.2, oz - 9, 0.6, 2, 2.2, 'golf_grijs', [0.7, 0.72, 0.75]); blok(-5.2, oz - 7, 0.6, 2, 2.2, 'golf_grijs', [0.7, 0.72, 0.75]);
+    for (let z = oz - 1; z > zE; z -= 3.5) [-2.5, 2.5].forEach(x => B.lamp(r, x, H - 0.03, z, 0.85));
+    ST.push({x:0, z:oz, naam:'KITCHEN', binnen:true, geenWagens:true, geenMuur:true, breed:2.4, props, plek:kRaamPlekken(E.ramen, () => true), spawns:dS(E.deuren.concat(L.deuren, Rr.deuren), 0, oz)}); }
+
+  // 7 · BALZAAL: ronde tafels, een podium met gordijn, balkonramen boven
+  { const oz = -700, H = 7, xa = -8.5, xb = 8.5, zE = oz - 12.4; const r = binnen(xa, oz + 3, xb, zE, H, 'parket', [0.6, 0.4, 0.28]);
+    const E = gev({x0:xa, z0:zE, x1:xb, z1:zE, n:[0, 1], H, tint:[0.95, 0.85, 0.7], deuren:[2.5, 14.5], ramen:[[5, 3.8], [8.5, 3.8], [12, 3.8]]});
+    const L = gev({x0:xa, z0:oz + 3, x1:xa, z1:zE, n:[1, 0], H, tint:[0.95, 0.85, 0.7], deuren:[10], ramen:[[6, 3.8], [13, 3.8]]}), Rr = gev({x0:xb, z0:zE, x1:xb, z1:oz + 3, n:[-1, 0], H, tint:[0.95, 0.85, 0.7], deuren:[4.5], ramen:[[8, 3.8]]});
+    zw('pleister1', xa, oz + 3, xb, oz + 3, H, {tint:[0.95, 0.85, 0.7]});
+    B.doos('kleur', -4.4, zE + 0.05, 4.4, zE + 0.25, 0.9, 4.2, {tint:[0.55, 0.08, 0.1], geenBots:true}); B.doos('plank', -4.6, zE, 4.6, zE + 2.2, 0, 0.9, {tint:[0.4, 0.25, 0.15]});
+    const props = [[-4, oz - 4.4], [3.4, oz - 5.6], [-1.4, oz - 8], [4.6, oz - 9.4], [-5.4, oz - 9]].map(([x, z]) => { B.cilinder('kleur', x, z, 0.75, 0, 0.88, {tint:[0.95, 0.95, 0.92]}); B.box(x - 0.75, 0, z - 0.75, x + 0.75, 0.88, z + 0.75); return {x, z, w:1.5, d:1.5, h:0.88}; });
+    B.doos('kleur', -1.4, oz - 7.4, 1.4, oz - 4.6, 6.2, 6.6, {tint:GOUD, geenBots:true});
+    for (let z = oz - 1; z > zE; z -= 4) [-4, 4].forEach(x => B.lamp(r, x, H - 0.05, z, 0.75));
+    ST.push({x:0, z:oz, naam:'BALLROOM', binnen:true, geenWagens:true, geenMuur:true, breed:3, props, plek:kRaamPlekken(E.ramen.concat(L.ramen, Rr.ramen), () => true), spawns:dS(E.deuren.concat(L.deuren, Rr.deuren), 0, oz)}); }
+
+  // 8 · WASSERIJ: kelder met wasmachines, karren met lakens, buizen, stoomdeuren
+  { const oz = -800, H = 3, xa = -6.5, xb = 6.5, zE = oz - 11; const r = binnen(xa, oz + 3, xb, zE, H, 'beton', [0.8, 0.8, 0.82], 'beton');
+    const E = gev({x0:xa, z0:zE, x1:xb, z1:zE, n:[0, 1], H, mat:'beton2', tint:[0.85, 0.85, 0.88], deuren:[3, 10]}), L = gev({x0:xa, z0:oz + 3, x1:xa, z1:zE, n:[1, 0], H, mat:'beton2', tint:[0.85, 0.85, 0.88], deuren:[8.5]}), Rr = gev({x0:xb, z0:zE, x1:xb, z1:oz + 3, n:[-1, 0], H, mat:'beton2', tint:[0.85, 0.85, 0.88], deuren:[5.5]});
+    zw('beton2', xa, oz + 3, xb, oz + 3, H, {tint:[0.85, 0.85, 0.88]});
+    const props = [blok(-3, oz - 4.4, 3.2, 0.9, 1.05, 'kleur', [0.92, 0.92, 0.94]), blok(2.4, oz - 6.6, 1.4, 0.9, 1.0, 'kleur', [0.6, 0.65, 0.75]), blok(-0.6, oz - 8.8, 3.2, 0.9, 1.05, 'kleur', [0.92, 0.92, 0.94])];
+    blok(5, oz - 9.4, 0.8, 1.6, 2.1, 'golf_grijs', [0.6, 0.6, 0.62]);
+    [-1.6, 2.2].forEach(x => B.cilinder('kleur', x, oz - 5, 0.09, 2.6, 2.75, {tint:[0.5, 0.45, 0.4], geenBots:true}));
+    for (let z = oz - 1; z > zE; z -= 3.5) B.lamp(r, 0, H - 0.03, z, 0.5);
+    ST.push({x:0, z:oz, naam:'LAUNDRY', binnen:true, geenWagens:true, geenMuur:true, breed:2.4, props, licht:[0.5, 0.45], plek:[], spawns:dS(E.deuren.concat(L.deuren, Rr.deuren), 0, oz)}); }
+
+  // 9 · OPRIT: buiten voor het hotel, luifel, draaideur, ramen op alle verdiepingen; de SWAT-truck komt over de weg
+  { const oz = -900, HW = 8, zW0 = oz - 3.6, zW1 = oz - 7.6, zE = oz - 12; B.vlakH('stoep', -HW, zE, HW, oz + 4, 0, {stap:2.2}); B.vlakH('asfalt', -40, zW1, 40, zW0, 0.004, {stap:2.2});
+    const E = gev({x0:-HW, z0:zE, x1:HW, z1:zE, n:[0, 1], H:13, mat:'gevel_wit', tint:[1, 0.97, 0.9], deuren:[4, 12], ramen:[[1.6, 0], [14.4, 0], [2.4, 3.6], [5.6, 3.6], [10.4, 3.6], [13.6, 3.6], [4, 7], [8, 7], [12, 7]], gaten:[{a0:6.8, a1:9.2, b0:0, b1:2.8}]});
+    B.kamer(0, zE - 0.3, 0, 1, 2.4, 3, 0, 2.8, {f:0.5}); B.doos('kleur', -3, zE, 3, zE + 2.6, 3.1, 3.3, {tint:[0.55, 0.1, 0.12], geenBots:true});
+    [-1, 1].forEach(s => { zw('baksteen', s*HW, oz + 4, s*HW, zW0, 5); zw('gevel_wit', s*HW, zW1, s*HW, zE, 13); zw('baksteen', s*HW, zW0, s*40, zW0, 4); zw('baksteen', s*HW, zW1, s*40, zW1, 4); B.wand('baksteen', s*40, zW1, s*40, zW0, 0, 4, {}); });
+    zw('baksteen', -HW, oz + 4, HW, oz + 4, 5);
+    const props = [kProp(B, R, 'auto', -3.6, zW1 - 2, {as:'x'}), blok(3.6, zW1 - 2.2, 2.4, 0.8, 0.95, 'beton', [0.8, 0.8, 0.78])].filter(Boolean);
+    ST.push({x:0, z:oz, naam:'HOTEL ENTRANCE', lucht:true, breed:3, props, wagZ:[zW1 + 0.6 - oz, zW0 - 0.6 - oz], plek:kRaamPlekken(E.ramen, () => true),
+      spawns:dS(E.deuren, 0, oz, [{p:[0, zE - 2.4], via:[[0, zE + 1]]}, {p:[-16, zW1 + 1.2], via:[[-6, zW1 + 1.2]]}])}); }
+
+  { const lu = B.extra[0]; ST.forEach(S => { if (S.lucht && Math.abs(S.z) > 150){ const m = lu.clone(); m.position.set(S.x, 0, S.z); B.extra.push(m); } }); }
+  B.standen.push(...ST);
+  const W = B.maak(); W.liften = liften; return W;
+};
+
+/* === WINTERBASIS (level 6, sneeuwcamo): controlepost, barakken, garage, wachttorens, kantine, radarpost, depot, commandopost,
+   bosrand met hutten, hangar (baas: truck + heavy gunner). Sneeuw, hoge torens met schutters. === */
+KWERELD.winter = (T, R) => {
+  const B = new KBouw(T); B.lucht(); B.weg = 'asfalt'; B.stoep = 'stoep';
+  const ST = [], dS = (deuren, x, z, extra) => kDeurSpawns(deuren, {x, z}, p => p[1] < z - 2.5).concat(extra || []);
+  const binnen = (xa, za, xb, zb, H, vloer, vt, plaf) => { const r = B.ruimte(xa, zb, xb, za, H, 0.3); B.vlakH(vloer, xa, zb, xb, za, 0.005, {stap:1.4, tint:vt}); B.vlakH(plaf || 'plafond', xa, zb, xb, za, H, {plafond:true, stap:1.5}); return r; };
+  const zw = (n, x0, z0, x1, z1, H, o) => B.wand(n, x0, z0, x1, z1, 0, H, Object.assign({dik:0.3}, o || {}));
+  const SNEEUW = [1.3, 1.33, 1.38], STAAL = [0.55, 0.6, 0.62], GROEN = [0.42, 0.48, 0.38];
+  const sneeuw = (x0, z0, x1, z1) => B.vlakH('kleur', x0, z0, x1, z1, 0, {stap:2.4, tint:[0.9, 0.93, 0.97]});
+  const kap = (x0, z0, x1, z1, y) => B.doos('kleur', x0 - 0.15, z0 - 0.15, x1 + 0.15, z1 + 0.15, y, y + 0.22, {tint:[0.95, 0.97, 1], geenBots:true});
+  const hut = (x, z, w, d, H, o) => {   // hut met de voorkant naar je toe, sneeuw op het dak
+    const g = kGevel(B, R, Object.assign({x0:x - w/2, z0:z, x1:x + w/2, z1:z, n:[0, 1], H, mat:'golf_grijs', tint:STAAL}, o));
+    zw('golf_grijs', x - w/2, z, x - w/2, z - d, H, {tint:STAAL}); zw('golf_grijs', x + w/2, z - d, x + w/2, z, H, {tint:STAAL}); zw('golf_grijs', x - w/2, z - d, x + w/2, z - d, H, {tint:STAAL});
+    B.vlakH('golf_grijs', x - w/2, z - d, x + w/2, z, H, {plafond:true, tint:STAAL}); kap(x - w/2, z - d, x + w/2, z, H); return g; };
+  const toren = (x, z) => { [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => B.doos('plank', x + a*1.1 - 0.12, z + b*1.1 - 0.12, x + a*1.1 + 0.12, z + b*1.1 + 0.12, 0, 4, {tint:[0.5, 0.42, 0.34]}));
+    const g = kGevel(B, R, {x0:x - 1.3, z0:z + 1.3, x1:x + 1.3, z1:z + 1.3, n:[0, 1], H:7, mat:'plank', tint:[0.55, 0.45, 0.36], ramen:[[1.3, 3.9]], gaten:[{a0:0, a1:2.6, b0:0, b1:3.9}]});
+    B.vlakH('plank', x - 1.3, z - 1.3, x + 1.3, z + 1.3, 3.95, {tint:[0.5, 0.42, 0.34]}); kap(x - 1.3, z - 1.3, x + 1.3, z + 1.3, 7); return g; };
+  const den = (x, z, h) => { B.cilinder('kleur', x, z, 0.22, 0, h*0.35, {tint:[0.35, 0.25, 0.18]}); B.box(x - 0.3, 0, z - 0.3, x + 0.3, h, z + 0.3);
+    for (let i = 0; i < 4; i++){ const r = 1.5 - i*0.32, y = h*0.3 + i*h*0.17; B.doos('kleur', x - r, z - r, x + r, z + r, y, y + h*0.2, {tint:i % 2 ? [0.9, 0.95, 1] : [0.16, 0.3, 0.2], geenBots:true}); } };
+  const omheining = (x0, z0, x1, z1, H) => { zw('golf_grijs', x0, z0, x1, z0, H, {tint:STAAL}); zw('golf_grijs', x0, z1, x1, z1, H, {tint:STAAL}); zw('golf_grijs', x0, z0, x0, z1, H, {tint:STAAL}); zw('golf_grijs', x1, z1, x1, z0, H, {tint:STAAL}); };
+
+  // 0 · CONTROLEPOST: slagboom, wachthuisjes, zandzakken, een wachttoren
+  { const oz = 0; sneeuw(-13, oz - 14, 13, oz + 4);
+    const H1 = hut(-4.4, oz - 6, 3, 2.6, 2.8, {deuren:[1.5]}), H2 = hut(4.6, oz - 7, 3, 2.6, 2.8, {ramen:[[1.5, 0]]}), T1 = toren(-1.2, oz - 11.2), H3 = hut(6.8, oz - 11.4, 3.4, 2.6, 2.8, {deuren:[1.7]});
+    B.doos('kleur', -2.8, oz - 5.6, 3, oz - 5.5, 1.0, 1.12, {tint:[0.9, 0.15, 0.12], geenBots:true});
+    omheining(-13, oz + 4, 13, oz - 15, 3);
+    const props = [kProp(B, R, 'zand', -1.6, oz - 3.6, {as:'x'}), kProp(B, R, 'zand', 2.6, oz - 9.2, {as:'x'}), kProp(B, R, 'vaten', -6.8, oz - 9.4)].filter(Boolean);
+    ST.push({x:0, z:oz, naam:'CHECKPOINT', lucht:true, geenWagens:true, geenMuur:true, breed:3, props, plek:kRaamPlekken(H2.ramen.concat(T1.ramen), () => true), spawns:dS(H1.deuren.concat(H3.deuren), 0, oz, [{p:[-12, oz - 12], via:[[-6, oz - 12]]}, {p:[12, oz - 3.6], via:[[7.6, oz - 3.6]]}])}); }
+
+  // 1 · BARAKKEN: twee rijen barakken met deuren en ramen langs een besneeuwd pad
+  { const oz = -100; sneeuw(-12, oz - 14, 12, oz + 4);
+    const A = hut(-5.6, oz - 4.2, 5, 4, 3, {deuren:[1.6], ramen:[[3.6, 0]]}), Bb = hut(5.8, oz - 6.4, 5, 4, 3, {deuren:[3.4], ramen:[[1.4, 0]]}), C = hut(-3.4, oz - 10.6, 6, 3, 3.2, {deuren:[1.5, 4.5], ramen:[[3, 0]]}), D = hut(4.6, oz - 11.2, 4, 3, 3.2, {ramen:[[2, 0]]});
+    omheining(-12, oz + 4, 12, oz - 15, 3);
+    const props = [kProp(B, R, 'kratten', 1.2, oz - 5.4, {as:'z'}), kProp(B, R, 'vaten', -0.8, oz - 8.2)].filter(Boolean);
+    ST.push({x:0, z:oz, naam:'BARRACKS', lucht:true, geenWagens:true, geenMuur:true, breed:3, props, plek:kRaamPlekken(A.ramen.concat(Bb.ramen, C.ramen, D.ramen), () => true), spawns:dS(A.deuren.concat(Bb.deuren, C.deuren), 0, oz)}); }
+
+  // 2 · GARAGE: binnen, voertuigen op de brug, olievaten, roldeur achterin
+  { const oz = -200, H = 6, xa = -8, xb = 8, zE = oz - 12; const r = binnen(xa, oz + 3, xb, zE, H, 'beton', [0.7, 0.72, 0.74], 'golf_grijs');
+    const E = kGevel(B, R, {x0:xa, z0:zE, x1:xb, z1:zE, n:[0, 1], H, mat:'golf_grijs', tint:STAAL, deuren:[2.5, 13.5], ramen:[[5, 3.4], [11, 3.4]], gaten:[{a0:6.4, a1:9.6, b0:0, b1:3.8}]}); B.kamer(0, zE - 0.3, 0, 1, 3.2, 4, 0, 3.8, {f:0.3});
+    const L = kGevel(B, R, {x0:xa, z0:oz + 3, x1:xa, z1:zE, n:[1, 0], H, mat:'golf_grijs', tint:STAAL, deuren:[9.5]}), Rr = kGevel(B, R, {x0:xb, z0:zE, x1:xb, z1:oz + 3, n:[-1, 0], H, mat:'golf_grijs', tint:STAAL, deuren:[4]});
+    zw('golf_grijs', xa, oz + 3, xb, oz + 3, H, {tint:STAAL});
+    B.doos('kleur', -5.4, oz - 9, -2.6, oz - 3.6, 0.4, 2.6, {tint:GROEN}); B.box(-5.4, 0, oz - 9, -2.6, 2.6, oz - 3.6);   // legertruck
+    const props = [kProp(B, R, 'auto', 3.4, oz - 6.4, {as:'z'}), kProp(B, R, 'vaten', 0.4, oz - 9.6), kProp(B, R, 'tafel', 5.6, oz - 10.4, {as:'x'})].filter(Boolean);
+    for (let z = oz - 1; z > zE; z -= 4) [-4, 4].forEach(x => B.lamp(r, x, H - 0.05, z, 0.7));
+    ST.push({x:0, z:oz, naam:'MOTOR POOL', binnen:true, geenWagens:true, geenMuur:true, breed:3, props, plek:kRaamPlekken(E.ramen, () => true), spawns:dS(E.deuren.concat(L.deuren, Rr.deuren), 0, oz, [{p:[0, zE - 3], via:[[0, zE + 1]]}])}); }
+
+  // 3 · WACHTTORENS: twee torens met schutters hoog, kratten op het plein, een hek
+  { const oz = -300; sneeuw(-13, oz - 14, 13, oz + 4);
+    const T1 = toren(-5.4, oz - 8.6), T2 = toren(5.2, oz - 10.6), H1 = hut(0, oz - 12.4, 4, 2.6, 3, {deuren:[2]});
+    omheining(-13, oz + 4, 13, oz - 15, 3.4);
+    const props = [kProp(B, R, 'kratten', -1.6, oz - 5.4, {as:'x'}), kProp(B, R, 'zand', 2.6, oz - 6.6, {as:'x'}), kProp(B, R, 'container', 8.2, oz - 5.4, {as:'z'})].filter(Boolean);
+    ST.push({x:0, z:oz, naam:'WATCHTOWERS', lucht:true, geenWagens:true, geenMuur:true, breed:3, props, plek:kRaamPlekken(T1.ramen.concat(T2.ramen), () => true), spawns:dS(H1.deuren, 0, oz, [{p:[-12, oz - 12.5], via:[[-7.6, oz - 12]]}, {p:[12, oz - 7.5], via:[[8, oz - 8.4]]}])}); }
+
+  // 4 · KANTINE: lange tafels, uitgifte-balie, keukendeuren
+  { const oz = -400, H = 3.2, xa = -7, xb = 7, zE = oz - 11; const r = binnen(xa, oz + 3, xb, zE, H, 'tegels', [0.8, 0.82, 0.8]);
+    const E = kGevel(B, R, {x0:xa, z0:zE, x1:xb, z1:zE, n:[0, 1], H, tint:[0.85, 0.88, 0.85], deuren:[3, 11], ramen:[[7, 0]]}), L = kGevel(B, R, {x0:xa, z0:oz + 3, x1:xa, z1:zE, n:[1, 0], H, tint:[0.85, 0.88, 0.85], deuren:[9.5]}), Rr = kGevel(B, R, {x0:xb, z0:zE, x1:xb, z1:oz + 3, n:[-1, 0], H, tint:[0.85, 0.88, 0.85], deuren:[3.5]});
+    zw('pleister1', xa, oz + 3, xb, oz + 3, H, {tint:[0.85, 0.88, 0.85]});
+    const props = []; [[-3.4, oz - 4.4], [2.8, oz - 5.6], [-1.6, oz - 8.6]].forEach(([x, z]) => { B.doos('plank', x - 1.6, z - 0.45, x + 1.6, z + 0.45, 0, 0.9, {tint:[0.55, 0.42, 0.3]}); props.push({x, z, w:3.2, d:0.9, h:0.9}); });
+    B.doos('golf_grijs', 3.6, oz - 9.6, 6.4, oz - 8.9, 0, 1.05, {tint:[0.8, 0.82, 0.85]}); props.push({x:5, z:oz - 9.25, w:2.8, d:0.7, h:1.05});
+    for (let z = oz - 1; z > zE; z -= 3.5) [-3, 3].forEach(x => B.lamp(r, x, H - 0.03, z, 0.75));
+    ST.push({x:0, z:oz, naam:'MESS HALL', binnen:true, geenWagens:true, geenMuur:true, breed:2.4, props, plek:kRaamPlekken(E.ramen, () => true), spawns:dS(E.deuren.concat(L.deuren, Rr.deuren), 0, oz)}); }
+
+  // 5 · RADARPOST: grote schotel, bedieningshut met ramen, generatoren en brandstoftanks
+  { const oz = -500; sneeuw(-13, oz - 14, 13, oz + 4);
+    const H1 = hut(-3.6, oz - 10.6, 5, 3, 3.2, {deuren:[1.4], ramen:[[3.6, 0]]}), H2 = hut(5.4, oz - 8, 3, 2.6, 2.8, {deuren:[1.5]});
+    B.cilinder('golf_grijs', 4, oz - 13, 0.3, 0, 6, {tint:STAAL}); B.cilinder('kleur', 4, oz - 13.3, 3.2, 5.6, 5.9, {tint:[0.85, 0.87, 0.9], geenBots:true});
+    [[-7.4, oz - 5.6], [-8, oz - 8.4]].forEach(([x, z]) => { B.cilinder('kleur', x, z, 1.1, 0, 2.6, {tint:[0.75, 0.2, 0.15]}); B.box(x - 1.1, 0, z - 1.1, x + 1.1, 2.6, z + 1.1); });
+    omheining(-13, oz + 4, 13, oz - 15, 3);
+    const props = [kProp(B, R, 'kratten', 1.2, oz - 5.2, {as:'x'}), kProp(B, R, 'vaten', -2, oz - 6.8), kProp(B, R, 'zand', 2.2, oz - 9.8, {as:'x'})].filter(Boolean);
+    ST.push({x:0, z:oz, naam:'RADAR STATION', lucht:true, geenWagens:true, geenMuur:true, breed:3, props, plek:kRaamPlekken(H1.ramen, () => true), spawns:dS(H1.deuren.concat(H2.deuren), 0, oz, [{p:[12, oz - 12.6], via:[[7.6, oz - 11.6]]}, {p:[-12, oz - 13], via:[[-8, oz - 12]]}])}); }
+
+  // 6 · DEPOT: binnen, hoge stellingen, kratten, een heftruck
+  { const oz = -600, H = 7, xa = -8.5, xb = 8.5, zE = oz - 12.4; const r = binnen(xa, oz + 3, xb, zE, H, 'beton', [0.75, 0.75, 0.76], 'golf_grijs');
+    const E = kGevel(B, R, {x0:xa, z0:zE, x1:xb, z1:zE, n:[0, 1], H, mat:'golf_grijs', tint:STAAL, deuren:[3, 14], ramen:[[6, 3.4], [11, 3.4]]}), L = kGevel(B, R, {x0:xa, z0:oz + 3, x1:xa, z1:zE, n:[1, 0], H, mat:'golf_grijs', tint:STAAL, deuren:[10]}), Rr = kGevel(B, R, {x0:xb, z0:zE, x1:xb, z1:oz + 3, n:[-1, 0], H, mat:'golf_grijs', tint:STAAL, deuren:[5.5]});
+    zw('golf_grijs', xa, oz + 3, xb, oz + 3, H, {tint:STAAL});
+    [-5, 5].forEach(x => [oz - 4.8, oz - 9.8].forEach(z => B.doos('plank', x - 0.6, z - 1.7, x + 0.6, z + 1.7, 0, 3.4, {tint:[0.5, 0.45, 0.38]})));
+    B.doos('kleur', 1.2, oz - 8.6, 2.6, oz - 6.8, 0, 2.1, {tint:[0.9, 0.7, 0.1]}); B.box(1.2, 0, oz - 8.6, 2.6, 2.1, oz - 6.8);
+    const props = [kProp(B, R, 'kratten', -1.6, oz - 5.4, {as:'x'}), kProp(B, R, 'pallets', -1.4, oz - 10.6, {as:'x'})].filter(Boolean);
+    for (let z = oz - 1; z > zE; z -= 4.5) [-2.5, 2.5].forEach(x => B.lamp(r, x, H - 0.05, z, 0.75));
+    ST.push({x:0, z:oz, naam:'SUPPLY DEPOT', binnen:true, geenWagens:true, geenMuur:true, breed:3, props, plek:kRaamPlekken(E.ramen, () => true), spawns:dS(E.deuren.concat(L.deuren, Rr.deuren), 0, oz)}); }
+
+  // 7 · COMMANDOPOST: kaarttafel in het midden, radiobureaus, deuren en een raam naar de gang
+  { const oz = -700, H = 3, xa = -6, xb = 6, zE = oz - 10.5; const r = binnen(xa, oz + 3, xb, zE, H, 'plank', [0.6, 0.55, 0.48]);
+    const E = kGevel(B, R, {x0:xa, z0:zE, x1:xb, z1:zE, n:[0, 1], H, tint:[0.75, 0.8, 0.72], deuren:[2, 10], ramen:[[4.6, 0], [7.4, 0]]}), L = kGevel(B, R, {x0:xa, z0:oz + 3, x1:xa, z1:zE, n:[1, 0], H, tint:[0.75, 0.8, 0.72], deuren:[9]}), Rr = kGevel(B, R, {x0:xb, z0:zE, x1:xb, z1:oz + 3, n:[-1, 0], H, tint:[0.75, 0.8, 0.72], deuren:[4]});
+    zw('pleister1', xa, oz + 3, xb, oz + 3, H, {tint:[0.75, 0.8, 0.72]});
+    B.doos('plank', -1.6, oz - 7, 1.6, oz - 5, 0, 1.0, {tint:[0.4, 0.45, 0.35]}); const props = [{x:0, z:oz - 6, w:3.2, d:2, h:1.0}];
+    [[-4.6, oz - 4], [4.6, oz - 8.6]].forEach(([x, z]) => { B.doos('golf_grijs', x - 0.7, z - 0.5, x + 0.7, z + 0.5, 0, 1.0, {tint:[0.35, 0.4, 0.33]}); props.push({x, z, w:1.4, d:1, h:1.0}); });
+    for (let z = oz - 1; z > zE; z -= 3.2) B.lamp(r, 0, H - 0.03, z, 0.65);
+    ST.push({x:0, z:oz, naam:'COMMAND POST', binnen:true, geenWagens:true, geenMuur:true, breed:2.4, props, plek:kRaamPlekken(E.ramen, () => true), spawns:dS(E.deuren.concat(L.deuren, Rr.deuren), 0, oz)}); }
+
+  // 8 · BOSRAND: dennen in de sneeuw, blokhutten, houtstapels
+  { const oz = -800; sneeuw(-14, oz - 15, 14, oz + 4);
+    const A = hut(-4.8, oz - 10.4, 4, 3.4, 3, {mat:'plank', tint:[0.5, 0.36, 0.26], deuren:[2], ramen:[[0.8, 0]]}), Bb = hut(5.2, oz - 11.6, 4, 3.4, 3, {mat:'plank', tint:[0.46, 0.34, 0.24], deuren:[1.4], ramen:[[3.2, 0]]});
+    den(-2, oz - 5.6, 6); den(3.4, oz - 6.8, 7); den(-7.4, oz - 6.4, 6.5); den(0.6, oz - 9.4, 6); den(8.2, oz - 5, 7);
+    for (let a = 0; a < 18; a++){ const x = -13 + a*1.55, z = oz - 14 - (a % 3); den(x, z, 7 + (a % 4)); }
+    const props = []; [[-3.6, oz - 7.8], [2.2, oz - 4]].forEach(([x, z]) => { B.doos('plank', x - 1, z - 0.4, x + 1, z + 0.4, 0, 1.0, {tint:[0.45, 0.32, 0.22]}); props.push({x, z, w:2, d:0.8, h:1.0}); });
+    zw('plank', -14, oz + 4, 14, oz + 4, 3, {tint:[0.4, 0.3, 0.22]}); [-1, 1].forEach(s => zw('plank', s*14, oz + 4, s*14, oz - 15, 3, {tint:[0.4, 0.3, 0.22]}));
+    ST.push({x:0, z:oz, naam:'FOREST EDGE', lucht:true, geenWagens:true, geenMuur:true, breed:3, props, plek:kRaamPlekken(A.ramen.concat(Bb.ramen), () => true), spawns:dS(A.deuren.concat(Bb.deuren), 0, oz, [{p:[-12, oz - 12.8], via:[[-8, oz - 12]]}, {p:[12, oz - 9], via:[[8.4, oz - 9]]}])}); }
+
+  // 9 · HANGAR: grote hangar achter een weg over het vliegveld; de truck met de zware jongen komt
+  { const oz = -900, HW = 9, zW0 = oz - 3.8, zW1 = oz - 7.8, zE = oz - 12.4; sneeuw(-HW, zE, HW, oz + 4); B.vlakH('asfalt', -40, zW1, 40, zW0, 0.004, {stap:2.2, tint:[0.85, 0.88, 0.92]});
+    const E = kGevel(B, R, {x0:-HW, z0:zE, x1:HW, z1:zE, n:[0, 1], H:10, mat:'golf_grijs', tint:STAAL, deuren:[2.5, 15.5], ramen:[[4.6, 5], [13.4, 5]], gaten:[{a0:6, a1:12, b0:0, b1:5}]}); B.kamer(0, zE - 0.3, 0, 1, 6, 6, 0, 5, {f:0.3});
+    B.doos('kleur', -2, zE - 5.4, 2, zE - 1.6, 0, 2.4, {tint:GROEN, geenBots:true});
+    [-1, 1].forEach(s => { zw('golf_grijs', s*HW, oz + 4, s*HW, zW0, 3, {tint:STAAL}); zw('golf_grijs', s*HW, zW1, s*HW, zE, 10, {tint:STAAL}); zw('golf_grijs', s*HW, zW0, s*40, zW0, 3, {tint:STAAL}); zw('golf_grijs', s*HW, zW1, s*40, zW1, 3, {tint:STAAL}); B.wand('golf_grijs', s*40, zW1, s*40, zW0, 0, 3, {}); });
+    zw('golf_grijs', -HW, oz + 4, HW, oz + 4, 3, {tint:STAAL});
+    const props = [kProp(B, R, 'zand', -3.6, zW1 - 1.6, {as:'x'}), kProp(B, R, 'kratten', 3.8, zW1 - 2.2, {as:'x'})].filter(Boolean);
+    ST.push({x:0, z:oz, naam:'HANGAR', lucht:true, breed:3, props, wagZ:[zW1 + 0.6 - oz, zW0 - 0.6 - oz], plek:kRaamPlekken(E.ramen, () => true),
+      spawns:dS(E.deuren, 0, oz, [{p:[-1.6, zE - 3], via:[[-1.6, zE + 1]]}, {p:[1.6, zE - 3], via:[[1.6, zE + 1]]}, {p:[-16, zW1 + 1.2], via:[[-6, zW1 + 1.2]]}])}); }
+
+  { const lu = B.extra[0]; ST.forEach(S => { if (S.lucht && Math.abs(S.z) > 150){ const m = lu.clone(); m.position.set(S.x, 0, S.z); B.extra.push(m); } }); }
+  B.standen.push(...ST);
+  return B.maak();
+};
+
 /* === LEGERKAMP: menu-achtergrond (uitkijkplatform) en schietbaan (TEST). 3 varianten: woestijn, bos bij schemer, nacht === */
 const BASIS_VAR = [
   {naam:'DESERT BASE', mul:[1.06, 0.98, 0.84], grond:[1.12, 0.96, 0.72], lucht:[['0', '#3f78c0'], ['0.42', '#9cc3e6'], ['0.5', '#efe6d2'], ['1', '#d8c49c']], wolk:0.08, licht:[1.0, 1.05], mist:[0xe2d6bc, 60, 230], bos:false, nacht:false},
@@ -1672,7 +1913,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v131";
+const VERSIE = "v132";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2023,6 +2264,8 @@ const KAART_STAND = {   // vaste eigenschappen per stand (de rest komt uit de ge
   galerij:['GATE SQUARE', 'GATE SQUARE 2', 'WELL SQUARE', 'WELL SQUARE 2', 'BAKERS ROW', 'BAKERS ROW 2', 'CHAPEL YARD', 'CHAPEL YARD 2', 'TOWN HALL', 'TOWN HALL 2'].map((naam, i) => ({naam, lucht:true, geenWagens:i < 8})),
   kade:['CONTAINER YARD', 'QUAYSIDE', 'SHIP DECK', 'CRANE YARD', 'FISH MARKET', 'HARBOUR OFFICE', 'BOAT SHED', 'PIER', 'HARBOUR MASTER', 'TERMINAL GATE'].map((naam, i) => Object.assign({naam, geenWagens:true}, [4, 5, 6].includes(i) ? {binnen:true, geenMuur:true} : {lucht:true})),
   woestijn:['KASBAH GATE', 'BAZAAR', 'ROOFTOPS', 'RIAD', 'PALACE SQUARE', 'ARCH LANE', 'CARPET SHOP', 'OASIS', 'TEA HOUSE', 'DESERT FORT'].map((naam, i) => Object.assign({naam, geenWagens:i < 9}, [6, 8].includes(i) ? {binnen:true, geenMuur:true} : {lucht:true})),
+  hotel:['PENTHOUSE', 'LIFT · FLOOR 3', 'LIFT · FLOOR 2', 'LIFT · FLOOR 1', 'LOBBY', 'RESTAURANT', 'KITCHEN', 'BALLROOM', 'LAUNDRY', 'HOTEL ENTRANCE'].map((naam, i) => Object.assign({naam, geenWagens:i < 9}, i < 9 ? {binnen:true, geenMuur:true} : {lucht:true})),
+  winter:['CHECKPOINT', 'BARRACKS', 'MOTOR POOL', 'WATCHTOWERS', 'MESS HALL', 'RADAR STATION', 'SUPPLY DEPOT', 'COMMAND POST', 'FOREST EDGE', 'HANGAR'].map((naam, i) => Object.assign({naam, geenWagens:i < 9}, [2, 4, 6, 7].includes(i) ? {binnen:true, geenMuur:true} : {lucht:true})),
   oud:['CITY GATE', 'CHURCHYARD', 'BAKERY', 'WASHING LANE', 'BARN', 'FOUNTAIN SQUARE', 'TAVERN', 'CANAL', 'CLASSROOM', 'MARKET HALL'].map((naam, i) => Object.assign({naam, geenWagens:i < 9}, [2, 4, 6, 8].includes(i) ? {binnen:true, geenMuur:true} : {lucht:true})),
   stad:[{naam:'SHOPPING STREET', lucht:true, geenWagens:true}, {naam:'BACK ALLEY', lucht:true, geenWagens:true}, {naam:'CORRIDOR', binnen:true, geenWagens:true, geenMuur:true}, {naam:'OPEN OFFICE', binnen:true, geenWagens:true, geenMuur:true}, {naam:'MARKET', lucht:true, geenWagens:true}, {naam:'WAREHOUSE', binnen:true, geenWagens:true, geenMuur:true}, {naam:'COURTYARD', lucht:true, geenWagens:true, geenMuur:true}, {naam:'PARKING GARAGE', binnen:true, geenWagens:true, geenMuur:true}, {naam:'STATION HALL', binnen:true, geenWagens:true, geenMuur:true}, {naam:'TOWN HALL', lucht:true}],
   bunker:[{naam:'BUNKER ENTRANCE', binnen:true, geenWagens:true, geenMuur:true}, {naam:'CONTROL ROOM', binnen:true, geenWagens:true, geenMuur:true}, {naam:'ESCAPE TUNNEL', binnen:true, geenWagens:true, geenMuur:true}]
@@ -2032,7 +2275,7 @@ const KAART_N = 10;
 function kStandLijst(w){ const B = KAART_STAND[w], n = B.length, per = B.map((_, i) => Math.floor(KAART_N/n) + (i < KAART_N % n ? 1 : 0)), uit = [];
   B.forEach((S, i) => { for (let k=0;k<per[i];k++) uit.push(Object.assign({}, S, {naam:k ? S.naam + ' ' + (k + 1) : S.naam, ouder:i, stap:k, van:per[i]})); }); return uit; }
 const KAART_WISSEL = new Proxy({}, {get:() => Array.from({length:KAART_N}, (_, i) => i + 1)});
-const KAART_TITELS = {kade:['HARBOUR', 'HARBOUR', 'HARBOUR', 'HARBOUR', 'HARBOUR'], woestijn:['DESERT TOWN', 'DESERT TOWN', 'DESERT TOWN', 'DESERT TOWN', 'DESERT TOWN'], oud:['OLD TOWN', 'OLD TOWN', 'OLD TOWN', 'OLD TOWN', 'OLD TOWN'], stad:['DOWNTOWN', 'DOWNTOWN', 'DOWNTOWN', 'DOWNTOWN', 'DOWNTOWN'], galerij:['VILLAGE STREET', 'VILLAGE STREET', 'VILLAGE STREET', 'VILLAGE STREET', 'VILLAGE STREET'], dorp:['MILL LANE', 'OLD TOWN', 'MARKET STREET', 'RIVERSIDE', 'STATION ROAD'], loods:['THE DOCKS', 'RAIL YARD', 'FACTORY ROW', 'DEPOT', 'CANAL WHARF'],
+const KAART_TITELS = {winter:['WINTER BASE', 'WINTER BASE', 'WINTER BASE', 'WINTER BASE', 'WINTER BASE'], hotel:['GRAND HOTEL', 'GRAND HOTEL', 'GRAND HOTEL', 'GRAND HOTEL', 'GRAND HOTEL'], kade:['HARBOUR', 'HARBOUR', 'HARBOUR', 'HARBOUR', 'HARBOUR'], woestijn:['DESERT TOWN', 'DESERT TOWN', 'DESERT TOWN', 'DESERT TOWN', 'DESERT TOWN'], oud:['OLD TOWN', 'OLD TOWN', 'OLD TOWN', 'OLD TOWN', 'OLD TOWN'], stad:['DOWNTOWN', 'DOWNTOWN', 'DOWNTOWN', 'DOWNTOWN', 'DOWNTOWN'], galerij:['VILLAGE STREET', 'VILLAGE STREET', 'VILLAGE STREET', 'VILLAGE STREET', 'VILLAGE STREET'], dorp:['MILL LANE', 'OLD TOWN', 'MARKET STREET', 'RIVERSIDE', 'STATION ROAD'], loods:['THE DOCKS', 'RAIL YARD', 'FACTORY ROW', 'DEPOT', 'CANAL WHARF'],
   huis:['THE MANOR', 'THE OLD SCHOOL', 'THE HOTEL', 'THE CONVENT', 'THE RECTORY'], kruis:['CHURCH SQUARE', 'TOWN CROSS', 'HIGH STREET', 'MARKET CROSS', 'BRIDGE STREET'],
   bunker:['IRON VAULT', 'DEEP ARCHIVE', 'RED SECTOR', 'COLD STORE', 'THE PIT'], markt:['MARKET SQUARE', 'FISH MARKET', 'FLOWER SQUARE', 'OLD BAZAAR', 'TOWN SQUARE'],
   haven:['NORTH QUAY', 'CONTAINER PORT', 'DRY DOCK', 'PIER 9', 'CUSTOMS YARD']};
@@ -2051,7 +2294,7 @@ const SOLDAAT_KITS = {
   hq:      {naam:'hq', mix:['elite', 'swat', 'elite', 'marine', 'woodland']}
 };
 function maakLevels(){
-  const volg = ['oud', 'stad', 'kade', 'woestijn', 'huis', 'kruis', 'loods', 'bunker'], KITS = [null, null, 'marine', 'zand', 'swat', 'sneeuw', 'woodland', 'hq'];   /* 8 levels: elk een eigen thema en eigen soldaten */
+  const volg = ['oud', 'stad', 'kade', 'woestijn', 'hotel', 'winter', 'loods', 'bunker'], KITS = [null, null, 'marine', 'zand', 'swat', 'sneeuw', 'woodland', 'hq'];   /* 8 levels: elk een eigen thema en eigen soldaten */
   const tel = {};
   return volg.map((w, i) => {
     const n = i + 1, f = i < 2 ? i/19 : i/7,   /* lvl 1-2 ongewijzigd (perfect), daarna oplopend */ r = (a, b) => +(a + (b - a)*f).toFixed(2), seed = 1000 + n*7919, k = tel[w] = (tel[w] || 0);
@@ -2070,7 +2313,9 @@ function maakLevels(){
     if (w === 'kruis' && n >= 4) L.extra[5] = {apache:1};
     if (w === 'kruis') L.extra[6] = {wagens:['jeep']};
     if (w === 'dorp') L.extra[5] = {wagens:[n >= 9 ? 'swat_truck' : 'truck']};
-    L.baas = w === 'kade' ? {tekst:'HEAVY GUNNERS', zwaar:2, vest:1, lopers:9, max:8}
+    L.baas = w === 'winter' ? {tekst:'TRUCK + HEAVY GUNNER', wagens:['truck'], zwaar:1, lopers:8, max:8}
+           : w === 'hotel' ? {tekst:'SWAT TRUCK + HEAVY GUNNER', wagens:['swat_truck'], zwaar:1, vest:1, lopers:9, max:8}
+           : w === 'kade' ? {tekst:'HEAVY GUNNERS', zwaar:2, vest:1, lopers:9, max:8}
            : (w === 'dorp' || w === 'galerij' || w === 'stad' || w === 'oud' || w === 'woestijn') ? (n < 9 ? {tekst:'GUN TRUCK', vracht:{mg:true, rijdt:true}, lopers:7, max:7} : {tekst:'GUN TRUCK + JEEP', vracht:{mg:true, rijdt:true}, wagens:['jeep_snorkel'], lopers:9, max:8})
            : w === 'loods' ? (n < 10 ? {tekst:'TRUCK + HEAVY GUNNER', wagens:['truck'], zwaar:1, lopers:8, max:8} : {tekst:'SWAT TRUCK + HEAVY GUNNER', wagens:['swat_truck', 'truck'], zwaar:1, vest:1, lopers:10, max:9})
            : w === 'huis' ? (n < 10 ? {tekst:'GUN TRUCKS', vracht:{mg:true, rijdt:true, boss:true, n:2}, lopers:7, max:7} : {tekst:'GUN TRUCK + ARMORED JEEP', vracht:{mg:true, rijdt:true}, wagens:['jeep'], vestLading:true, lopers:9, max:8})
@@ -2950,6 +3195,14 @@ AFRAME.registerComponent('zombies', {
     this.kogel(van, v, schade); this.flits(van);
     this.schotGeluid(van, loop ? 'mg' : z && z.vWapen === 'sniper' ? 'sniper' : z && ((z.s3d && z.s3d.zwaar) || (z.ai && z.ai.staat === 'zwaar')) ? 'zwaar' : z && z.vWapen === 'pistool' ? 'pistool' : z && z.vWapen === 'smg' ? 'smg' : 'geweer');
   },
+  pling(){ this.geluid((A, n) => { [[1318.5, 0], [1046.5, 0.34]].forEach(([f, t]) => { const o = A.createOscillator(), g = A.createGain(); o.type = 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, n + t); g.gain.exponentialRampToValueAtTime(0.22, n + t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, n + t + 1.3); o.connect(g).connect(this.uit); o.start(n + t); o.stop(n + t + 1.4); }); }); },
+  liftTick(s){ const K = this.kaartNu(); if (!K || !K.W || !K.W.liften || this.modus !== 'lvl') return; const key = this.lvlNr + '/' + this.waveNr;   /* lift: dicht bij de start van de wave, pling, deuren schuiven open */
+    for (const l of K.W.liften){ if (Math.abs(l.x - K.o[0]) > 3 || Math.abs(l.z - K.o[1]) > 3) continue;
+      if (l.key !== key){ l.key = key; l.open = l.doel = 0; l.pling = false; }
+      if (!l.pling && this.wt > 1.3){ l.pling = true; l.doel = 1; this.pling(); }
+      if (l.open < 0.6) for (const q of this.wq) if (q.t < this.wt + 0.4) q.t = this.wt + 0.4;   /* niemand komt binnen zolang de liftdeuren dicht zijn */
+      l.open = Math.min(l.doel, l.open + s*0.85); const e = l.open*l.open*(3 - 2*l.open); l.a.position.x = -0.56 - e*1.06; l.b.position.x = 0.56 + e*1.06; } },
   fluit(){ this.geluid((A,n) => { const o = A.createOscillator(), g = A.createGain(); o.frequency.setValueAtTime(3200, n); o.frequency.exponentialRampToValueAtTime(900, n+0.18);
     g.gain.setValueAtTime(0.08, n); g.gain.exponentialRampToValueAtTime(0.001, n+0.2); o.connect(g).connect(this.uit); o.start(n); o.stop(n+0.22); }); },
   spoor(a, b){   // lichtspoor van de kogel
@@ -7722,7 +7975,7 @@ AFRAME.registerComponent('zombies', {
   wapenUpdate(s){
     this.nu += s;
     ['handL','handR','muis'].forEach(id => { if (this.vuurt[id] && this.isAuto(this.wapen[id === 'muis' ? (this.gunHand || 'handR') : id])) this.vuur(id); });
-    this.projectielTick(s); this.granTick(s); this.schildTick(s); this.zichtRedding(s); this.muurDuw(); this.tonTick(s); this.vuurTick(s); this.vliegTick(s); this.bomTick(s); this.effectTick(s); this.blokTick(s);
+    this.projectielTick(s); this.granTick(s); this.schildTick(s); this.zichtRedding(s); this.muurDuw(); this.liftTick(s); this.tonTick(s); this.vuurTick(s); this.vliegTick(s); this.bomTick(s); this.effectTick(s); this.blokTick(s);
   },
   /* ---------- geluiden ---------- */
   geluid(f){ try { const A = this.ac || (this.ac = new (window.AudioContext||window.webkitAudioContext)()); if (A.state === 'suspended') A.resume(); this.knal(0); f(A, A.currentTime); } catch(_){} },
