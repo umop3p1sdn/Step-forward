@@ -1333,6 +1333,255 @@ KWERELD.oud = (T, R) => {
   return B.maak();
 };
 
+/* === HAVEN (level 3): containerterrein, kade, scheepsdek, kraan, vishal, havenkantoor, botenloods, pier, havenmeester, terminalpoort.
+   Draai: soldaten springen uit containers met deuren die openzwaaien. === */
+// container met de deuren naar de speler (n = [0, 1]); deur = echte deur die opengetrapt wordt
+function kContainer(B, R, x, z, o){ o = o || {}; const L = o.lang || 6, kl = o.kl || kKies(R, [[0.62, 0.22, 0.16], [0.18, 0.36, 0.52], [0.26, 0.42, 0.26], [0.7, 0.52, 0.18], [0.5, 0.5, 0.52]]), y0 = o.y0 || 0;
+  B.doos('golf_grijs', x - 1.22, z - L, x + 1.22, z - 0.16, y0, y0 + 2.6, {tint:kl});
+  if (!o.deur){ B.doos('golf_grijs', x - 1.22, z - 0.16, x + 1.22, z, y0, y0 + 2.6, {tint:kl.map(v => v*0.85)}); return {deuren:[], ramen:[]}; }
+  return kGevel(B, R, {x0:x - 1.22, z0:z, x1:x + 1.22, z1:z, n:[0, 1], H:2.6, mat:'golf_grijs', tint:kl.map(v => v*0.85), deuren:[1.22]}); }
+
+KWERELD.kade = (T, R) => {
+  const B = new KBouw(T); B.lucht(); B.weg = 'beton'; B.stoep = 'beton2';
+  const ST = [], dS = (deuren, x, z, extra) => kDeurSpawns(deuren, {x, z}, p => p[1] < z - 2.5).concat(extra || []);
+  const binnen = (xa, za, xb, zb, H, vloer, plaf) => { const r = B.ruimte(xa, zb, xb, za, H, 0.3); B.vlakH(vloer, xa, zb, xb, za, 0.005, {stap:1.4}); B.vlakH(plaf || 'plafond', xa, zb, xb, za, H, {plafond:true, stap:1.5}); return r; };
+  const zw = (n, x0, z0, x1, z1, H, o) => B.wand(n, x0, z0, x1, z1, 0, H, Object.assign({dik:0.3}, o || {}));
+  const water = (x0, z0, x1, z1) => { B.vlakH('kleur', x0, z0, x1, z1, -0.6, {tint:[0.16, 0.27, 0.3]}); };
+  const rand = (x0, z0, x1, z1) => B.box(Math.min(x0, x1), -1, Math.min(z0, z1), Math.max(x0, x1), 0.95, Math.max(z0, z1));   // onzichtbare kaderand: niemand loopt het water in
+  const cat = (a, b) => ({deuren:a.deuren.concat(b.deuren), ramen:a.ramen.concat(b.ramen)});
+  const alle = l => l.reduce(cat, {deuren:[], ramen:[]});
+
+  // 0 · CONTAINERTERREIN: gangen tussen gestapelde containers, deuren springen open
+  { const oz = 0; B.vlakH('beton', -14, oz - 14, 14, oz + 4, 0, {stap:2.2});
+    const C = alle([kContainer(B, R, -4.6, oz - 6.5, {deur:true}), kContainer(B, R, 4.4, oz - 8.2, {deur:true}), kContainer(B, R, -0.4, oz - 11.4, {deur:true}), kContainer(B, R, -7.6, oz - 9.5, {deur:true})]);
+    kContainer(B, R, -4.6, oz - 6.5, {y0:2.6}); kContainer(B, R, 4.4, oz - 8.2, {y0:2.6}); kContainer(B, R, 7.2, oz - 4, {lang:6}); kContainer(B, R, 7.2, oz - 4, {y0:2.6});
+    kContainer(B, R, -0.4, oz - 11.4, {y0:2.6}); kContainer(B, R, 2.2, oz - 12.8); kContainer(B, R, -3, oz - 13.2);
+    zw('golf_grijs', -14, oz + 4, 14, oz + 4, 6); zw('golf_grijs', -14, oz - 18, 14, oz - 18, 6); zw('golf_grijs', -14, oz + 4, -14, oz - 18, 6); zw('golf_grijs', 14, oz - 18, 14, oz + 4, 6);
+    const props = [kProp(B, R, 'pallets', 1.8, oz - 4.2, {as:'x'}), kProp(B, R, 'vaten', -1.9, oz - 9)].filter(Boolean);
+    ST.push({x:0, z:oz, naam:'CONTAINER YARD', lucht:true, geenWagens:true, geenMuur:true, breed:3, props, plek:[], spawns:dS(C.deuren, 0, oz, [{p:[12, oz - 10.5], via:[[6.5, oz - 10.5]]}, {p:[-12, oz - 3], via:[[-7, oz - 3]]}])}); }
+
+  // 1 · KADE: links het water met een scheepsromp, rechts loodsen met deuren, bolders en kratten
+  { const oz = -100, xW = -3.2; B.vlakH('beton', xW, oz - 14, 9, oz + 4, 0, {stap:2.2}); water(-16, oz - 14, xW, oz + 4); rand(xW - 0.3, oz - 14, xW, oz + 4);
+    B.doos('golf_grijs', -13, oz - 16, -7, oz + 2, -0.6, 7, {tint:[0.25, 0.28, 0.33]}); B.doos('kleur', -13, oz - 16, -7, oz + 2, 6.95, 7.05, {tint:[0.6, 0.2, 0.15]});   // scheepsromp
+    const Rr = kGevel(B, R, {x0:6, z0:oz - 14, x1:6, z1:oz + 4, n:[-1, 0], H:8, mat:'golf_roest', deuren:[5, 10], ramen:[[7.5, 3.4], [12.5, 3.4]]});
+    const E = kGevel(B, R, {x0:xW, z0:oz - 12, x1:6, z1:oz - 12, n:[0, 1], H:8, mat:'baksteen5', deuren:[4.6], ramen:[[2, 3.4], [7.2, 3.4]]});
+    zw('golf_grijs', xW, oz + 4, 6, oz + 4, 6);
+    [[xW + 0.5, oz - 3], [xW + 0.5, oz - 8.5]].forEach(([x, z]) => { B.cilinder('kleur', x, z, 0.25, 0, 0.7, {tint:[0.15, 0.15, 0.16]}); B.box(x - 0.25, 0, z - 0.25, x + 0.25, 0.7, z + 0.25); });
+    const props = [kProp(B, R, 'kratten', 2.6, oz - 5.5, {as:'z'}), kProp(B, R, 'vaten', -1, oz - 9.6), kProp(B, R, 'pallets', 3.4, oz - 9.4, {as:'x'})].filter(Boolean);
+    ST.push({x:1, z:oz, naam:'QUAYSIDE', lucht:true, geenWagens:true, geenMuur:true, breed:2.4, props, plek:kRaamPlekken(Rr.ramen.concat(E.ramen), () => true), spawns:dS(Rr.deuren.concat(E.deuren), 1, oz)}); }
+
+  // 2 · SCHEEPSDEK: op het dek, voor je de brug met deuren en patrijspoorten, luiken als dekking
+  { const oz = -200, HW = 6; B.vlakH('plank', -HW, oz - 12, HW, oz + 4, 0, {stap:1.6}); water(-30, oz - 30, 30, oz + 20);
+    [-1, 1].forEach(s => { B.doos('kleur', s*HW - 0.05, oz - 12, s*HW + 0.05, oz + 4, 0, 1.0, {tint:[0.85, 0.85, 0.82]}); B.doos('golf_grijs', s*HW, oz - 12, s*(HW + 0.4), oz + 4, -3, 0.2, {tint:[0.25, 0.27, 0.3]}); });
+    const E = kGevel(B, R, {x0:-HW, z0:oz - 10.5, x1:HW, z1:oz - 10.5, n:[0, 1], H:9, mat:'golf_grijs', tint:[0.9, 0.9, 0.92], deuren:[3, 9], ramen:[[6, 0], [1.6, 3.4], [6, 3.4], [10.4, 3.4], [6, 6.6]]});
+    zw('golf_grijs', -HW, oz + 4, HW, oz + 4, 3, {tint:[0.9, 0.9, 0.92]});
+    const luik = [[-3, oz - 4.4, 2.6], [2.8, oz - 6.4, 2.4]], props = []; luik.forEach(([x, z, w]) => { B.doos('golf_grijs', x - w/2, z - 0.9, x + w/2, z + 0.9, 0, 1.0, {tint:[0.3, 0.38, 0.32]}); props.push({x, z, w, d:1.8, h:1.0}); });
+    kContainer(B, R, -3.6, oz - 7.4, {lang:2.4}); kContainer(B, R, 3.8, oz - 2.8, {lang:2.4});
+    ST.push({x:0, z:oz, naam:'SHIP DECK', lucht:true, geenWagens:true, geenMuur:true, breed:3, props, plek:kRaamPlekken(E.ramen, () => true), spawns:dS(E.deuren, 0, oz, [{p:[-5.4, oz - 9.6], via:[[-4.6, oz - 8.2]]}, {p:[5.4, oz - 9.6], via:[[4.8, oz - 8.6]]}])}); }
+
+  // 3 · KRAANBAAN: poten van een havenkraan, containerstapels, open terrein
+  { const oz = -300; B.vlakH('beton', -14, oz - 14, 14, oz + 4, 0, {stap:2.2});
+    [[-4.8, oz - 5], [4.8, oz - 5], [-4.8, oz - 11], [4.8, oz - 11]].forEach(([x, z]) => B.doos('kleur', x - 0.45, z - 0.45, x + 0.45, z + 0.45, 0, 14, {tint:[0.85, 0.62, 0.12]}));
+    B.doos('kleur', -5.3, oz - 11.5, 5.3, oz - 4.5, 14, 15.2, {tint:[0.85, 0.62, 0.12], geenBots:true});
+    const C = alle([kContainer(B, R, 0, oz - 9.2, {deur:true}), kContainer(B, R, -8.5, oz - 7.6, {deur:true}), kContainer(B, R, 8.6, oz - 10.2, {deur:true})]);
+    kContainer(B, R, 0, oz - 9.2, {y0:2.6}); kContainer(B, R, 0, oz - 9.2, {y0:5.2}); kContainer(B, R, -8.5, oz - 7.6, {y0:2.6});
+    zw('golf_grijs', -14, oz + 4, 14, oz + 4, 6); zw('golf_grijs', -14, oz - 18, 14, oz - 18, 6); zw('golf_grijs', -14, oz + 4, -14, oz - 18, 6); zw('golf_grijs', 14, oz - 18, 14, oz + 4, 6);
+    const props = [kProp(B, R, 'vaten', -2.4, oz - 5.6), kProp(B, R, 'pallets', 2.6, oz - 6.6, {as:'x'})].filter(Boolean);
+    ST.push({x:0, z:oz, naam:'CRANE YARD', lucht:true, geenWagens:true, geenMuur:true, breed:3, props, plek:[], spawns:dS(C.deuren, 0, oz, [{p:[-12, oz - 12], via:[[-5.6, oz - 12]]}, {p:[12, oz - 3.6], via:[[6.4, oz - 3.6]]}])}); }
+
+  // 4 · VISHAL: binnen, kramen met ijs en vis, koelcel-deuren achterin
+  { const oz = -400, H = 5, xa = -7, xb = 7, zE = oz - 11.5; const r = binnen(xa, oz + 3, xb, zE, H, 'tegels'); const tint = [0.85, 0.92, 0.95];
+    const E = kGevel(B, R, {x0:xa, z0:zE, x1:xb, z1:zE, n:[0, 1], H, mat:'tegels', tint, deuren:[2.5, 7, 11.5], ramen:[[4.8, 2.4], [9.2, 2.4]]});
+    const L = kGevel(B, R, {x0:xa, z0:oz + 3, x1:xa, z1:zE, n:[1, 0], H, tint, deuren:[10]});
+    const Rr = kGevel(B, R, {x0:xb, z0:zE, x1:xb, z1:oz + 3, n:[-1, 0], H, tint, deuren:[4]});
+    zw('pleister1', xa, oz + 3, xb, oz + 3, H, {tint});
+    const props = [kKraam(B, R, -3.2, oz - 4.6, 2.6), kKraam(B, R, 3, oz - 6, 2.6), kKraam(B, R, -0.6, oz - 8.6, 2.2)];
+    for (let z = oz - 1; z > zE; z -= 3.5) [-3, 3].forEach(x => B.lamp(r, x, H - 0.05, z, 0.7));
+    ST.push({x:0, z:oz, naam:'FISH MARKET', binnen:true, geenWagens:true, geenMuur:true, breed:3, props, plek:kRaamPlekken(E.ramen, () => true), spawns:dS(E.deuren.concat(L.deuren, Rr.deuren), 0, oz)}); }
+
+  // 5 · HAVENKANTOOR: kantoortjes met deuren, archiefkasten, een balie
+  { const oz = -500, H = 3, xa = -6, xb = 6, zE = oz - 10.5; const r = binnen(xa, oz + 3, xb, zE, H, 'parket'); const tint = [0.9, 0.95, 1];
+    const E = kGevel(B, R, {x0:xa, z0:zE, x1:xb, z1:zE, n:[0, 1], H, tint, deuren:[2, 6, 10], ramen:[[4, 0], [8, 0]]});
+    const L = kGevel(B, R, {x0:xa, z0:oz + 3, x1:xa, z1:zE, n:[1, 0], H, tint, deuren:[9]});
+    const Rr = kGevel(B, R, {x0:xb, z0:zE, x1:xb, z1:oz + 3, n:[-1, 0], H, tint, deuren:[5.2]});
+    zw('pleister1', xa, oz + 3, xb, oz + 3, H, {tint});
+    B.doos('plank', -2.6, oz - 4.6, 2.2, oz - 4, 0, 1.05, {tint:[0.45, 0.4, 0.38]});
+    [[-5.4, oz - 7], [5, oz - 2.4]].forEach(([x, z]) => B.doos('golf_grijs', x - 0.35, z - 1.2, x + 0.35, z + 1.2, 0, 2.1, {tint:[0.55, 0.58, 0.6]}));   // archiefkasten
+    const props = [{x:-0.2, z:oz - 4.3, w:4.8, d:0.6, h:1.05}, kProp(B, R, 'kast', 2.6, oz - 7.6, {as:'x'})].filter(Boolean);
+    for (let z = oz - 1; z > zE; z -= 3.5) [-2.5, 2.5].forEach(x => B.lamp(r, x, H - 0.02, z, 0.6));
+    ST.push({x:0, z:oz, naam:'HARBOUR OFFICE', binnen:true, geenWagens:true, geenMuur:true, breed:2.4, props, plek:kRaamPlekken(E.ramen, () => true), spawns:dS(E.deuren.concat(L.deuren, Rr.deuren), 0, oz)}); }
+
+  // 6 · BOTENLOODS: een boot op bokken in het midden, werkbanken, grote deur naar het water
+  { const oz = -600, H = 7, xa = -8, xb = 8, zE = oz - 12; const r = binnen(xa, oz + 3, xb, zE, H, 'beton', 'golf_grijs');
+    const E = kGevel(B, R, {x0:xa, z0:zE, x1:xb, z1:zE, n:[0, 1], H, mat:'plank', tint:[0.6, 0.5, 0.42], deuren:[2.5, 13.5], ramen:[[4.5, 3.6], [11.5, 3.6]], gaten:[{a0:6, a1:10, b0:0, b1:4.2}]});
+    const L = kGevel(B, R, {x0:xa, z0:oz + 3, x1:xa, z1:zE, n:[1, 0], H, mat:'plank', tint:[0.6, 0.5, 0.42], deuren:[10.5]});
+    const Rr = kGevel(B, R, {x0:xb, z0:zE, x1:xb, z1:oz + 3, n:[-1, 0], H, mat:'plank', tint:[0.6, 0.5, 0.42], deuren:[4]});
+    zw('plank', xa, oz + 3, xb, oz + 3, H, {tint:[0.6, 0.5, 0.42]}); B.kamer(0, zE - 0.3, 0, 1, 4, 4, 0, 4.2, {f:0.4});
+    B.doos('kleur', -1.3, oz - 9.2, 1.3, oz - 3.6, 0.5, 2.3, {tint:[0.75, 0.75, 0.72]}); B.doos('kleur', -1.3, oz - 9.2, 1.3, oz - 3.6, 2.3, 2.45, {tint:[0.2, 0.35, 0.55]}); B.box(-1.3, 0, oz - 9.2, 1.3, 2.4, oz - 3.6);   // boot
+    const props = [kProp(B, R, 'kratten', -4.6, oz - 5.6, {as:'x'}), kProp(B, R, 'tafel', 4.4, oz - 7.2, {as:'x'}), kProp(B, R, 'vaten', -4.4, oz - 9.6)].filter(Boolean);
+    for (let z = oz - 1; z > zE; z -= 4) [-4, 4].forEach(x => B.lamp(r, x, H - 0.05, z, 0.7));
+    ST.push({x:0, z:oz, naam:'BOAT SHED', binnen:true, geenWagens:true, geenMuur:true, breed:3, props, plek:kRaamPlekken(E.ramen, () => true), spawns:dS(E.deuren.concat(L.deuren, Rr.deuren), 0, oz, [{p:[0, zE - 3], via:[[0, zE + 1]]}])}); }
+
+  // 7 · PIER: houten steiger met schuurtjes links en rechts, netten en kisten
+  { const oz = -700, HW = 2.6; B.vlakH('plank', -HW - 4, oz - 13, HW + 4, oz + 4, 0, {stap:1.4}); water(-30, oz - 30, 30, oz + 20);
+    const L = kGevel(B, R, {x0:-HW, z0:oz + 3, x1:-HW, z1:oz - 6, n:[1, 0], H:3.4, mat:'plank', tint:[0.55, 0.45, 0.35], deuren:[6.2]});
+    const Rr = kGevel(B, R, {x0:HW, z0:oz - 9.5, x1:HW, z1:oz + 3, n:[-1, 0], H:3.4, mat:'plank', tint:[0.5, 0.42, 0.34], deuren:[5], ramen:[[8.5, 0]]});
+    const E = kGevel(B, R, {x0:-4, z0:oz - 12, x1:4, z1:oz - 12, n:[0, 1], H:4.4, mat:'plank', tint:[0.62, 0.5, 0.4], deuren:[4], ramen:[[1.6, 0], [6.4, 0]]});
+    zw('plank', -HW - 4, oz - 6, -HW, oz - 6, 3.4, {tint:[0.55, 0.45, 0.35]}); zw('plank', -HW - 4, oz + 3, -HW - 4, oz - 6, 3.4); zw('plank', HW, oz - 9.5, HW + 4, oz - 9.5, 3.4); zw('plank', HW + 4, oz - 9.5, HW + 4, oz + 3, 3.4);
+    zw('plank', -4, oz - 12, -4, oz - 13, 4.4); zw('plank', 4, oz - 13, 4, oz - 12, 4.4); rand(-HW - 4, oz - 13, -4, oz - 12.6); rand(4, oz - 13, HW + 4, oz - 12.6); rand(-HW - 4.3, oz - 6, -HW - 4, oz - 12.6); rand(HW + 4, oz - 9.5, HW + 4.3, oz - 12.6);
+    const props = [kProp(B, R, 'kratten', -1.4, oz - 7.8, {as:'x'}), kProp(B, R, 'vaten', 1.6, oz - 4.6)].filter(Boolean);
+    ST.push({x:0, z:oz, naam:'PIER', lucht:true, geenWagens:true, geenMuur:true, breed:1.6, props, plek:kRaamPlekken(Rr.ramen.concat(E.ramen), () => true).concat([kHoek([-HW - 1.4, oz - 7.6], [-HW + 0.4, oz - 7.6]), kHoek([HW + 1.4, oz - 10.6], [HW - 0.4, oz - 10.6])]),
+      spawns:dS(L.deuren.concat(Rr.deuren, E.deuren), 0, oz, [{p:[-HW - 3.4, oz - 9], via:[[-HW - 0.6, oz - 8.6]]}, {p:[HW + 3.4, oz - 11.6], via:[[HW + 0.6, oz - 11]]}])}); }
+
+  // 8 · HAVENMEESTER: hoog kantoorgebouw met torentje over een kadeplein, meerpalen en netten
+  { const oz = -800, HW = 7; B.vlakH('kinderkop', -HW, oz - 13, HW, oz + 4, 0, {stap:2.2});
+    const E = kGevel(B, R, {x0:-HW, z0:oz - 11.5, x1:HW, z1:oz - 11.5, n:[0, 1], H:10, mat:'baksteen', deuren:[4, 10], ramen:[[1.6, 0], [7, 0], [12.4, 0], [1.6, 3.4], [4, 3.4], [7, 3.4], [10, 3.4], [12.4, 3.4], [7, 6.8]]});
+    B.wand('baksteen', -1.8, oz - 11.6, 1.8, oz - 11.6, 10, 14, {dik:0.3});
+    const L = kRij(B, R, {x0:-HW, z0:oz + 4, x1:-HW, z1:oz - 11.5, n:[1, 0], verd:[2, 3], echteDeur:() => true, raamOpen:(p, f, Rr) => Rr() < 0.6});
+    const Rr = kRij(B, R, {x0:HW, z0:oz - 11.5, x1:HW, z1:oz + 4, n:[-1, 0], verd:[2, 3], echteDeur:() => true, raamOpen:(p, f, Rr2) => Rr2() < 0.6});
+    zw('baksteen', -HW, oz + 4, HW, oz + 4, 7);
+    const props = [kProp(B, R, 'kratten', -3, oz - 5, {as:'x'}), kProp(B, R, 'muurtje', 3.4, oz - 7, {as:'x'})].filter(Boolean);
+    ST.push({x:0, z:oz, naam:'HARBOUR MASTER', lucht:true, geenWagens:true, breed:3, props, plek:kRaamPlekken(E.ramen.concat(L.ramen, Rr.ramen), c => c[1] < oz - 3), spawns:dS(E.deuren.concat(L.deuren, Rr.deuren), 0, oz)}); }
+
+  // 9 · TERMINALPOORT: slagbomen en poorthuisjes, containers, de zware jongens komen
+  { const oz = -900, HW = 8; B.vlakH('asfalt', -HW, oz - 13, HW, oz + 4, 0, {stap:2.2});
+    const P1 = kGevel(B, R, {x0:-5.4, z0:oz - 6, x1:-2.4, z1:oz - 6, n:[0, 1], H:2.8, mat:'pleister1', tint:[0.9, 0.9, 0.85], deuren:[1.5]}), P2 = kGevel(B, R, {x0:2.4, z0:oz - 6, x1:5.4, z1:oz - 6, n:[0, 1], H:2.8, mat:'pleister1', tint:[0.9, 0.9, 0.85], ramen:[[1.5, 0]]});
+    [[-5.4, -2.4], [2.4, 5.4]].forEach(([a, b]) => { zw('pleister1', a, oz - 6, a, oz - 9, 2.8, {tint:[0.9, 0.9, 0.85]}); zw('pleister1', b, oz - 9, b, oz - 6, 2.8, {tint:[0.9, 0.9, 0.85]}); zw('pleister1', a, oz - 9, b, oz - 9, 2.8, {tint:[0.9, 0.9, 0.85]}); B.vlakH('beton', a, oz - 9, b, oz - 6, 2.8, {plafond:true}); });
+    B.doos('kleur', -2.3, oz - 5.6, 2.3, oz - 5.5, 1.0, 1.1, {tint:[0.9, 0.15, 0.12], geenBots:true});
+    const C = alle([kContainer(B, R, -6, oz - 12, {deur:true}), kContainer(B, R, 0, oz - 13, {deur:true}), kContainer(B, R, 6.2, oz - 12, {deur:true})]);
+    zw('golf_grijs', -HW, oz + 4, HW, oz + 4, 6); zw('golf_grijs', -HW, oz + 4, -HW, oz - 19, 6); zw('golf_grijs', HW, oz - 19, HW, oz + 4, 6); zw('golf_grijs', -HW, oz - 19, HW, oz - 19, 6);
+    const props = [kProp(B, R, 'zand', -3.6, oz - 3.6, {as:'x'}), kProp(B, R, 'vaten', 3.2, oz - 10.4)].filter(Boolean);
+    ST.push({x:0, z:oz, naam:'TERMINAL GATE', lucht:true, geenWagens:true, geenMuur:true, breed:3, props, plek:kRaamPlekken(P2.ramen, () => true).concat([kHoek([-6.2, oz - 7.4], [-5, oz - 5.6])]), spawns:dS(P1.deuren.concat(C.deuren), 0, oz, [{p:[-7, oz - 15], via:[[-3.2, oz - 10.6]]}, {p:[7, oz - 15], via:[[3.4, oz - 10.6]]}])}); }
+
+  { const lu = B.extra[0]; ST.forEach(S => { if (S.lucht && Math.abs(S.z) > 150){ const m = lu.clone(); m.position.set(S.x, 0, S.z); B.extra.push(m); } }); }
+  B.standen.push(...ST);
+  return B.maak();
+};
+
+/* === WOESTIJNSTAD (level 4): kasbah-poort, bazaar, daken, riad, paleisplein, smalle steeg met bogen, tapijtwinkel, oase, theehuis, fort.
+   Draai: veel van boven (daken, balkons, torentjes). Zandkleurige leem, doeken in de zon. === */
+KWERELD.woestijn = (T, R) => {
+  const B = new KBouw(T); B.lucht(); B.weg = 'grind'; B.stoep = 'stoep2';
+  const ST = [], dS = (deuren, x, z, extra) => kDeurSpawns(deuren, {x, z}, p => p[1] < z - 2.5).concat(extra || []);
+  const binnen = (xa, za, xb, zb, H, vloer, plaf, tint) => { const r = B.ruimte(xa, zb, xb, za, H, 0.3); B.vlakH(vloer, xa, zb, xb, za, 0.005, {stap:1.4, tint}); B.vlakH(plaf || 'plafond', xa, zb, xb, za, H, {plafond:true, stap:1.5}); return r; };
+  const zw = (n, x0, z0, x1, z1, H, o) => B.wand(n, x0, z0, x1, z1, 0, H, Object.assign({dik:0.3, tint:LEEM}, o || {}));
+  const LEEM = [1.02, 0.86, 0.64], LEEM2 = [0.95, 0.76, 0.55], ZAND = [1.05, 0.9, 0.68];
+  const gev = (o) => kGevel(B, R, Object.assign({mat:'pleister2', tint:kKies(R, [LEEM, LEEM2, [1.05, 0.92, 0.75]])}, o));
+  const vloer = (x0, z0, x1, z1) => B.vlakH('stoep2', x0, z0, x1, z1, 0, {stap:2, tint:ZAND});
+  const doek = (x0, x1, z, y, kl) => B.doos('kleur', x0, z - 0.9, x1, z + 0.9, y, y + 0.04, {tint:kl, geenBots:true, geenAo:true});
+  const palm = (x, z, h) => { B.cilinder('kleur', x, z, 0.2, 0, h, {tint:[0.45, 0.34, 0.22]}); B.box(x - 0.22, 0, z - 0.22, x + 0.22, h, z + 0.22);
+    for (let a = 0; a < 6; a++){ const r = a/6*6.283, dx = Math.cos(r)*1.1, dz = Math.sin(r)*1.1; B.doos('kleur', x + dx - 0.55, z + dz - 0.18, x + dx + 0.55, z + dz + 0.18, h - 0.25 - (a % 2)*0.2, h - 0.15 - (a % 2)*0.2, {tint:[0.22, 0.42, 0.16], geenBots:true, geenAo:true}); } };
+  const kantelen = (x0, x1, z, y) => { for (let x = x0; x < x1 - 0.4; x += 1.2) B.doos('pleister2', x, z - 0.2, x + 0.6, z + 0.2, y, y + 0.6, {tint:LEEM2, geenBots:true}); };
+
+  // 0 · KASBAH-POORT: straatje tussen lemen huizen naar een dikke muur met een boog en een torentje
+  { const oz = 0, HW = 4.2, zM = oz - 7, zE = oz - 12; vloer(-9, zE - 1, 9, oz + 4);
+    const L = gev({x0:-HW, z0:oz + 4, x1:-HW, z1:zM, n:[1, 0], H:6, deuren:[6.5], ramen:[[3.6, 3.2], [8.8, 3.2]]});
+    const Rr = gev({x0:HW, z0:zM, x1:HW, z1:oz + 4, n:[-1, 0], H:6.5, deuren:[3.4], ramen:[[6.2, 3.2], [9.5, 3.2]]});
+    const M = gev({x0:-HW, z0:zM, x1:HW, z1:zM, n:[0, 1], H:7, ramen:[[1.6, 3.4], [6.8, 3.4]], gaten:[{a0:HW - 1.4, a1:HW + 1.4, b0:0, b1:3.6}]}); kantelen(-HW, HW, zM, 7);
+    zw('pleister2', HW - 0.2, zM - 0.2, HW + 2.2, zM - 0.2, 10); zw('pleister2', HW + 2.2, zM - 0.2, HW + 2.2, zM - 2.4, 10);   // torentje
+    const E = gev({x0:-9, z0:zE, x1:9, z1:zE, n:[0, 1], H:7, deuren:[9], ramen:[[6.5, 3.2], [11.5, 3.2], [9, 3.2]]});
+    zw('pleister2', -9, zM, -9, zE, 7); zw('pleister2', 9, zE, 9, zM, 7); zw('pleister2', -HW, oz + 4, HW, oz + 4, 6);
+    const props = [kProp(B, R, 'vaten', 2.4, oz - 3.8), kProp(B, R, 'kratten', -2.6, oz - 5, {as:'x'})].filter(Boolean);
+    ST.push({x:0, z:oz, naam:'KASBAH GATE', lucht:true, geenWagens:true, breed:2.4, props, plek:kRaamPlekken(L.ramen.concat(Rr.ramen, M.ramen, E.ramen), c => c[1] < oz - 2.5),
+      spawns:dS(L.deuren.concat(Rr.deuren, E.deuren), 0, oz, [{p:[-7.6, zM - 2.5], via:[[-0.9, zM - 1.3]]}, {p:[7.6, zM - 2.9], via:[[0.9, zM - 1.5]]}])}); }
+
+  // 1 · BAZAAR: overdekte marktstraat, kramen links en rechts, doeken boven je hoofd
+  { const oz = -100, HW = 5, zE = oz - 12; vloer(-HW, zE, HW, oz + 4);
+    const L = gev({x0:-HW, z0:oz + 4, x1:-HW, z1:zE, n:[1, 0], H:6, deuren:[6, 11], ramen:[[8.5, 3.2], [13.5, 3.2]]});
+    const Rr = gev({x0:HW, z0:zE, x1:HW, z1:oz + 4, n:[-1, 0], H:6, deuren:[4, 9.5], ramen:[[6.8, 3.2], [1.6, 3.2]]});
+    const E = gev({x0:-HW, z0:zE, x1:HW, z1:zE, n:[0, 1], H:6, deuren:[2.2, 7.8], ramen:[[5, 3.2]], gaten:[{a0:4, a1:6, b0:0, b1:3}]}); B.kamer(0, zE - 0.3, 0, 1, 2, 4, 0, 3, {f:0.35});
+    zw('pleister2', -HW, oz + 4, HW, oz + 4, 6);
+    [oz - 1, oz - 4, oz - 7, oz - 10].forEach((z, i) => doek(-HW, HW, z, 3.6 + (i % 2)*0.25, kKies(R, [[0.75, 0.2, 0.15], [0.85, 0.65, 0.2], [0.2, 0.35, 0.6], [0.9, 0.85, 0.75]])));
+    const props = [kKraam(B, R, -3.4, oz - 5.4, 2.2), kKraam(B, R, 3.4, oz - 7.4, 2.2), kKraam(B, R, -2.6, oz - 9.8, 2), kProp(B, R, 'vaten', 1.2, oz - 3.6)].filter(Boolean);
+    ST.push({x:0, z:oz, naam:'BAZAAR', lucht:true, geenWagens:true, geenMuur:true, breed:2.4, props, plek:kRaamPlekken(L.ramen.concat(Rr.ramen, E.ramen), c => c[1] < oz - 3),
+      spawns:dS(L.deuren.concat(Rr.deuren, E.deuren), 0, oz, [{p:[0, zE - 3], via:[[0, zE + 1]]}])}); }
+
+  // 2 · DAKEN: je staat op een plat dak; borstweringen, trappenhuisjes met deuren, watertanks — ze komen over de rand
+  { const oz = -200; vloer(-9, oz - 13, 9, oz + 4);
+    const H1 = gev({x0:-5.6, z0:oz - 6, x1:-3.2, z1:oz - 6, n:[0, 1], H:2.6, deuren:[1.2]}), H2 = gev({x0:3, z0:oz - 9.5, x1:5.4, z1:oz - 9.5, n:[0, 1], H:2.6, deuren:[1.2]}), H3 = gev({x0:-1.6, z0:oz - 12, x1:0.8, z1:oz - 12, n:[0, 1], H:2.6, deuren:[1.2]});
+    [[-5.6, -3.2, oz - 6], [3, 5.4, oz - 9.5], [-1.6, 0.8, oz - 12]].forEach(([a, b, z]) => { zw('pleister2', a, z, a, z - 2.6, 2.6); zw('pleister2', b, z - 2.6, b, z, 2.6); zw('pleister2', a, z - 2.6, b, z - 2.6, 2.6); B.vlakH('pleister2', a, z - 2.6, b, z, 2.6, {plafond:true, tint:LEEM}); });
+    const muur = [[-2.4, oz - 4.6, 3], [2.6, oz - 6, 3.2], [-4.6, oz - 9.2, 2.4]], props = []; muur.forEach(([x, z, w]) => { B.doos('pleister2', x - w/2, z - 0.15, x + w/2, z + 0.15, 0, 1.05, {tint:LEEM}); props.push({x, z, w, d:0.3, h:1.05}); });
+    [[6.6, oz - 4], [-7, oz - 12]].forEach(([x, z]) => { B.cilinder('kleur', x, z, 0.7, 0.2, 2.2, {tint:[0.75, 0.76, 0.78]}); B.box(x - 0.7, 0, z - 0.7, x + 0.7, 2.2, z + 0.7); });
+    [-1, 1].forEach(s => B.doos('pleister2', s*9 - 0.15, oz - 13, s*9 + 0.15, oz + 4, 0, 1.0, {tint:LEEM2})); B.doos('pleister2', -9, oz - 13.3, 9, oz - 13, 0, 1.0, {tint:LEEM2}); B.doos('pleister2', -9, oz + 4, 9, oz + 4.3, 0, 1.0, {tint:LEEM2});
+    [[-14, oz - 22, 7], [-3, oz - 26, 10], [9, oz - 24, 5], [18, oz - 12, 8], [-19, oz - 6, 6]].forEach(([x, z, h]) => B.doos('pleister2', x - 4, z - 4, x + 4, z + 4, -8, h - 8, {tint:kKies(R, [LEEM, LEEM2]), geenBots:true}));
+    B.cilinder('kleur', -3, oz - 26, 2.6, 2, 4.5, {tint:[0.35, 0.55, 0.62], geenBots:true});
+    ST.push({x:0, z:oz, naam:'ROOFTOPS', lucht:true, geenWagens:true, geenMuur:true, breed:3, props, plek:[], spawns:dS(H1.deuren.concat(H2.deuren, H3.deuren), 0, oz, [{p:[-8.4, oz - 3], via:[[-7.4, oz - 4]]}, {p:[8.4, oz - 11], via:[[7.4, oz - 10.6]]}])}); }
+
+  // 3 · RIAD: binnenhof met arcades, fontein in het midden, balkonramen boven
+  { const oz = -300, HW = 6, zE = oz - 11.5; B.vlakH('tegels', -HW, zE, HW, oz + 4, 0, {stap:1.4, tint:[1, 0.92, 0.82]});
+    const E = gev({x0:-HW, z0:zE, x1:HW, z1:zE, n:[0, 1], H:9, deuren:[3, 9], ramen:[[6, 0], [2, 3.4], [6, 3.4], [10, 3.4], [6, 6.6]]});
+    const L = gev({x0:-HW, z0:oz + 4, x1:-HW, z1:zE, n:[1, 0], H:9, deuren:[9.5], ramen:[[6, 3.4], [12, 3.4], [9.5, 6.6]]});
+    const Rr = gev({x0:HW, z0:zE, x1:HW, z1:oz + 4, n:[-1, 0], H:9, deuren:[5], ramen:[[2.5, 3.4], [8, 3.4], [5, 6.6]]});
+    zw('pleister2', -HW, oz + 4, HW, oz + 4, 9);
+    [-1, 1].forEach(s => [oz - 3.6, oz - 7.2, oz - 10.4].forEach(z => kPilaar(B, s*(HW - 1.6), z, 3.4, 'pleister2'))); [-1, 1].forEach(s => B.doos('pleister2', s*HW - (s > 0 ? 1.9 : 0), oz - 11.5, s*HW + (s < 0 ? 1.9 : 0), oz + 4, 3.4, 3.7, {tint:LEEM, geenBots:true}));
+    B.cilinder('tegels', 0, oz - 6.2, 1.4, 0, 0.85, {}); B.box(-1.4, 0, oz - 7.6, 1.4, 0.85, oz - 4.8); B.vlakH('kleur', -1.2, oz - 7.4, 1.2, oz - 5, 0.78, {tint:[0.2, 0.45, 0.5]});
+    ST.push({x:0, z:oz, naam:'RIAD', lucht:true, geenWagens:true, geenMuur:true, breed:3, props:[{x:0, z:oz - 6.2, w:2.8, d:2.8, h:0.85}], plek:kRaamPlekken(E.ramen.concat(L.ramen, Rr.ramen), c => c[1] < oz - 3), spawns:dS(E.deuren.concat(L.deuren, Rr.deuren), 0, oz)}); }
+
+  // 4 · PALEISPLEIN: brede paleisgevel met een koepeltorentje, palmen als pilaren, lage muurtjes
+  { const oz = -400, HW = 8, zE = oz - 12; vloer(-HW, zE, HW, oz + 4);
+    const E = gev({x0:-HW, z0:zE, x1:HW, z1:zE, n:[0, 1], H:10, deuren:[4.5, 11.5], ramen:[[8, 0], [2, 3.6], [5.5, 3.6], [10.5, 3.6], [14, 3.6], [8, 6.8]]});
+    B.wand('pleister2', -2, zE - 0.1, 2, zE - 0.1, 10, 13, {dik:0.3, tint:LEEM}); B.cilinder('kleur', 0, zE - 1.2, 2, 13, 15, {tint:[0.25, 0.5, 0.55], geenBots:true}); kantelen(-HW, -2, zE, 10); kantelen(2, HW, zE, 10);
+    [-1, 1].forEach(s => { zw('pleister2', s*HW, oz + 4, s*HW, zE, 7); });
+    zw('pleister2', -HW, oz + 4, HW, oz + 4, 6);
+    palm(-4.4, oz - 5.6, 5.5); palm(4.6, oz - 7.8, 5); palm(-1.6, oz - 9.8, 5.8);
+    const props = [kProp(B, R, 'muurtje', 2.2, oz - 4.6, {as:'x'}), kProp(B, R, 'muurtje', -4.6, oz - 9.6, {as:'x'})].filter(Boolean);
+    ST.push({x:0, z:oz, naam:'PALACE SQUARE', lucht:true, geenWagens:true, geenMuur:true, breed:3, props, plek:kRaamPlekken(E.ramen, () => true), spawns:dS(E.deuren, 0, oz, [{p:[-7.4, oz - 11], via:[[-6, oz - 9]]}, {p:[7.4, oz - 11.4], via:[[6, oz - 9.6]]}])}); }
+
+  // 5 · BOGENSTEEG: smalle steeg met boogbruggetjes erover, deuren links en rechts, een zijsteeg
+  { const oz = -500, W2 = 1.9, zE = oz - 12, zA = oz - 7; vloer(-7, zE - 1, 7, oz + 4);
+    const L = gev({x0:-W2, z0:oz + 4, x1:-W2, z1:zA, n:[1, 0], H:8, deuren:[7.5], ramen:[[4, 3.2], [9.5, 3.2]]});
+    const L2 = gev({x0:-W2, z0:zA - 1.8, x1:-W2, z1:zE, n:[1, 0], H:8, deuren:[1.6]});
+    const Rr = gev({x0:W2, z0:zE, x1:W2, z1:oz + 4, n:[-1, 0], H:8, deuren:[3.2, 9.6], ramen:[[6.4, 3.2], [1.4, 3.2]]});
+    const E = gev({x0:-W2, z0:zE, x1:W2, z1:zE, n:[0, 1], H:8, deuren:[1.9], ramen:[[1.9, 3.2]]});
+    zw('pleister2', -7, zA, -W2, zA, 8); zw('pleister2', -7, zA - 1.8, -W2, zA - 1.8, 8); zw('pleister2', -7, zA, -7, zA - 1.8, 8); zw('pleister2', -W2, oz + 4, W2, oz + 4, 8);
+    [oz - 3, oz - 9.4].forEach(z => B.wand('pleister2', -W2, z, W2, z, 3.1, 5, {dik:1.0, tint:LEEM2, gaten:[{a0:0.3, a1:3.5, b0:3.1, b1:3.6}]}));   // bogen over de steeg
+    const props = [kProp(B, R, 'vaten', -1.1, oz - 5.2), kProp(B, R, 'kratten', 1, oz - 8.2, {as:'z'})].filter(Boolean);
+    ST.push({x:0, z:oz, naam:'ARCH LANE', lucht:true, geenWagens:true, geenMuur:true, breed:1.4, props, plek:kRaamPlekken(L.ramen.concat(Rr.ramen, E.ramen), c => c[1] < oz - 2.5),
+      spawns:dS(L.deuren.concat(L2.deuren, Rr.deuren, E.deuren), 0, oz, [{p:[-6.2, zA - 0.9], via:[[-1.2, zA - 0.9]]}])}); }
+
+  // 6 · TAPIJTWINKEL: hangende tapijten om omheen te kijken, toonbank, deuren naar achter
+  { const oz = -600, H = 4, xa = -6, xb = 6, zE = oz - 11; const r = binnen(xa, oz + 3, xb, zE, H, 'plank', 'plank', [0.8, 0.6, 0.45]);
+    const E = gev({x0:xa, z0:zE, x1:xb, z1:zE, n:[0, 1], H, deuren:[2.4, 9.6], ramen:[[6, 0]]}), L = gev({x0:xa, z0:oz + 3, x1:xa, z1:zE, n:[1, 0], H, deuren:[10]}), Rr = gev({x0:xb, z0:zE, x1:xb, z1:oz + 3, n:[-1, 0], H, deuren:[4.5]});
+    zw('pleister2', xa, oz + 3, xb, oz + 3, H);
+    [[-3.4, oz - 4.6, 1.8], [2.8, oz - 5.8, 2], [-1, oz - 8.6, 1.8], [4, oz - 9.4, 1.4]].forEach(([x, z, w]) => { B.doos('kleur', x - w/2, z - 0.04, x + w/2, z + 0.04, 0.15, H - 0.2, {tint:kKies(R, [[0.6, 0.12, 0.1], [0.15, 0.2, 0.45], [0.55, 0.35, 0.12], [0.25, 0.35, 0.2]]), geenAo:true}); B.cilinder('kleur', x, z, 0.03, H - 0.2, H, {tint:[0.2, 0.2, 0.2], geenBots:true}); });
+    B.doos('plank', -5.4, oz - 7.6, -3.6, oz - 6.2, 0, 1.0, {tint:[0.5, 0.32, 0.2]});
+    for (let z = oz - 1; z > zE; z -= 3.5) [-2.5, 2.5].forEach(x => B.lamp(r, x, H - 0.05, z, 0.65));
+    ST.push({x:0, z:oz, naam:'CARPET SHOP', binnen:true, geenWagens:true, geenMuur:true, breed:2.4, props:[{x:-4.5, z:oz - 6.9, w:1.8, d:1.4, h:1.0}], plek:kRaamPlekken(E.ramen, () => true), spawns:dS(E.deuren.concat(L.deuren, Rr.deuren), 0, oz)}); }
+
+  // 7 · OASE: palmen rond een vijver, tenten met ingangen, een put
+  { const oz = -700; B.vlakH('stoep2', -12, oz - 14, 12, oz + 4, 0, {stap:2.4, tint:[1.1, 0.95, 0.72]});
+    B.vlakH('kleur', -3.4, oz - 8, 0.6, oz - 5, 0.02, {tint:[0.15, 0.42, 0.45]}); B.box(-3.4, -0.5, oz - 8, 0.6, 0.95, oz - 5);
+    const tent = (x, z, w, kl) => { const g = kGevel(B, R, {x0:x - w/2, z0:z, x1:x + w/2, z1:z, n:[0, 1], H:2.7, mat:'kleur', tint:kl, deuren:[w/2]}); [[-1, 1]].forEach(() => { B.doos('kleur', x - w/2, z - 3, x - w/2 + 0.1, z, 0, 2.7, {tint:kl}); B.doos('kleur', x + w/2 - 0.1, z - 3, x + w/2, z, 0, 2.7, {tint:kl}); B.doos('kleur', x - w/2, z - 3.1, x + w/2, z - 3, 0, 2.7, {tint:kl}); B.doos('kleur', x - w/2 - 0.2, z - 3.1, x + w/2 + 0.2, z + 0.2, 2.7, 2.85, {tint:kl.map(v => v*0.85)}); }); return g; };
+    const T1 = tent(-6, oz - 10.5, 3.2, [0.85, 0.78, 0.62]), T2 = tent(5.2, oz - 11.2, 3.4, [0.7, 0.3, 0.22]), T3 = tent(7, oz - 4.6, 2.8, [0.8, 0.7, 0.5]);
+    palm(-5.2, oz - 4.6, 5.4); palm(2.6, oz - 7.6, 6); palm(-1, oz - 11.6, 5.2); palm(-8.4, oz - 7.4, 4.8);
+    B.cilinder('baksteen', 3.2, oz - 4.6, 0.8, 0, 0.95, {}); B.box(2.4, 0, oz - 5.4, 4, 0.95, oz - 3.8);
+    zw('pleister2', -12, oz + 4, 12, oz + 4, 4); zw('pleister2', -12, oz - 15, 12, oz - 15, 4); zw('pleister2', -12, oz + 4, -12, oz - 15, 4); zw('pleister2', 12, oz - 15, 12, oz + 4, 4);
+    ST.push({x:0, z:oz, naam:'OASIS', lucht:true, geenWagens:true, geenMuur:true, breed:3, props:[{x:3.2, z:oz - 4.6, w:1.6, d:1.6, h:0.95}], plek:[], spawns:dS(T1.deuren.concat(T2.deuren, T3.deuren), 0, oz, [{p:[-11, oz - 13.6], via:[[-8, oz - 12.6]]}, {p:[11, oz - 8.6], via:[[9, oz - 8.6]]}])}); }
+
+  // 8 · THEEHUIS: lage tafeltjes en kussens, houten roosterramen, deuren naar keuken en binnenplaats
+  { const oz = -800, H = 3.6, xa = -6, xb = 6, zE = oz - 10.5; const r = binnen(xa, oz + 3, xb, zE, H, 'tegels', 'plank', [1, 0.85, 0.7]);
+    const E = gev({x0:xa, z0:zE, x1:xb, z1:zE, n:[0, 1], H, deuren:[2, 10], ramen:[[4.6, 0], [7.4, 0]]}), L = gev({x0:xa, z0:oz + 3, x1:xa, z1:zE, n:[1, 0], H, deuren:[9.2], ramen:[[5.4, 0]]}), Rr = gev({x0:xb, z0:zE, x1:xb, z1:oz + 3, n:[-1, 0], H, deuren:[3.6]});
+    zw('pleister2', xa, oz + 3, xb, oz + 3, H);
+    const props = []; [[-3, oz - 4.4], [2.4, oz - 5.2], [-0.8, oz - 7.8], [3.6, oz - 8.4]].forEach(([x, z]) => { B.doos('plank', x - 0.8, z - 0.5, x + 0.8, z + 0.5, 0, 0.85, {tint:[0.45, 0.28, 0.18]}); props.push({x, z, w:1.6, d:1, h:0.85}); });
+    [[-5.5, oz - 8.6], [5.5, oz - 1.6]].forEach(([x, z]) => B.doos('plank', x - 0.4, z - 0.6, x + 0.4, z + 0.6, 0, 2.2, {tint:[0.5, 0.34, 0.22]}));
+    for (let z = oz - 1; z > zE; z -= 3.2) B.lamp(r, 0, H - 0.05, z, 0.6);
+    ST.push({x:0, z:oz, naam:'TEA HOUSE', binnen:true, geenWagens:true, geenMuur:true, breed:2.4, props, plek:kRaamPlekken(E.ramen.concat(L.ramen), () => true), spawns:dS(E.deuren.concat(L.deuren, Rr.deuren), 0, oz)}); }
+
+  // 9 · FORT: dikke fortmuur met kantelen en torens, poort, een zandweg erlangs (de gun truck)
+  { const oz = -900, HW = 8, zW0 = oz - 4.2, zW1 = oz - 8.2, zE = oz - 12.4; vloer(-HW, zE, HW, oz + 4); B.vlakH('grind', -40, zW1, 40, zW0, 0.004, {stap:2.2, tint:[1.05, 0.9, 0.7]});
+    [-1, 1].forEach(s => { zw('pleister2', s*HW, oz + 4, s*HW, zW0, 6); zw('pleister2', s*HW, zW1, s*HW, zE, 8); B.wand('pleister2', s*40, zW1, s*40, zW0, 0, 6, {tint:LEEM}); zw('pleister2', s*HW, zW0, s*40, zW0, 5); zw('pleister2', s*HW, zW1, s*40, zW1, 5); });
+    const E = gev({x0:-HW, z0:zE, x1:HW, z1:zE, n:[0, 1], H:9, deuren:[3.2, 12.8], ramen:[[3.8, 3.6], [12.2, 3.6], [5.6, 5.8], [10.4, 5.8]], gaten:[{a0:6.6, a1:9.4, b0:0, b1:3.8}]}); kantelen(-HW, HW, zE, 9); B.kamer(0, zE - 0.3, 0, 1, 2.8, 4, 0, 3.8, {f:0.35});
+    [-1, 1].forEach(s => { zw('pleister2', s*(HW - 2.6), zE + 0.1, s*(HW - 2.6), zE + 2.4, 11); zw('pleister2', s*(HW - 2.6), zE + 2.4, s*HW, zE + 2.4, 11); });
+    zw('pleister2', -HW, oz + 4, HW, oz + 4, 6);
+    const props = [kProp(B, R, 'zand', -3.4, zW1 - 1.6, {as:'x'}), kProp(B, R, 'zand', 3.6, zW1 - 2, {as:'x'})].filter(Boolean);
+    ST.push({x:0, z:oz, naam:'DESERT FORT', lucht:true, breed:3, props, wagZ:[zW1 + 0.6 - oz, zW0 - 0.6 - oz], plek:kRaamPlekken(E.ramen, () => true),
+      spawns:dS(E.deuren, 0, oz, [{p:[0, zE - 3], via:[[0, zE + 1]]}, {p:[-0.9, zE - 3], via:[[-0.9, zE + 1]]}, {p:[-16, zW1 + 1.2], via:[[-6, zW1 + 1.2]]}])}); }
+
+  { const lu = B.extra[0]; ST.forEach(S => { if (S.lucht && Math.abs(S.z) > 150){ const m = lu.clone(); m.position.set(S.x, 0, S.z); B.extra.push(m); } }); }
+  B.standen.push(...ST);
+  return B.maak();
+};
+
 /* === LEGERKAMP: menu-achtergrond (uitkijkplatform) en schietbaan (TEST). 3 varianten: woestijn, bos bij schemer, nacht === */
 const BASIS_VAR = [
   {naam:'DESERT BASE', mul:[1.06, 0.98, 0.84], grond:[1.12, 0.96, 0.72], lucht:[['0', '#3f78c0'], ['0.42', '#9cc3e6'], ['0.5', '#efe6d2'], ['1', '#d8c49c']], wolk:0.08, licht:[1.0, 1.05], mist:[0xe2d6bc, 60, 230], bos:false, nacht:false},
@@ -1423,7 +1672,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v130";
+const VERSIE = "v131";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -1772,6 +2021,8 @@ const KAART_STAND = {   // vaste eigenschappen per stand (de rest komt uit de ge
   markt:[{naam:'MARKET SQUARE', geenWagens:true, geenMuur:true}, {naam:'BACK COURT', geenWagens:true, geenMuur:true}],
   haven:[{naam:'QUAYSIDE', geenWagens:true, geenMuur:true}, {naam:'CONTAINER YARD', geenWagens:true, geenMuur:true}],
   galerij:['GATE SQUARE', 'GATE SQUARE 2', 'WELL SQUARE', 'WELL SQUARE 2', 'BAKERS ROW', 'BAKERS ROW 2', 'CHAPEL YARD', 'CHAPEL YARD 2', 'TOWN HALL', 'TOWN HALL 2'].map((naam, i) => ({naam, lucht:true, geenWagens:i < 8})),
+  kade:['CONTAINER YARD', 'QUAYSIDE', 'SHIP DECK', 'CRANE YARD', 'FISH MARKET', 'HARBOUR OFFICE', 'BOAT SHED', 'PIER', 'HARBOUR MASTER', 'TERMINAL GATE'].map((naam, i) => Object.assign({naam, geenWagens:true}, [4, 5, 6].includes(i) ? {binnen:true, geenMuur:true} : {lucht:true})),
+  woestijn:['KASBAH GATE', 'BAZAAR', 'ROOFTOPS', 'RIAD', 'PALACE SQUARE', 'ARCH LANE', 'CARPET SHOP', 'OASIS', 'TEA HOUSE', 'DESERT FORT'].map((naam, i) => Object.assign({naam, geenWagens:i < 9}, [6, 8].includes(i) ? {binnen:true, geenMuur:true} : {lucht:true})),
   oud:['CITY GATE', 'CHURCHYARD', 'BAKERY', 'WASHING LANE', 'BARN', 'FOUNTAIN SQUARE', 'TAVERN', 'CANAL', 'CLASSROOM', 'MARKET HALL'].map((naam, i) => Object.assign({naam, geenWagens:i < 9}, [2, 4, 6, 8].includes(i) ? {binnen:true, geenMuur:true} : {lucht:true})),
   stad:[{naam:'SHOPPING STREET', lucht:true, geenWagens:true}, {naam:'BACK ALLEY', lucht:true, geenWagens:true}, {naam:'CORRIDOR', binnen:true, geenWagens:true, geenMuur:true}, {naam:'OPEN OFFICE', binnen:true, geenWagens:true, geenMuur:true}, {naam:'MARKET', lucht:true, geenWagens:true}, {naam:'WAREHOUSE', binnen:true, geenWagens:true, geenMuur:true}, {naam:'COURTYARD', lucht:true, geenWagens:true, geenMuur:true}, {naam:'PARKING GARAGE', binnen:true, geenWagens:true, geenMuur:true}, {naam:'STATION HALL', binnen:true, geenWagens:true, geenMuur:true}, {naam:'TOWN HALL', lucht:true}],
   bunker:[{naam:'BUNKER ENTRANCE', binnen:true, geenWagens:true, geenMuur:true}, {naam:'CONTROL ROOM', binnen:true, geenWagens:true, geenMuur:true}, {naam:'ESCAPE TUNNEL', binnen:true, geenWagens:true, geenMuur:true}]
@@ -1781,7 +2032,7 @@ const KAART_N = 10;
 function kStandLijst(w){ const B = KAART_STAND[w], n = B.length, per = B.map((_, i) => Math.floor(KAART_N/n) + (i < KAART_N % n ? 1 : 0)), uit = [];
   B.forEach((S, i) => { for (let k=0;k<per[i];k++) uit.push(Object.assign({}, S, {naam:k ? S.naam + ' ' + (k + 1) : S.naam, ouder:i, stap:k, van:per[i]})); }); return uit; }
 const KAART_WISSEL = new Proxy({}, {get:() => Array.from({length:KAART_N}, (_, i) => i + 1)});
-const KAART_TITELS = {oud:['OLD TOWN', 'OLD TOWN', 'OLD TOWN', 'OLD TOWN', 'OLD TOWN'], stad:['DOWNTOWN', 'DOWNTOWN', 'DOWNTOWN', 'DOWNTOWN', 'DOWNTOWN'], galerij:['VILLAGE STREET', 'VILLAGE STREET', 'VILLAGE STREET', 'VILLAGE STREET', 'VILLAGE STREET'], dorp:['MILL LANE', 'OLD TOWN', 'MARKET STREET', 'RIVERSIDE', 'STATION ROAD'], loods:['THE DOCKS', 'RAIL YARD', 'FACTORY ROW', 'DEPOT', 'CANAL WHARF'],
+const KAART_TITELS = {kade:['HARBOUR', 'HARBOUR', 'HARBOUR', 'HARBOUR', 'HARBOUR'], woestijn:['DESERT TOWN', 'DESERT TOWN', 'DESERT TOWN', 'DESERT TOWN', 'DESERT TOWN'], oud:['OLD TOWN', 'OLD TOWN', 'OLD TOWN', 'OLD TOWN', 'OLD TOWN'], stad:['DOWNTOWN', 'DOWNTOWN', 'DOWNTOWN', 'DOWNTOWN', 'DOWNTOWN'], galerij:['VILLAGE STREET', 'VILLAGE STREET', 'VILLAGE STREET', 'VILLAGE STREET', 'VILLAGE STREET'], dorp:['MILL LANE', 'OLD TOWN', 'MARKET STREET', 'RIVERSIDE', 'STATION ROAD'], loods:['THE DOCKS', 'RAIL YARD', 'FACTORY ROW', 'DEPOT', 'CANAL WHARF'],
   huis:['THE MANOR', 'THE OLD SCHOOL', 'THE HOTEL', 'THE CONVENT', 'THE RECTORY'], kruis:['CHURCH SQUARE', 'TOWN CROSS', 'HIGH STREET', 'MARKET CROSS', 'BRIDGE STREET'],
   bunker:['IRON VAULT', 'DEEP ARCHIVE', 'RED SECTOR', 'COLD STORE', 'THE PIT'], markt:['MARKET SQUARE', 'FISH MARKET', 'FLOWER SQUARE', 'OLD BAZAAR', 'TOWN SQUARE'],
   haven:['NORTH QUAY', 'CONTAINER PORT', 'DRY DOCK', 'PIER 9', 'CUSTOMS YARD']};
@@ -1789,11 +2040,21 @@ const KAART_TITELS = {oud:['OLD TOWN', 'OLD TOWN', 'OLD TOWN', 'OLD TOWN', 'OLD 
 const BASIS_PLEK = [0, 1, 2].map(v => [0, 1].map(s => { PLEKKEN.push({kaart:{w:'basis', seed:v, s}, nieuw:true, uitgangen:[{naam:'x', start:[0, 26]}], muren:[], naam:s ? 'FIRING RANGE' : 'ARMY BASE', geenWagens:true, geenMuur:true}); return PLEKKEN.length - 1; }));
 let BASIS_VAR_NU = 0;
 function basisVolgende(){ let n = 0; try { n = (+(localStorage.getItem('sf_basis') || 0) + 1) % 3; localStorage.setItem('sf_basis', String(n)); } catch(_){ n = (BASIS_VAR_NU + 1) % 3; } BASIS_VAR_NU = n; return n; }
+/* soldaten per level: camo-print + kleuren, hoofddeksels, hoes (kap) over het gezicht, lichaamsvorm. Zie LEVELS.md */
+const SOLDAAT_KITS = {
+  marine:  {naam:'marine',  camo:['#4b5a6a', '#2f3b48', '#73808d', '#1d252e'], koppen:['muts', 'helm', 'pet'], mutsKl:0x1f2833},
+  zand:    {naam:'zand',    camo:['#c8ad7c', '#a08559', '#e6d3a8', '#75603f'], koppen:['helm', 'pet'], kap:'sjaal', kapKans:75, kapKleur:'#d8c7a0'},
+  swat:    {naam:'swat',    camo:['#1d1e21', '#121315', '#2c2e32', '#0a0b0c'], koppen:['helm'], kap:'bivak', kapKans:55, kap2:'gas', dun:0.88, print:0.97},
+  sneeuw:  {naam:'sneeuw',  camo:['#e9edf0', '#c3cad1', '#9aa3ac', '#f8fafb'], koppen:['muts', 'helm'], mutsKl:0xe8ebee, kap:'bivak', kapKans:35, kapKleur:'#e4e7ea'},
+  woodland:{naam:'woodland', camo:['#56653a', '#34401f', '#7a7448', '#1f2615'], koppen:['baret', 'pet', 'muts'], mutsKl:0x2e3a20},
+  elite:   {naam:'elite',   camo:['#3c1517', '#191a1c', '#5e2124', '#0d0d0f'], koppen:['helm'], kap:'gas', kapKans:45, breed:1.08},
+  hq:      {naam:'hq', mix:['elite', 'swat', 'elite', 'marine', 'woodland']}
+};
 function maakLevels(){
-  const volg = ['oud', 'stad', 'loods', 'kruis', 'bunker', 'markt', 'huis', 'haven', 'dorp', 'kruis', 'markt', 'bunker', 'haven', 'huis', 'loods', 'markt', 'dorp', 'haven', 'bunker', 'kruis'];
+  const volg = ['oud', 'stad', 'kade', 'woestijn', 'huis', 'kruis', 'loods', 'bunker'], KITS = [null, null, 'marine', 'zand', 'swat', 'sneeuw', 'woodland', 'hq'];   /* 8 levels: elk een eigen thema en eigen soldaten */
   const tel = {};
   return volg.map((w, i) => {
-    const n = i + 1, f = i/19, r = (a, b) => +(a + (b - a)*f).toFixed(2), seed = 1000 + n*7919, k = tel[w] = (tel[w] || 0);
+    const n = i + 1, f = i < 2 ? i/19 : i/7,   /* lvl 1-2 ongewijzigd (perfect), daarna oplopend */ r = (a, b) => +(a + (b - a)*f).toFixed(2), seed = 1000 + n*7919, k = tel[w] = (tel[w] || 0);
     tel[w]++;
     const titel = KAART_TITELS[w][k % 5], plek = kStandLijst(w).map((S, s) => { PLEKKEN.push(Object.assign({kaart:{w, seed, s}, nieuw:true, uitgangen:[{naam:'x', start:[0, 26]}], muren:[]}, S, {naam:titel + ' · ' + S.naam})); return PLEKKEN.length - 1; });
     const L = {naam:titel, wereld:w, plek, wissel:KAART_WISSEL[w], stijl:kStandLijst(w).map(S => S.binnen ? 'binnen' : 'stad'), dekking:kStandLijst(w).map(() => []),
@@ -1804,12 +2065,13 @@ function maakLevels(){
       sniper:n >= 3 ? 1 : 0, sniperVanaf:Math.max(2, 6 - (n/5|0)), zwaarVanaf:n >= 4 ? Math.max(5, 9 - (n/4|0)) : 99,
       gran:[n >= 3 ? 0.04 : 0, n >= 3 ? r(0.06, 0.11) : 0], granVanaf:n >= 3 ? Math.max(1, 5 - (n/5|0)) : 99,
       helm:[r(0, 0.5), r(0.05, 0.8)], vest:[r(0, 0.5), r(0.05, 0.8)], schild:n >= 6 ? (n >= 14 ? 3 : 2) : 0, schildVanaf:n >= 6 ? Math.max(3, 8 - (n/4|0)) : 99, mgVanaf:n >= 7 ? Math.max(3, 7 - (n/6|0)) : 0,
-      extra:{}, soorten:n >= 12 && w === 'huis' ? [2, 3, 4, 1] : undefined};
+      extra:{}, kit:KITS[i]};
     if (w === 'dorp' && n >= 3) L.extra[2] = {apache:1};
     if (w === 'kruis' && n >= 4) L.extra[5] = {apache:1};
     if (w === 'kruis') L.extra[6] = {wagens:['jeep']};
     if (w === 'dorp') L.extra[5] = {wagens:[n >= 9 ? 'swat_truck' : 'truck']};
-    L.baas = (w === 'dorp' || w === 'galerij' || w === 'stad' || w === 'oud') ? (n < 9 ? {tekst:'GUN TRUCK', vracht:{mg:true, rijdt:true}, lopers:7, max:7} : {tekst:'GUN TRUCK + JEEP', vracht:{mg:true, rijdt:true}, wagens:['jeep_snorkel'], lopers:9, max:8})
+    L.baas = w === 'kade' ? {tekst:'HEAVY GUNNERS', zwaar:2, vest:1, lopers:9, max:8}
+           : (w === 'dorp' || w === 'galerij' || w === 'stad' || w === 'oud' || w === 'woestijn') ? (n < 9 ? {tekst:'GUN TRUCK', vracht:{mg:true, rijdt:true}, lopers:7, max:7} : {tekst:'GUN TRUCK + JEEP', vracht:{mg:true, rijdt:true}, wagens:['jeep_snorkel'], lopers:9, max:8})
            : w === 'loods' ? (n < 10 ? {tekst:'TRUCK + HEAVY GUNNER', wagens:['truck'], zwaar:1, lopers:8, max:8} : {tekst:'SWAT TRUCK + HEAVY GUNNER', wagens:['swat_truck', 'truck'], zwaar:1, vest:1, lopers:10, max:9})
            : w === 'huis' ? (n < 10 ? {tekst:'GUN TRUCKS', vracht:{mg:true, rijdt:true, boss:true, n:2}, lopers:7, max:7} : {tekst:'GUN TRUCK + ARMORED JEEP', vracht:{mg:true, rijdt:true}, wagens:['jeep'], vestLading:true, lopers:9, max:8})
            : w === 'bunker' ? {tekst:'HEAVY GUNNER + SHIELDS', zwaar:1, schild:2, lopers:9, max:8}
@@ -4518,7 +4780,7 @@ AFRAME.registerComponent('zombies', {
     return this._vestG = g; },
   s3dVest(aan, z){                      /* ballistisch vest zoals op de foto's: rondom, schouderstukken, klittenband-paneel, MOLLE-banden, zijsluitingen */
     const T = this.T, E = this.s3dEenheid(), camo = this._vestCamo || (this._vestCamo = {}), web = this._webMat || (this._webMat = new T.MeshLambertMaterial({color:0x2e2f28})), zw = this._gespMat || (this._gespMat = new T.MeshLambertMaterial({color:0x18191a}));
-    const mat = camo[E.camo] || (camo[E.camo] = (() => { const m = this.s3dCamo(E.camo).clone(); m.side = T.DoubleSide; return m; })());
+    const cK = z._kit ? z._kit.naam : E.camo, mat = camo[cK] || (camo[cK] = (() => { const m = this.s3dCamo(cK).clone(); m.side = T.DoubleSide; return m; })());
     const B = this._vestDelen || (this._vestDelen = {plaat:new T.BoxGeometry(0.27, 0.21, 0.022), klit:new T.BoxGeometry(0.22, 0.075, 0.008), molle:new T.BoxGeometry(0.25, 0.011, 0.008),
       schouder:new T.BoxGeometry(0.1, 0.026, 0.2), gesp:new T.BoxGeometry(0.022, 0.05, 0.035), zijband:new T.BoxGeometry(0.012, 0.016, 0.07)});
     const h = aan('spine_02', this.s3dVestGeo(), mat, [0, 0, 0]); if (!h) return null;
@@ -4543,7 +4805,9 @@ AFRAME.registerComponent('zombies', {
     let a = (nr*7919 + 104729) % 233280; const rnd = () => (a = (a*9301 + 49297) % 233280)/233280;
     const n = lv <= 1 ? 1 : lv === 2 ? 2 : lv === 3 ? 2 + (rnd() < 0.5 ? 1 : 0) : 3, camo = (rnd()*5)|0;
     const baret = [0x5a1a1e, 0x2e3a24, 0x1c1c20, 0xa08a5e, 0x1f3d7a], muts = [0x26282a, 0x3b4130, 0x55585a];
-    const typen = ['helm', 'baret', 'pet', 'muts'].sort(() => rnd() - 0.5).slice(0, n);
+    const KL = this.modus === 'lvl' && LEVELS[lv - 1] && LEVELS[lv - 1].kit && SOLDAAT_KITS[LEVELS[lv - 1].kit], KK = KL && !KL.mix ? KL : null;
+    const typen = KK ? KK.koppen.slice().sort(() => rnd() - 0.5).slice(0, Math.max(1, Math.min(KK.koppen.length, n))) : ['helm', 'baret', 'pet', 'muts'].sort(() => rnd() - 0.5).slice(0, n);
+    if (KK){ return this._een = {nr, camo:KK.naam, tel:0, soorten:typen.map(d => ({d, camo:KK.naam, kleur:KK.mutsKl || muts[(rnd()*muts.length)|0]}))}; }
     return this._een = {nr, camo, tel:0, soorten:typen.map(d => ({d, camo, kleur:d === 'baret' ? baret[(rnd()*baret.length)|0] : muts[(rnd()*muts.length)|0]}))}; },
   s3dDeksel(aan, z, k){                 /* helm, muts, baret of pet; gezichten zonder voorhoofd houden hun hoofddeksel altijd op */
     const T = this.T, S = z.s3d, vast = [3, 4, 8, 9, 10, 11, 12, 13, 14, 15, 16].includes(k), E = this.s3dEenheid();
@@ -4551,7 +4815,7 @@ AFRAME.registerComponent('zombies', {
     const st = (S.helm || z.vestHard) ? {d:'helm', camo:E.camo} :   /* helm-, vest- en M60-types: altijd een helm */
        E.soorten[(E.tel++) % E.soorten.length], soort = st.d;   /* eenheid van deze wave: vaste stijlen, om de beurt */
     const kind = (h, g, m, p, rt) => { const o = new T.Mesh(g, m); o.position.set(p[0], p[1], p[2]); if (rt) o.rotation.set(rt[0], rt[1], rt[2]); o.raycast = () => {}; h.add(o); return o; };
-    if (soort === 'helm') return this.s3dHelm(aan, z, st.camo);
+    if (soort === 'helm') return this.s3dHelm(aan, z, z._kit ? z._kit.naam : st.camo);
     if (soort === 'muts') return aan('Head', this.s3dSchaal('muts', [[0, 0.45], [1.0, 0.47], [1.6, 0.53], [Math.PI, 0.57]], 0.122, 0.146, 0.138), (this._mutsMat = this._mutsMat || {})[st.kleur] || (this._mutsMat[st.kleur] = new T.MeshLambertMaterial({color:st.kleur})), [0, 0.17, 0.022]);
     if (soort === 'baret'){
       const kl = st.kleur, M = this._baretMat = this._baretMat || {}, m = M[kl] || (M[kl] = new T.MeshLambertMaterial({color:kl}));
@@ -4589,12 +4853,41 @@ AFRAME.registerComponent('zombies', {
     for (let i=0;i<P.count;i++){ const x = P.getX(i), y = P.getY(i), z = P.getZ(i), p = Math.acos(Math.max(-1, Math.min(1, y))), a = Math.atan2(x, z), q = p/pm*L(a);
       P.setXYZ(i, Math.sin(q)*Math.sin(a)*rx, plat ? Math.min(Math.cos(q)*ry, ry*plat) : Math.cos(q)*ry, Math.sin(q)*Math.cos(a)*rz); }
     g.computeVertexNormals(); return this._schaal[naam] = g; },
+  kitVoor(z){ const L = this.modus === 'lvl' && LEVELS[this.lvlNr - 1], k = L && L.kit; if (!k) return null; const K = SOLDAAT_KITS[k]; if (!K) return null;
+    return K.mix ? SOLDAAT_KITS[K.mix[((z && z.n) || 0) % K.mix.length]] : K; },
   s3dCamo(k){ this._camo = this._camo || {}; if (this._camo[k]) return this._camo[k]; const T = this.T;
-    const PAL = [['#b29d74', '#8b7a55', '#6a5c40', '#cdbd95'], ['#5c6241', '#454b31', '#7b7b54', '#34362a'], ['#6c6a4a', '#3f4a2d', '#2b2a22', '#8a7a55'], ['#7d7f80', '#5b5d5f', '#a2a4a5', '#3c3e40'], ['#2c2d30', '#1d1e20', '#3c3d41', '#151618']][k % 5];
+    const PAL = typeof k === 'string' && SOLDAAT_KITS[k] ? SOLDAAT_KITS[k].camo : [['#b29d74', '#8b7a55', '#6a5c40', '#cdbd95'], ['#5c6241', '#454b31', '#7b7b54', '#34362a'], ['#6c6a4a', '#3f4a2d', '#2b2a22', '#8a7a55'], ['#7d7f80', '#5b5d5f', '#a2a4a5', '#3c3e40'], ['#2c2d30', '#1d1e20', '#3c3d41', '#151618']][k % 5];
     const c = document.createElement('canvas'); c.width = 256; c.height = 128; const x = c.getContext('2d'); x.fillStyle = PAL[0]; x.fillRect(0, 0, 256, 128);
     for (let n=0;n<70;n++){ x.fillStyle = PAL[1 + (n % 3)]; x.beginPath(); const px = Math.random()*256, py = Math.random()*128; x.ellipse(px, py, 6 + Math.random()*16, 4 + Math.random()*9, Math.random()*3, 0, Math.PI*2); x.fill(); }
     for (let n=0;n<900;n++){ x.fillStyle = 'rgba(0,0,0,' + (Math.random()*0.12) + ')'; x.fillRect(Math.random()*256, Math.random()*128, 1, 1); }   /* stofstructuur */
     const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; t.wrapS = T.RepeatWrapping; return this._camo[k] = new T.MeshLambertMaterial({map:t}); },
+  kitPrint(K){                          /* camo-patroon voor het pak: grote vlekken, naadloos */
+    const T = this.T, P = this._kitPrint = this._kitPrint || {}; if (P[K.naam]) return P[K.naam];
+    const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d'); x.fillStyle = K.camo[0]; x.fillRect(0, 0, 256, 256); let s = 7;
+    const r = () => (s = (s*16807) % 2147483647)/2147483647;
+    for (let n=0;n<(K.vlek || 46);n++){ x.fillStyle = K.camo[1 + (n % 3)]; const cx = r()*256, cy = r()*256, rr = 10 + r()*26;
+      for (const ox of [-256, 0, 256]) for (const oy of [-256, 0, 256]){ x.beginPath(); for (let a=0;a<9;a++){ const h = a/9*6.283, q = rr*(0.55 + 0.6*Math.sin(a*2.3 + n)); x.lineTo(cx + ox + Math.cos(h)*q, cy + oy + Math.sin(h)*q*0.75); } x.closePath(); x.fill(); } }
+    const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; t.colorSpace = T.SRGBColorSpace; return P[K.naam] = t; },
+  kitMat(o, K){                          /* het originele pak (details, plooien) × camo-print in de kitkleur */
+    const M = this._kitMat = this._kitMat || {}; if (M[K.naam + o.name]) return M[K.naam + o.name]; const T = this.T;
+    const basis = (this._nmat0[o.name] || Object.values(this._nmat0).find(q => q.map) || Object.values(this._nmat0)[0]), m = basis.clone(); m.color = new T.Color(1, 1, 1);
+    if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); const bb = o.geometry.boundingBox, h = Math.max(1e-3, bb.max.y - bb.min.y, bb.max.z - bb.min.z);
+    const U = {uCamo:{value:this.kitPrint(K)}, uS:{value:1.8/h/0.55}, uK:{value:K.print ?? 0.85}};
+    m.onBeforeCompile = sh => { Object.assign(sh.uniforms, U);
+      sh.vertexShader = 'varying vec3 vKitP;\n' + sh.vertexShader.replace('#include <skinning_vertex>', '#include <skinning_vertex>\n vKitP = position;');
+      sh.fragmentShader = 'uniform sampler2D uCamo; uniform float uS; uniform float uK; varying vec3 vKitP;\n' + sh.fragmentShader.replace('#include <map_fragment>',
+        '#include <map_fragment>\n { vec3 q = vKitP*uS; vec3 cm = texture2D(uCamo, vec2(q.x + q.z*0.6, q.y)).rgb; float l = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)); diffuseColor.rgb = mix(diffuseColor.rgb, cm*(0.45 + l*1.25), uK); }'); };
+    m.customProgramCacheKey = () => 'kit-' + K.naam; m.userData.kit = K.naam; return M[K.naam + o.name] = m; },
+  kitKap(soort, K){                       /* hoes over het hoofd: bivakmuts, sjaal, gasmasker of muts (gaten = doorzichtig: daar zie je het gezicht) */
+    const M = this._kapMat = this._kapMat || {}, key = soort + K.naam; if (M[key]) return M[key]; const T = this.T;
+    const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), Y = v => (1 - v)*128;
+    const stof = K.kapKleur || '#18191b'; x.fillStyle = stof;
+    if (soort === 'bivak'){ x.fillRect(0, 0, 128, 128); x.clearRect(26, Y(0.53), 76, Y(0.38) - Y(0.53)); }
+    else if (soort === 'sjaal'){ x.fillRect(0, 0, 128, Y(0.62)); x.fillRect(0, Y(0.41), 128, 128 - Y(0.41)); x.fillStyle = 'rgba(0,0,0,0.18)'; for (let i=0;i<128;i+=9){ x.fillRect(0, i, 128, 2); x.fillRect(i, 0, 2, 128); } }
+    else if (soort === 'gas'){ x.fillRect(0, Y(0.95), 128, Y(0.83) - Y(0.95)); x.fillStyle = '#2b2d2f'; x.fillRect(18, Y(0.6), 92, Y(0.06) - Y(0.6));
+      x.fillStyle = '#0b0d10'; [44, 84].forEach(cx => { x.beginPath(); x.arc(cx, Y(0.45), 12, 0, 6.283); x.fill(); }); x.fillStyle = '#44474b'; x.fillRect(54, Y(0.24), 20, 18); }
+    else { x.fillRect(0, 0, 128, Y(0.7)); }
+    const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; return M[key] = new T.MeshLambertMaterial({map:t, alphaTest:0.5, transparent:false}); },
   s3dHelm(aan, z, camo){ const T = this.T, zw = this._helmZw || (this._helmZw = new T.MeshLambertMaterial({color:0x1e201c})), bin = this._helmBin || (this._helmBin = new T.MeshLambertMaterial({color:0x24261f, side:T.BackSide}));
     const geo = this.s3dSchaal('helm', [[0, 0.42], [0.6, 0.43], [1.1, 0.53], [1.45, 0.505], [1.85, 0.55], [2.4, 0.61], [Math.PI, 0.62]], 0.124, 0.14, 0.124);
     const h = aan('Head', geo, this.s3dCamo(camo == null ? (z.n || 0) : camo), [0, 0.175, 0.02]); if (!h) return null;
@@ -4621,7 +4914,8 @@ AFRAME.registerComponent('zombies', {
     return this._kopGeo = g; },
   s3dKopMat(i){ this._kopMat = this._kopMat || {}; if (this._kopMat[i]) return this._kopMat[i]; const T = this.T, R = this.el.sceneEl.renderer, t = new T.TextureLoader().load('art/koppen/kop' + i + '.jpg', tx => { try { R && R.initTexture && R.initTexture(tx); } catch(_){} }); t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4;
     return this._kopMat[i] = new T.MeshLambertMaterial({map:t}); },
-  s3dNieuwMat(o, n){                    // kleurvariant per soort (zand, groen, grijsblauw, zwart)
+  s3dNieuwMat(o, n, K){                    // kleurvariant per soort (zand, groen, grijsblauw, zwart); met een levelkit: camo-print
+    if (K && !o.userData.vizier) return this.kitMat(o, K);
     const B = this.s3dBron || {}; this._nmat = this._nmat || {}; const k = (o.userData.vizier ? 'v' : 'l') + n; if (this._nmat[k]) return this._nmat[k];
     const tint = o.userData.vizier ? [0.8, 0.8, 0.8] : ({1:[0.86, 0.84, 0.8], 2:[0.44, 0.5, 0.36], 3:[0.5, 0.56, 0.68], 4:[0.3, 0.31, 0.34], 5:[0.72, 0.6, 0.46], zw:[0.36, 0.42, 0.3], h1:[0.8, 0.74, 0.62], h2:[0.42, 0.48, 0.34], h3:[0.42, 0.46, 0.54], h4:[0.22, 0.23, 0.25], h5:[0.6, 0.5, 0.38]}[n] || [0.8, 0.8, 0.8]);
     const m = (this._nmat0[o.name] || Object.values(this._nmat0).find(q => q.map) || Object.values(this._nmat0)[0]).clone(); m.color = new this.T.Color(tint[0], tint[1], tint[2]); return this._nmat[k] = m; },
@@ -4700,7 +4994,8 @@ AFRAME.registerComponent('zombies', {
     z.grp.traverse(o => { if (o.isMesh){ o.visible = false; o.userData.D = null; } });     // 2D-plaatjes weg (skelet blijft voor de AI)
     m.scale.setScalar(B.schaal); z.grp.add(m); m.updateMatrixWorld(true);
     const kit = this.s3dKit(), kl = this.s3dKleding(z.n); S0.kleding = kl;
-    m.traverse(o => { if (o.isSkinnedMesh) o.material = B.nieuw ? this.s3dNieuwMat(o, z.n) : (kl || (o.userData.joint ? B.naad : (B.stoffen[kit] || B.stof))); });
+    const KIT = z._kit = this.kitVoor(z); if (KIT && (KIT.dun || KIT.breed)){ const f = KIT.dun || KIT.breed; m.scale.x *= f; m.scale.z *= f; }   /* SWAT dunner, zware jongens breder */
+    m.traverse(o => { if (o.isSkinnedMesh) o.material = B.nieuw ? this.s3dNieuwMat(o, z.n, KIT) : (kl || (o.userData.joint ? B.naad : (B.stoffen[kit] || B.stof))); });
     const bot = {}; m.traverse(o => { if (o.isBone) bot[o.name] = o; });
     const S = z.s3d = Object.assign(S0, {m, bot, mixer:new T.AnimationMixer(m), acts:{}, benen:null, boven:null, yaw:0, vorige:z.grp.position.clone(), snel:0, kick:0, helm:!!z.helmSprite || (this.soorten[z.n] && this.soorten[z.n].j.helm != null)});
     const bs = new T.Vector3(); m.getWorldScale(bs); const sch = bs.x || 1;
@@ -4719,6 +5014,8 @@ AFRAME.registerComponent('zombies', {
     const foto = !!S.kleding, eigenHelm = this.soorten[z.n] && this.soorten[z.n].j.helm != null;   // soort 1 en 5 hebben al een helm/pet op de foto
     if (B.nieuw){ const kNr = this._kopNr = ((this._kopNr || 0) % 24) + 1; S.kopMesh = aan('Head', this.s3dKopGeo(), this.s3dKopMat(kNr), [0, 0.075, 0.03]);                                   // eigen hoofd met gezichtsskin
       S.helmMesh = this.s3dDeksel(aan, z, kNr);
+      if (KIT && KIT.kap && S.kopMesh){ const h = ((this._kapN = (this._kapN || 0) + 1)*2654435761 >>> 0) % 100; const kp = h < (KIT.kapKans ?? 70) ? KIT.kap : (KIT.kap2 && h < (KIT.kapKans ?? 70) + 25 ? KIT.kap2 : null);
+        if (kp){ const o = new T.Mesh(this.s3dKopGeo(), this.kitKap(kp, KIT)); o.scale.setScalar(1.04); o.raycast = () => {}; S.kopMesh.add(o); S.kapMesh = o; } }
       if (z.vestHard && !(z.ai && z.ai.soort === 'zwaar')) S.vestMesh = this.s3dVest(aan, z);   // ballistisch vest
       const hr = () => Math.random() - 0.5; S.houding = {voor:0.04 + hr()*0.12, kant:hr()*0.16, kopR:hr()*0.22, kopV:hr()*0.12, breed:0.02 + Math.random()*0.07}; }   // eigen houding
     if (S.helm && !eigenHelm && !B.nieuw){ S.helmMesh = aan('Head', new T.SphereGeometry(0.172, 16, 9, 0, Math.PI*2, 0, Math.PI*0.56), groen, [0, 0.122, -0.022], [-0.24, 0, 0]); S.helmMesh.scale.multiply(new T.Vector3(1, 1.06, 1.1)); }
@@ -5026,7 +5323,7 @@ AFRAME.registerComponent('zombies', {
   s3dWondKlaar(z){ const S = z.s3d, T = this.T; if (!S || !S.knip || !S.knip.length || S.wond) return;
     { const U = {wC:{value:Array.from({length:8}, () => new T.Vector4(0, 0, 0, 0))}, wG:{value:new Array(8).fill(0)}, wN:{value:0}};
       S.wond = {U, lijst:[]};
-      for (const K of S.knip){ const m = K.mesh; if (!m || !m.material || m.material.userData.wond) continue; const mat = m.material.clone(); mat.userData.wond = true;
+      for (const K of S.knip){ const m = K.mesh; if (!m || !m.material || m.material.userData.wond) continue; const vorig = m.material.userData.kit ? m.material.onBeforeCompile : null, kk = m.material.userData.kit || ''; const mat = m.material.clone(); mat.userData.wond = true;
         mat.onBeforeCompile = sh => { Object.assign(sh.uniforms, U);
           sh.vertexShader = 'varying vec3 vRust;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n#ifdef USE_SKINNING\n vRust = (bindMatrix * vec4(position, 1.0)).xyz;\n#else\n vRust = position;\n#endif');
           sh.fragmentShader = 'varying vec3 vRust; uniform vec4 wC[8]; uniform float wG[8]; uniform int wN;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
@@ -5036,8 +5333,8 @@ AFRAME.registerComponent('zombies', {
       bl = max(bl, 1.0 - smoothstep(wC[i].w*0.5, wC[i].w, length(d)*(1.0 + 0.35*n)));
       kern = max(kern, 1.0 - smoothstep(wG[i]*1.05, wG[i]*2.0, length(vRust - wC[i].xyz)*(1.0 + 0.5*n))); }
     diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb*vec3(0.4, 0.05, 0.04) + vec3(0.1, 0.0, 0.0), bl*0.9);
-    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.12, 0.006, 0.005), kern); }`); };
-        mat.customProgramCacheKey = () => 'wond8'; m.material = mat; } }
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.12, 0.006, 0.005), kern); }`); if (vorig) vorig(sh); };
+        mat.customProgramCacheKey = () => 'wond8' + kk; m.material = mat; } }
   },
   s3dBloedVlek(z, c, r){ const S = z.s3d; if (!S) return; this.s3dWondKlaar(z); if (!S.wond) return;
     const W = S.wond; W.lijst.push({c:c.clone(), r0:r, t:0}); if (W.lijst.length > 8) W.lijst.shift(); this.s3dBloedTick(z, 0); },
