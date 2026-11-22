@@ -62,6 +62,7 @@ const KAART = {
     else { const d = n.startsWith('d:'), naam = d ? n.slice(2) : n;
       m = new T.MeshLambertMaterial({map:this.tex(T, naam, {clamp:d, band:naam === 'lambris'}), vertexColors:true, side:T.DoubleSide});
       if (d){ m.polygonOffset = true; m.polygonOffsetFactor = -2; m.polygonOffsetUnits = -2; } }
+    if (n === 'kleur' || (m.map && !n.startsWith('d:'))) kVuil(T, m, n);
     return this.mats[n] = m; },
   alles(T){ Object.keys(KAART_MAAT).forEach(n => this.tex(T, n, {clamp:/^(deur|raam)_/.test(n), band:n === 'lambris'})); this.meubelLaad(T); },
   // meubels: uitgeknipt uit de Kling-vellen, in een paar atlas-pagina's (met alpha voor raak-tests)
@@ -88,7 +89,7 @@ const KAART = {
 /* ---------- de bouwer: vlakken per materiaal verzamelen, licht/AO in de vertexkleur bakken ---------- */
 function KBouw(T){ this.T = T; this.e = {}; this.boxen = []; this.segs = []; this.vl = []; this.deuren = []; this.extra = []; this.binnen = []; this.scheid = []; this.standen = []; this.meubels = []; }
 KBouw.prototype = {
-  em(n){ return this.e[n] || (this.e[n] = {p:[], u:[], c:[], i:[]}); },
+  em(n){ return this.e[n] || (this.e[n] = {p:[], u:[], c:[], i:[], v:[]}); },
   licht(x, y, z){
     for (const r of this.binnen){ if (x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1 && y <= r.h + 0.05){
       let l = r.basis; for (const q of r.lampen){ const d2 = (x-q[0])*(x-q[0]) + (y-q[1])*(y-q[1])*0.6 + (z-q[2])*(z-q[2]); l += q[3]/(1 + d2/(q[4]*q[4])); }
@@ -96,7 +97,7 @@ KBouw.prototype = {
     return 1; },
   kl(x, y, z, ao, tint){ const l = this.licht(x, y, z)*ao, M = this.lichtMul || [1, 1, 1]; return tint ? [l*tint[0]*M[0], l*tint[1]*M[1], l*tint[2]*M[2]] : [l*M[0], l*M[1], l*M[2]]; },   // lichtMul: dag/schemer/nacht
   quad(n, P, U, C){ const e = this.em(n), b = e.p.length/3;
-    for (let k=0;k<4;k++){ e.p.push(P[k][0], P[k][1], P[k][2]); e.u.push(U[k][0], U[k][1]); e.c.push(C[k][0], C[k][1], C[k][2]); }
+    for (let k=0;k<4;k++){ e.p.push(P[k][0], P[k][1], P[k][2]); e.u.push(U[k][0], U[k][1]); e.c.push(C[k][0], C[k][1], C[k][2]); e.v.push(this._vh == null ? 0 : this._vh === 'vloer' ? -1 : 1 + Math.max(0, P[k][1] - this._vh)); }   /* vuil: 0 = alleen vlekken, -1 = vloer, 1+h = muur (h boven de vloer) */
     e.i.push(b, b+1, b+2, b, b+2, b+3); },
   tri(n, P, U, C){ const e = this.em(n), b = e.p.length/3;
     for (let k=0;k<3;k++){ e.p.push(P[k][0], P[k][1], P[k][2]); e.u.push(U[k][0], U[k][1]); e.c.push(C[k][0], C[k][1], C[k][2]); }
@@ -253,7 +254,7 @@ KBouw.prototype = {
     const g = new T.Group(); let tris = 0;
     Object.entries(this.e).forEach(([n, e]) => { if (!e.i.length) return;
       const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.Float32BufferAttribute(e.p, 3)); geo.setAttribute('uv', new T.Float32BufferAttribute(e.u, 2));
-      geo.setAttribute('color', new T.Float32BufferAttribute(e.c, 3)); geo.setIndex(e.i); geo.computeVertexNormals(); geo.computeBoundingSphere();
+      geo.setAttribute('color', new T.Float32BufferAttribute(e.c, 3)); if (e.v.length*3 === e.p.length) geo.setAttribute('vuil', new T.Float32BufferAttribute(e.v, 1)); geo.setIndex(e.i); geo.computeVertexNormals(); geo.computeBoundingSphere();
       const m = new T.Mesh(geo, KAART.mat(T, n)); m.raycast = () => {}; m.userData.kaart = true; g.add(m); tris += e.i.length/3; });
     this.extra.forEach(o => { g.add(o); o.traverse(q => { if (q.isMesh) q.raycast = () => {}; }); });
     const meubels = [];
@@ -360,6 +361,38 @@ function kDichtbij(W){ const MAX = 12.5;
     if (S.plek){ const dp = q => Math.hypot(q.p[0] - S.x, q.p[1] - S.z), pl = S.plek.slice().sort((a, b) => dp(a) - dp(b));
       S.plek = pl.filter((q, i) => dp(q) <= MAX + 1 || i < 4); } });
 }
+
+/* ---------- VUIL: niets is meer egaal — vlekken over grote vlakken, vochtrand onderaan muren, vuile plekken op de vloer, lekstrepen ---------- */
+let K_VUILTEX = null;
+function kVuilTex(T){ if (K_VUILTEX) return K_VUILTEX; const N = 256, c = document.createElement('canvas'); c.width = c.height = N; const x = c.getContext('2d'), im = x.createImageData(N, N);
+  const oct = [[4, 0.5], [8, 0.27], [16, 0.15], [32, 0.08]], R = {}; let s = 7;
+  const rnd = () => (s = (s*16807) % 2147483647)/2147483647;
+  oct.forEach(([f]) => { R[f] = []; for (let i=0;i<f*f;i++) R[f].push(rnd()); });
+  const sm = t => t*t*(3 - 2*t), ruis = (f, u, v) => { const X = u*f, Y = v*f, x0 = Math.floor(X), y0 = Math.floor(Y), fx = sm(X - x0), fy = sm(Y - y0), g = (a, b) => R[f][((b % f + f) % f)*f + ((a % f + f) % f)];
+    return (g(x0, y0)*(1-fx) + g(x0+1, y0)*fx)*(1-fy) + (g(x0, y0+1)*(1-fx) + g(x0+1, y0+1)*fx)*fy; };
+  for (let j=0;j<N;j++) for (let i=0;i<N;i++){ const u = i/N, v = j/N; let a = 0, b = 0, w = 0;
+    oct.forEach(([f, k]) => { a += ruis(f, u, v)*k; w += k; }); a /= w;
+    b = ruis(32, u + 0.37, v*0.13 + 0.5)*0.6 + ruis(16, u + 0.11, v*0.09)*0.4;      // lange verticale strepen (lekken)
+    const k = (j*N + i)*4; im.data[k] = Math.round(a*255); im.data[k+1] = Math.round(b*255); im.data[k+2] = Math.round(ruis(32, u + 0.5, v + 0.5)*255); im.data[k+3] = 255; }
+  x.putImageData(im, 0, 0); const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; t.colorSpace = T.NoColorSpace; return K_VUILTEX = t; }
+function kVuil(T, m, n){ const tex = kVuilTex(T), sterk = /plafond/.test(n) ? 0.35 : /dak/.test(n) ? 0.6 : 1;
+  m.onBeforeCompile = sh => { sh.uniforms.uVuilT = {value:tex}; sh.uniforms.uVuilS = {value:sterk};
+    sh.vertexShader = 'attribute float vuil;\nvarying float vVuil;\nvarying vec3 vVwp;\nvarying vec3 vVn;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n  vVuil = vuil; vVwp = (modelMatrix*vec4(transformed, 1.0)).xyz; vVn = normalize(mat3(modelMatrix)*objectNormal);');
+    sh.fragmentShader = 'uniform sampler2D uVuilT;\nuniform float uVuilS;\nvarying float vVuil;\nvarying vec3 vVwp;\nvarying vec3 vVn;\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+  { bool vlak = abs(vVn.y) > 0.6; vec2 q = vlak ? vVwp.xz : vec2(vVwp.x + vVwp.z, vVwp.y);
+    vec2 rek = vlak ? vec2(1.0) : vec2(1.0, 0.45);   /* op muren: vlekken lopen naar beneden uit */
+    vec4 g = texture2D(uVuilT, q*rek*0.11), f = texture2D(uVuilT, q*0.43 + 0.5), g2 = texture2D(uVuilT, q*rek*0.031 + 0.7);
+    float vlek = smoothstep(0.40, 0.62, g.r*0.65 + g2.r*0.35), kl = mix(0.62, 1.05, vlek)*mix(0.86, 1.06, smoothstep(0.3, 0.7, f.r));
+    vec3 vuilKl = diffuseColor.rgb*vec3(0.80, 0.74, 0.62);
+    diffuseColor.rgb = mix(diffuseColor.rgb, vuilKl, (1.0 - vlek)*0.7*uVuilS)*mix(1.0, kl, uVuilS);
+    if (vVuil > 0.5 && !vlak){ float h = vVuil - 1.0, rand = 0.22 + 0.55*f.r + 0.35*g.b;
+      float r = 1.0 - smoothstep(0.0, rand, h); diffuseColor.rgb *= 1.0 - 0.5*r*uVuilS; diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb*vec3(0.82, 0.76, 0.62), r*0.8);
+      float s = texture2D(uVuilT, vec2(q.x*0.21, q.y*0.018)).g; diffuseColor.rgb *= 1.0 - 0.32*smoothstep(0.5, 0.8, s)*smoothstep(0.6, 2.0, h)*uVuilS; }
+    if (vVuil < -0.5 && vVn.y > 0.6){ float p = smoothstep(0.45, 0.8, texture2D(uVuilT, q*0.09 + 0.23).b); diffuseColor.rgb *= 1.0 - 0.4*p*(0.5 + 0.5*f.r); } }`);
+  }; m.customProgramCacheKey = () => 'vuil1'; }
+{ const P = KBouw.prototype, vV = P.vlakV, vH = P._vlakH;   // welke vlakken krijgen een vochtrand (muren) of vloervlekken
+  P.vlakV = function(n, x0, z0, x1, z1, ya, yb, o){ const oud = this._vh; this._vh = (o && o.decal) ? null : ((o && o.grond) || 0); try { return vV.apply(this, arguments); } finally { this._vh = oud; } };
+  P._vlakH = function(){ const oud = this._vh; this._vh = 'vloer'; try { return vH.apply(this, arguments); } finally { this._vh = oud; } }; }
 
 /* ---------- huizenrij langs een straat: gevels met ramen/deuren, echte deuren en open ramen waar soldaten uit komen ---------- */
 // x0,z0 → x1,z1 = buitenkant gevel van links naar rechts (gezien vanaf de straat), n = naar de straat
@@ -1913,7 +1946,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v139";
+const VERSIE = "v140";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
