@@ -1913,7 +1913,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v138";
+const VERSIE = "v139";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2954,7 +2954,7 @@ AFRAME.registerComponent('zombies', {
     const z = this.maak(n); z.grp.position.copy(pos); this.wortel.object3D.add(z.grp); this.lijst.push(z);
     const j = this.soorten[n].j;
     if (j.helm == null && n !== 5 && !(this.modus === 'lvl' && this.lvlNr === 1) && Math.random() < (W.helm || 0)) this.zetHelm(z);
-    z.vestHard = !!j.vest;     // draagt hij een vest, dan houdt het kleine kalibers tegen
+    z.vestHard = !!j.vest && !(this.modus === 'lvl' && this.lvlNr === 1);     // draagt hij een vest, dan houdt het kleine kalibers tegen (lvl 1: niemand)
     if (opt.schild) this.zetSchild(z); else this.zetGeweer(z);
     z.ai = {soort:opt.soort || 'dekking', staat:'rennen', doel:null, plek:null, zak:0, zakDoel:0, t:0, stil:false, mik:false, schoten:0};
     if (z.loop) { z.loop.tempo *= 1.15; }
