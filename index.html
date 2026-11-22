@@ -1144,7 +1144,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v126";
+const VERSIE = "v127";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -1332,6 +1332,7 @@ AFRAME.registerComponent('stad', {
   deurOpen(d){ if (d) d.doel = Math.max(d.doel, 1.45); },
   deurTick(s){ if (!this.kaartW) return;
     for (const d of this.kaartW.deuren){ if (d.basis == null) d.basis = d.g.rotation.y;
+      const tr = d.trap; if (tr && tr !== true && (tr.dood || !tr.ai || !tr.grp || !tr.grp.parent || tr.ai.deurObj !== d)){ d.trap = true; d.doel = 1.55; }
       if (d.open !== d.doel){ const st = Math.sign(d.doel - d.open)*Math.min(Math.abs(d.doel - d.open), s*(d.doel > d.open ? 5 : 2)); d.open += st; d.g.rotation.y = d.basis + d.open; d.b.uit = d.open > 0.3; } } },
   laad(k){
     if (this.tex[k]) return this.tex[k];
@@ -2266,8 +2267,8 @@ AFRAME.registerComponent('zombies', {
           if (dl > 1.8 && dl < 6.5 && Math.random() < 0.6){ dv.normalize(); if (Math.random() < 0.45){ z.rol = {t:0, dur:0.62}; ai.strafe = {dir:dv, v:dl/0.62, t:0.62, schot:99, kniel:false}; }
             else ai.strafe = {dir:dv, v:Math.min(5.5, dl/0.55), t:dl/Math.min(5.5, dl/0.55), schot:0.18, kniel:false}; break; } }
         if (P.fase === 'schuil'){ ai.stil = !naar(P.schuil, 2.4); ai.mik = false; if (P.laag) ai.zakDoel = 1; if (ai.t <= 0){ P.fase = 'uit'; ai.t = 2; P.nuLaag = !!(P.leun && P.leun.laag && Math.random() < 0.45); P.doelUit = P.leun ? (P.nuLaag ? P.leun.laag : P.leun.hoog) : P.uit;
-            const d = ai.deurObj; if (d && d.trap === z){ d.trap = true; d.doel = 1.55; d.b.uit = true; this.fxStart && this.fxStart('rook', d.g.getWorldPosition(new T.Vector3()).setY(0.4), 0.5, 0.6); this.boem && this.boem(0.18); } } }
-        else if (P.fase === 'uit'){ ai.mik = true; ai.stil = false; if (naar(P.doelUit || P.uit, P.laag ? 9 : (P.leun ? 4.6 : 2.8)) || ai.t <= 0){ P.fase = 'mik'; ai.t = P.mikT = 1.6 + Math.random()*0.7; this.arcadeRing(z, true); } }   /* eerst richten: je hebt tijd om hem neer te halen */
+            const d = ai.deurObj; if (d && d.trap === z){ P.kick = 0.4; d.trap = true; d.doel = 1.55; d.b.uit = true; this.fxStart && this.fxStart('rook', d.g.getWorldPosition(new T.Vector3()).setY(0.4), 0.5, 0.6); this.boem && this.boem(0.18); } } }
+        else if (P.fase === 'uit'){ ai.mik = true; ai.stil = false; if (P.kick > 0){ P.kick -= s; ai.t += s; ai.stil = true; } else if (naar(P.doelUit || P.uit, P.laag ? 9 : (P.leun ? 4.6 : 2.8)) || ai.t <= 0){ P.fase = 'mik'; ai.t = P.mikT = 1.6 + Math.random()*0.7; this.arcadeRing(z, true); } }   /* eerst richten: je hebt tijd om hem neer te halen */
         else if (P.fase === 'mik'){ ai.mik = true; ai.stil = true; naar(P.doelUit || P.uit, 1.5); this.arcadeRing(z, true, 1 - ai.t/P.mikT);
           if (ai.t <= 0){ P.fase = 'vuur'; P.n = 1; ai.t = 0; } }
         else if (P.fase === 'vuur'){ ai.mik = true; ai.stil = true; this.arcadeRing(z, true, 1);
@@ -2842,7 +2843,7 @@ AFRAME.registerComponent('zombies', {
     let post = {schuil:binnen, uit, fase:'schuil'};
     { const naar = buiten.clone().sub(binnen).setY(0).normalize(), tan = new T.Vector3(-naar.z, 0, naar.x), oog = this.el.camera.getWorldPosition(new T.Vector3());   /* naast de deurpost binnen, leunt de opening in */
       for (const k of (Math.random() < 0.5 ? [1, -1] : [-1, 1])){ const S2 = binnen.clone().addScaledVector(naar, 0.55).addScaledVector(tan, k*0.75);
-        if (!this.kaartVrij(S2, 0.22) || !this.kaartSegZ(oog, S2.clone().setY(1.2))) continue; const L = this.leunPlek(S2, tan.clone().multiplyScalar(-k)); if (L && Math.atan2(Math.abs(L.hoog.x), -L.hoog.z) < 0.98){ post = {schuil:S2, uit:L.hoog, fase:'schuil', leun:L}; break; } } }
+        if (!this.kaartVrij(S2, 0.22) || !this.kaartSegZ(oog, S2.clone().setY(1.2)) || !this.bladVrij(this.kaartNu(), binnen, S2, 0.35)) continue; const L = this.leunPlek(S2, tan.clone().multiplyScalar(-k)); if (L && Math.atan2(Math.abs(L.hoog.x), -L.hoog.z) < 0.98 && this.bladVrij(this.kaartNu(), S2, L.hoog, 0.3)){ post = {schuil:S2, uit:L.hoog, fase:'schuil', leun:L}; break; } } }
     if (s.deur && s.deur.g && !s.deur.trap){ const d = s.deur; d.trap = z; d.doel = d.open = 0; d.g.rotation.y = d.basis ?? d.g.rotation.y; d.b.uit = false; }   /* deur dicht: wordt open getrapt */
     z.ai.post = post; z.ai.deurObj = s.deur || null; z.ai.staat = 'arcade'; z.ai.t = 0.4 + Math.random()*1.2; z.dodelijk = Math.random() < 0.3; },
   hoeken(K){                            // gluurplekken: verstopt achter een hoek, met één stap opzij in beeld (eenmalig per stand berekend)
@@ -2851,13 +2852,14 @@ AFRAME.registerComponent('zombies', {
       if (uit.some(q => q.p.distanceTo(p) < 1.7) || !this.kaartVrij(p, 0.42)) continue;   /* niet in of tegen een muur */
       if (!this.kaartSegZ(oog, p.clone().setY(1.5)) || !this.kaartSegZ(oog, p.clone().setY(0.9))) continue;                 // daar zie je hem niet
       const naar = oog.clone().sub(p).setY(0).normalize(), zij = new T.Vector3(-naar.z, 0, naar.x);
-      for (const k of [1, -1]){ const u = p.clone().addScaledVector(zij, k*0.8); if (!this.kaartVrij(u, 0.34)) continue;
+      if (!this.bladVrij(K, p, p, 0.4)) continue;
+      for (const k of [1, -1]){ const u = p.clone().addScaledVector(zij, k*0.8); if (!this.kaartVrij(u, 0.34) || !this.bladVrij(K, p, u, 0.3)) continue;
         if (this.kaartSegZ(p.clone().setY(1.0), u.clone().setY(1.0)) || this.kaartSegZ(p.clone().setY(0.4), u.clone().setY(0.4))) continue;   // vrij om opzij te stappen
         if (this.kaartSegZ(oog, u.clone().setY(1.5)) || this.kaartSegZ(oog, u.clone().setY(1.05))) continue;                                       // daar wel in beeld
         uit.push({p, uit:u, kant:k}); break; } }
     return K._hoeken = uit; },
   leunPlek(S, L){ const T = this.T, oog = this.el.camera.getWorldPosition(new T.Vector3()); oog.y = Math.max(1.35, oog.y);   /* hoe ver moet hij opzij om net met bovenlijf en geweer in beeld te komen? */
-    const zoek = hk => { for (let t = 0.1; t <= 0.85; t += 0.08){ const p = S.clone().addScaledVector(L, t); if (!this.kaartVrij(p, 0.22)) return null;
+    const Kb = this.kaartNu(), zoek = hk => { for (let t = 0.1; t <= 0.85; t += 0.08){ const p = S.clone().addScaledVector(L, t); if (!this.kaartVrij(p, 0.22) || (Kb && !this.bladVrij(Kb, S, p, 0.25))) return null;
         const kop = p.clone().addScaledVector(L, 0.32).setY(hk); if (!this.kaartSegZ(oog, kop)){ const p2 = p.clone().addScaledVector(L, 0.24); return this.kaartVrij(p2, 0.22) ? p2 : p; } } return null; };   /* plus een stukje: schouder en geweer duidelijk in beeld */
     const hoog = zoek(1.45), laag = zoek(1.0); if (!hoog && !laag) return null; return {L:L.clone(), hoog:hoog || laag, laag}; },
   s3dLeun(z){ const T = this.T, S = z.s3d, ai = z.ai, w = ai.leunW, mq = S.m.getWorldQuaternion(new T.Quaternion()), voor = new T.Vector3(0, 0, 1).applyQuaternion(mq), rechts = new T.Vector3(1, 0, 0).applyQuaternion(mq);
@@ -3157,9 +3159,11 @@ AFRAME.registerComponent('zombies', {
   lopersErbij(n){ for (let k=0; k<n; k++) this.wq.push({t:this.wt + 0.4 + k*0.5, f:() => this.loper()}); this.wq.sort((a, b) => a.t - b.t); },   /* geen wagen: dezelfde mannen komen via het script */
   scriptLoper(K){ const S = this.script(K); if (!S.slots.length) return null; const B = this.beat || {}, zone = B.zone || S.volg[0];
     const vrij = sl => !(sl.bezet && !sl.bezet.dood) && !(sl.soort === 'deur' && sl.q.deurBezet && !sl.q.deurBezet.dood) && !(sl.soort === 'hoek' && sl.h.bezet && !sl.h.bezet.dood);
-    let kies = S.slots.filter(sl => sl.zone === zone && vrij(sl)); if (!kies.length) kies = S.slots.filter(vrij); if (!kies.length) return null;
+    const kies = S.slots.filter(vrij); if (!kies.length) return null;
     const her = sl => (sl.bezet && sl.bezet.dood) || (sl.soort === 'deur' && sl.q.deurBezet && sl.q.deurBezet.dood) || (sl.soort === 'hoek' && sl.h.bezet && sl.h.bezet.dood) ? 1 : 0;   /* net iemand neergeschoten op die plek: daar komt de volgende */
-    kies.sort((a, b) => (her(b) - her(a)) || (Math.abs(a.a) - Math.abs(b.a))); const sl = her(kies[0]) ? kies[0] : kies[(B.nIn || 0) % kies.length]; if (this.beat) this.beat.nIn = (this.beat.nIn || 0) + 1;
+    const nu = this.nu || 0, score = sl => (nu - (sl.lastT ?? -99) < 10 ? 2 : 0) + (sl.zone === zone ? 0 : 1);   /* net gebruikt = straf (geen treintje), andere zone = kleine straf */
+    kies.sort((a, b) => score(a) - score(b) || (Math.abs(a.a) - Math.abs(b.a))); const best = kies.filter(s => score(s) === score(kies[0])), sl = best[(B.nIn || 0) % best.length]; if (nu - (sl.lastT ?? -99) < 4.5) return null;   /* alleen nog net-gebruikte posten: even wachten i.p.v. treintje */
+    if (this.beat) this.beat.nIn = (this.beat.nIn || 0) + 1; sl.lastT = nu;
     const opt = {soort:'dekking', soorten:this.wave && this.wave.soorten}; let z = null;
     if (sl.soort === 'raam'){ z = this.raamLoper(); }
     else if (sl.soort === 'deur'){ z = this.spawnOp(sl.q, opt); if (z && z.ai){ z.ai.arcade = true; this.arcadeDeur(z, sl.q); } }
@@ -4159,7 +4163,35 @@ AFRAME.registerComponent('zombies', {
     return {scene:wortel, animations:clips, nieuw:true};
   },
   kaartVrij(p, r){ const K = this.kaartNu(); if (!K || !K.W) return true; const wx = p.x + K.o[0], wz = p.z + K.o[1], y = p.y || 0;   /* staat hier niemand half in een muur? */
-    return !K.W.boxen.some(b => !b.uit && !b.deur && b.max.y - b.min.y > 1.2 && b.max.y > y + 0.3 && b.min.y < y + 1.7 && Math.hypot(Math.max(b.min.x - wx, 0, wx - b.max.x), Math.max(b.min.z - wz, 0, wz - b.max.z)) < r); },
+    return !K.W.boxen.some(b => !b.uit && !b.deur && b.max.y - b.min.y > 1.2 && b.max.y > y + 0.3 && b.min.y < y + 1.7 && Math.hypot(Math.max(b.min.x - wx, 0, wx - b.max.x), Math.max(b.min.z - wz, 0, wz - b.max.z)) < r) && !this.rasterDuw(p.x, y, p.z, Math.min(r, 0.3), this._kvU || (this._kvU = [0, 0])); },
+  rasterDuw(x, y, z, R, uit){              /* dichtstbijzijnde staande muur-driehoek binnen R (op heup- en borsthoogte) → duw horizontaal weg; uit = [dx, dz] */
+    const G = this.zichtRaster(); if (!G) return false; const F = G.F, c0x = Math.floor((x - R - G.x0)/G.C), c1x = Math.floor((x + R - G.x0)/G.C), c0z = Math.floor((z - R - G.z0)/G.C), c1z = Math.floor((z + R - G.z0)/G.C);
+    let s = ++G.s; if (s > 4e9){ G.stamp.fill(0); s = G.s = 1; } let raak = false; uit[0] = 0; uit[1] = 0;
+    for (const h of [y + 0.55, y + 1.25]) for (let cx = c0x; cx <= c1x; cx++) for (let cz = c0z; cz <= c1z; cz++){ if (cx < 0 || cz < 0 || cx >= G.nx || cz >= G.nz) continue; const L = G.cel[cx*G.nz + cz]; if (!L) continue;
+      for (const i of L){ if (h === y + 0.55){ if (G.stamp[i] === s) continue; G.stamp[i] = s; } const o = i*9;
+        const ax = F[o], ay = F[o+1], az = F[o+2], bx = F[o+3], by = F[o+4], bz = F[o+5], cx2 = F[o+6], cy = F[o+7], cz2 = F[o+8];
+        const abx = bx - ax, aby = by - ay, abz = bz - az, acx = cx2 - ax, acy = cy - ay, acz = cz2 - az, nx = aby*acz - abz*acy, ny = abz*acx - abx*acz, nz = abx*acy - aby*acx, nl = Math.hypot(nx, ny, nz); if (nl < 1e-9 || Math.abs(ny)/nl > 0.6) continue;
+        if (Math.max(ay, by, cy) < h - 0.05 || Math.min(ay, by, cy) > h + 0.05) continue;
+        const q = this.dichtstePunt(x, h, z, ax, ay, az, abx, aby, abz, acx, acy, acz), dx = x - q[0], dz = z - q[2], dy = h - q[1], d = Math.hypot(dx, dz);
+        if (Math.abs(dy) > 0.08 || d >= R) continue; raak = true;
+        if (d > 1e-4){ const k = (R - d)/d; if (Math.abs(dx*k) > Math.abs(uit[0])) uit[0] = dx*k; if (Math.abs(dz*k) > Math.abs(uit[1])) uit[1] = dz*k; }
+        else { const hx = nx/nl, hz = nz/nl, hn = Math.hypot(hx, hz) || 1; uit[0] = hx/hn*R; uit[1] = hz/hn*R; } } }
+    return raak; },
+  dichtstePunt(px, py, pz, ax, ay, az, abx, aby, abz, acx, acy, acz){   /* dichtstbijzijnde punt op driehoek (Ericson) */
+    const apx = px - ax, apy = py - ay, apz = pz - az, d1 = abx*apx + aby*apy + abz*apz, d2 = acx*apx + acy*apy + acz*apz; if (d1 <= 0 && d2 <= 0) return [ax, ay, az];
+    const bpx = px - ax - abx, bpy = py - ay - aby, bpz = pz - az - abz, d3 = abx*bpx + aby*bpy + abz*bpz, d4 = acx*bpx + acy*bpy + acz*bpz; if (d3 >= 0 && d4 <= d3) return [ax + abx, ay + aby, az + abz];
+    const vc = d1*d4 - d3*d2; if (vc <= 0 && d1 >= 0 && d3 <= 0){ const v = d1/(d1 - d3); return [ax + abx*v, ay + aby*v, az + abz*v]; }
+    const cpx = px - ax - acx, cpy = py - ay - acy, cpz = pz - az - acz, d5 = abx*cpx + aby*cpy + abz*cpz, d6 = acx*cpx + acy*cpy + acz*cpz; if (d6 >= 0 && d5 <= d6) return [ax + acx, ay + acy, az + acz];
+    const vb = d5*d2 - d1*d6; if (vb <= 0 && d2 >= 0 && d6 <= 0){ const w = d2/(d2 - d6); return [ax + acx*w, ay + acy*w, az + acz*w]; }
+    const va = d3*d6 - d5*d4; if (va <= 0 && (d4 - d3) >= 0 && (d5 - d6) >= 0){ const w = (d4 - d3)/((d4 - d3) + (d5 - d6)); return [ax + abx + (acx - abx)*w, ay + aby + (acy - aby)*w, az + abz + (acz - abz)*w]; }
+    const dn = 1/(va + vb + vc), v = vb*dn, w = vc*dn; return [ax + abx*v + acx*w, ay + aby*v + acy*w, az + abz*v + acz*w]; },
+  bladen(K){ if (!K || !K.W || !K.W.deuren) return []; if (K._bl && K._blT === this.nu) return K._bl; const T = this.T, l = [];   /* open deurbladen: daar loop je niet doorheen */
+    for (const d of K.W.deuren){ if (!d.g || !(d.open > 0.3)) continue; const bl = d.g.children[0], w = bl && bl.geometry && bl.geometry.parameters ? bl.geometry.parameters.width + 0.04 : 1.1, th = d.g.rotation.y;
+      const ax = d.g.position.x - K.o[0], az = d.g.position.z - K.o[1]; l.push([ax, az, ax + Math.cos(th)*w, az - Math.sin(th)*w]); }
+    K._blT = this.nu; return K._bl = l; },
+  bladAfst(x, z, s){ const dx = s[2] - s[0], dz = s[3] - s[1], L = dx*dx + dz*dz || 1, t = Math.max(0, Math.min(1, ((x - s[0])*dx + (z - s[1])*dz)/L)), qx = s[0] + dx*t, qz = s[1] + dz*t; return [Math.hypot(x - qx, z - qz), qx, qz]; },
+  bladVrij(K, a, b, r){ const bl = this.bladen(K); if (!bl.length) return true; const n = Math.max(1, Math.ceil(a.distanceTo(b)/0.1));
+    for (let i = 0; i <= n; i++){ const x = a.x + (b.x - a.x)*i/n, z = a.z + (b.z - a.z)*i/n; for (const s of bl) if (this.bladAfst(x, z, s)[0] < r) return false; } return true; },
   muurDuw(){ const K = this.kaartNu(); if (!K || !K.W) return; if (K._mbx !== K.W.boxen.length){ K._mbx = K.W.boxen.length; K._muren = K.W.boxen.filter(b => !b.uit && !b.deur && b.max.y - b.min.y > 1.2); }
     const R = 0.32;   /* veiligheidsnet: wie (half) in een muur staat, schuift er netjes uit (ook knieën) */
     for (const q of this.lijst){ if (q.dood || !q.ai || q.wagen || q.para || q.sprong || q.rag) continue; const st = q.ai.staat; if (st === 'bak' || st === 'touw' || st === 'zwaar') continue;
@@ -4169,7 +4201,9 @@ AFRAME.registerComponent('zombies', {
         const cx = Math.min(Math.max(wx, b.min.x), b.max.x), cz = Math.min(Math.max(wz, b.min.z), b.max.z), dx = wx - cx, dz = wz - cz, d = Math.hypot(dx, dz);
         if (d >= R) continue;
         if (d > 1e-4){ const k = (R - d)/d; p.x += dx*k; p.z += dz*k; }
-        else { const o = [[b.min.x - R - wx, 0], [b.max.x + R - wx, 0], [0, b.min.z - R - wz], [0, b.max.z + R - wz]].sort((a, c) => Math.abs(a[0] + a[1]) - Math.abs(c[0] + c[1]))[0]; p.x += o[0]; p.z += o[1]; } } } },
+        else { const o = [[b.min.x - R - wx, 0], [b.max.x + R - wx, 0], [0, b.min.z - R - wz], [0, b.max.z + R - wz]].sort((a, c) => Math.abs(a[0] + a[1]) - Math.abs(c[0] + c[1]))[0]; p.x += o[0]; p.z += o[1]; } }
+      if (q.ai.script !== 'raam' && !(q.ai.plek && q.ai.plek.raam) && this.rasterDuw(p.x, y, p.z, 0.26, this._mdU || (this._mdU = [0, 0]))){ p.x += this._mdU[0]; p.z += this._mdU[1]; }
+      for (const s of this.bladen(K)){ const [d, qx, qz] = this.bladAfst(p.x, p.z, s); if (d >= 0.3) continue; if (d > 1e-4){ const k = (0.3 - d)/d; p.x += (p.x - qx)*k; p.z += (p.z - qz)*k; } else { const nx = -(s[3] - s[1]), nz = s[2] - s[0], ln = Math.hypot(nx, nz) || 1; p.x += nx/ln*0.3; p.z += nz/ln*0.3; } } } },
   s3dVestGeo(){ if (this._vestG) return this._vestG; const T = this.T;   /* rondom-vest om de romp (spine_02-ruimte): halsuitsnede, armsgaten, taps naar de schouders */
     const TOP = [[0, 0.255], [0.35, 0.285], [0.75, 0.335], [1.02, 0.33], [1.22, 0.2], [1.57, 0.165], [1.92, 0.2], [2.12, 0.345], [2.55, 0.36], [Math.PI, 0.33]];
     const top = f => { f = Math.abs(f); for (let i=1;i<TOP.length;i++) if (f <= TOP[i][0]){ const u = (f - TOP[i-1][0])/(TOP[i][0] - TOP[i-1][0]), e = u*u*(3 - 2*u); return TOP[i-1][1] + (TOP[i][1] - TOP[i-1][1])*e; } return TOP[TOP.length-1][1]; };
