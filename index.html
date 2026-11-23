@@ -1974,7 +1974,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v166";
+const VERSIE = "v167";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -4887,7 +4887,7 @@ AFRAME.registerComponent('zombies', {
   },
   autoZeg(t, kl){ const A = this.auto; if (!A || (A.tekst === t)) return; A.tekst = t; if (this.autoDiv) this.autoDiv.innerHTML = `<span style="color:#7dff7a">AUTO</span> · <span style="color:${kl || '#fff'}">${t}</span>`; },
   deelMidden(z, deel){                  // midden van het plaatje van een lichaamsdeel (wereld)
-    if (z.s3d){ const B = {hoofd:['Head', 0.1], buik:['spine_02', 0.05], borst:['spine_03', 0.1], bovenbeenL:['thigh_l', 0.2], bovenbeenR:['thigh_r', 0.2], onderbeenR:['calf_l', 0.18], onderbeenL:['calf_r', 0.18], bovenarmL:['upperarm_r', 0.13], bovenarmR:['upperarm_l', 0.13], onderarmL:['lowerarm_r', 0.12], onderarmR:['lowerarm_l', 0.12]}[deel] || ['spine_02', 0];
+    if (z.s3d){ const B = {hoofd:['Head', 0.16], buik:['spine_02', 0.05], borst:['spine_03', 0.1], bovenbeenL:['thigh_l', 0.2], bovenbeenR:['thigh_r', 0.2], onderbeenR:['calf_l', 0.18], onderbeenL:['calf_r', 0.18], bovenarmL:['upperarm_r', 0.13], bovenarmR:['upperarm_l', 0.13], onderarmL:['lowerarm_r', 0.12], onderarmR:['lowerarm_l', 0.12]}[deel] || ['spine_02', 0];
       const b = z.s3d.bot[B[0]]; if (!b || b.userData.los) return null; return b.localToWorld(new this.T.Vector3(0, B[1]/(b.getWorldScale(new this.T.Vector3()).x || 1), 0)); }
     const kn = z.knoop[deel]; if (!kn || kn.userData.los) return null;
     const m = kn.userData.bin && kn.userData.bin.children.find(c => c.isMesh && c.userData.D);
@@ -4941,7 +4941,7 @@ AFRAME.registerComponent('zombies', {
     const t0 = A.voor ? (A.schotT == null ? 1e9 : A.schotT) : 0, ts = t - t0;   /* slow motion telt vanaf het schot */
     const k = t < IN ? glad(t/IN) : ts < SLO ? 1 : glad(Math.max(0, 1 - (ts - SLO)/UIT));
     A.f = A.voor && A.schotT == null ? 0.55 : ts < SLO ? 0.22 : 0.22 + 0.78*Math.min(1, (ts - SLO)/UIT);
-    const b = A.z.s3d && A.z.s3d.bot[A.bot] || A.z.s3d && A.z.s3d.bot.spine_03, doel = b ? b.getWorldPosition(new T.Vector3()) : A.z.grp.position.clone().setY(1.2);
+    const b = A.z.s3d && A.z.s3d.bot[A.bot] || A.z.s3d && A.z.s3d.bot.spine_03, doel = (A.bot === 'Head' && this.deelMidden(A.z, 'hoofd')) || (b ? b.getWorldPosition(new T.Vector3()) : A.z.grp.position.clone().setY(1.2));   /* midden van het gezicht, niet de nek */
     if (A.schotT != null || !A.voor){ if (A.y00 == null) A.y00 = doel.y; doel.y = Math.max(doel.y, A.y00 - 0.5); }   /* volg de val maar niet de grond in */
     A.p = A.p ? A.p.lerp(doel, Math.min(1, dt/1000*(A.voor && A.schotT == null ? 30 : 5))) : doel;
     const o = el.object3D, ik = cam.getWorldPosition(new T.Vector3());
