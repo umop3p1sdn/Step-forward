@@ -1950,7 +1950,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v152";
+const VERSIE = "v153";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -5726,6 +5726,15 @@ AFRAME.registerComponent('zombies', {
       if (o.p && w !== 'explosie' && !o.hoofd){                                         // klap op het lichaamsdeel dat geraakt is (niet altijd de borst)
         let best = null, bd = 9; for (const n of this.RAG_P){ const b = S.bot[n]; if (!b) continue; const d = b.getWorldPosition(new T.Vector3()).distanceTo(o.p); if (d < bd){ bd = d; best = n; } }
         if (best) S.impuls.push([best, weg.clone().multiplyScalar({kanon:3.2, laser:1.8, auto:1.2}[w] || 1.4)]); }
+      if (!blast && w !== 'explosie' && w !== 'kanon' && !o.gezicht){   /* rustig: geen plof-neer, maar wankelen, naar de wond grijpen en langzaam zakken */
+        const hoofd = !!o.hoofd; S.wacht = hoofd ? 0.35 + Math.random()*0.35 : 1.2 + Math.random()*1.1;
+        S.impuls = S.impuls.map(([n, v]) => [n, v.clone().multiplyScalar(hoofd ? 0.55 : 0.3)]);
+        this.s3dStop(S); const a = this.s3dAct(z, Math.random() < 0.5 ? 'Death01' : 'Death02'); if (a){ a.reset(); a.setLoop(T.LoopOnce, 1); a.clampWhenFinished = true; a.timeScale = hoofd ? 0.7 : 0.3 + Math.random()*0.25; a.play(); }
+        if (!hoofd && o.p){ let bn = 'spine_03', bd = 9; ['spine_03', 'spine_02', 'spine_01', 'pelvis', 'thigh_l', 'thigh_r', 'upperarm_l', 'upperarm_r', 'neck_01'].forEach(n => { const b = S.bot[n]; if (!b) return; const d = b.getWorldPosition(new T.Vector3()).distanceTo(o.p); if (d < bd){ bd = d; bn = n; } });
+          const b = S.bot[bn], lok = b.worldToLocal(o.p.clone()), dur = S.wacht + 0.3, sn = 1.1 + Math.random()*0.8;
+          const hand = /_l$/.test(bn) ? 'r' : /_r$/.test(bn) ? 'l' : (Math.random() < 0.5 ? 'l' : 'r');
+          S.grijp = {b, lok, t:dur, duur:dur, hand, doodOk:true, snel:sn};
+          if (/spine|pelvis/.test(bn) && Math.random() < 0.6) S.grijp2 = {b, lok:lok.clone().add(new T.Vector3(0.04, -0.03, 0)), t:dur, duur:dur, hand:hand === 'l' ? 'r' : 'l', doodOk:true, snel:sn*0.8}; } }
     }
     if (S.wacht > 0){ S.wacht -= s; S.mixer.update(s);
       if (S.gezichtT != null){ S.gezichtT += s; const hb = S.bot.Head;
