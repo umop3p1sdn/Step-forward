@@ -1974,7 +1974,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v160";
+const VERSIE = "v161";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2268,6 +2268,7 @@ AFRAME.registerComponent('stad', {
     this.rigY = OOG - hoofd;                                            // (tick zet de rig: + uitkijkplatform)
   },
   tick(t, dt){
+    { const Z = this.el.components.zombies; if (Z && Z.actie) dt *= Z.actie.f; }
     { const rig = document.getElementById('rig'); if (rig && rig.object3D){ if (this.rigY == null) this.rigY = rig.object3D.position.y; rig.object3D.position.y = this.rigY + (this.extraY || 0); } }
     this.deurTick(Math.min(0.05, (dt)/1000));
     const s = Math.min(dt/1000, 0.1);
@@ -4870,7 +4871,7 @@ AFRAME.registerComponent('zombies', {
     if (cam){ cam.removeAttribute('look-controls'); cam.object3D.rotation.order = 'YXZ'; cam.object3D.rotation.set(0, 0, 0); cam.setAttribute('camera', 'fov', 62); }
     const info = document.getElementById('info'); if (info) info.style.display = 'none';
     if (!document.getElementById('autoKruis')){ const k = document.createElement('div'); k.id = 'autoKruis';     // richtkruis: waar de bot mikt
-      k.style.cssText = 'position:fixed;left:50%;top:50%;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;background:#ff3a28;border-radius:50%;z-index:19;pointer-events:none;box-shadow:0 0 0 1px rgba(0,0,0,.6)';
+      k.style.cssText = 'display:none;position:fixed;left:50%;top:50%;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;background:#ff3a28;border-radius:50%;z-index:19;pointer-events:none;box-shadow:0 0 0 1px rgba(0,0,0,.6)';
       document.body.appendChild(k); this.autoKruisEl = k; }
     let d = document.getElementById('autoInfo');
     if (!d){ d = document.createElement('div'); d.id = 'autoInfo';
@@ -4886,6 +4887,29 @@ AFRAME.registerComponent('zombies', {
     const m = kn.userData.bin && kn.userData.bin.children.find(c => c.isMesh && c.userData.D);
     return (m || kn).getWorldPosition(new this.T.Vector3());
   },
+  actieKans(z, o){                      // DEMO: action shot — harde headshot of explosie → inzoomen + slow motion
+    const w = o.wapen, hard = (o.hoofd && (w === 'kanon' || w === 'shotgun')) || w === 'explosie'; if (!hard || this.actie || this.nu < (this.actieKlaar || 0) || Math.random() > 0.55) return;
+    const cam = this.el.camera; if (!cam) return; this.actieKlaar = this.nu + 8;
+    this.actie = {z, t:0, f:1, fov0:cam.fov, bot:o.hoofd ? 'Head' : 'spine_03', p:null, muurV:!!(this.muur && this.muur.m && this.muur.m.visible)}; if (this.muur && this.muur.m) this.muur.m.visible = false;   /* eigen dekking even weg: niets voor de lens */
+    if (this.autoKruisEl) this.autoKruisEl.style.display = 'none'; },
+  actieTick(dt){                        // echte tijd erin, game-tijd eruit
+    const A = this.actie, T = this.T, cam = this.el.camera, el = document.getElementById('cam'); if (!A || !cam || !el){ this.actie = null; return dt; }
+    for (const q of this._zweef || []) q.sp.visible = false;   /* geen punten-tekst voor de lens */
+    A.t += Math.min(0.05, dt/1000); const t = A.t, IN = 0.3, SLO = 2.0, UIT = 0.45, glad = x => x*x*(3 - 2*x);
+    const k = t < IN ? glad(t/IN) : t < SLO ? 1 : glad(Math.max(0, 1 - (t - SLO)/UIT));
+    A.f = t < SLO ? 0.22 : 0.22 + 0.78*Math.min(1, (t - SLO)/UIT);
+    const b = A.z.s3d && A.z.s3d.bot[A.bot] || A.z.s3d && A.z.s3d.bot.spine_03, doel = b ? b.getWorldPosition(new T.Vector3()) : A.z.grp.position.clone().setY(1.2);
+    if (A.y00 == null) A.y00 = doel.y; doel.y = Math.max(doel.y, A.y00 - 0.5);   /* volg de val maar niet de grond in */
+    A.p = A.p ? A.p.lerp(doel, Math.min(1, dt/1000*5)) : doel;
+    const o = el.object3D, ik = cam.getWorldPosition(new T.Vector3());
+    if (A.y0 == null){ A.y0 = o.rotation.y; A.x0 = o.rotation.x; }
+    const lp = o.parent ? o.parent.worldToLocal(A.p.clone()) : A.p.clone(), m = new T.Matrix4().lookAt(o.position, lp, new T.Vector3(0, 1, 0)), e = new T.Euler().setFromRotationMatrix(m, 'YXZ');
+    let dy = e.y - A.y0; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); const kk = Math.min(1, k*1.5);
+    o.rotation.y = A.y0 + dy*kk; o.rotation.x = A.x0 + (e.x - A.x0)*kk;
+    const dist = Math.max(2, ik.distanceTo(A.p)), fovZ = Math.max(11, Math.min(30, 2*Math.atan(0.6/dist)*180/Math.PI));   /* hoofd + schouders vullen het beeld */
+    cam.fov = A.fov0 + (fovZ - A.fov0)*k; cam.updateProjectionMatrix();
+    if (t >= SLO + UIT){ cam.fov = A.fov0; cam.updateProjectionMatrix(); if (this.muur && this.muur.m && A.muurV) this.muur.m.visible = true; for (const q of this._zweef || []) q.sp.visible = !!q.aan; this.actie = null; if (this.auto){ this.auto.doel = null; } return dt; }
+    return dt*A.f; },
   autoZichtP(z, voorkeur){              // eerste lichaamsdeel dat je vanaf hier echt ziet (deurpost, hoek van een muur)
     const st = this.el.components.stad; if (!st || !st.kaartNu()) return this.deelMidden(z, voorkeur || 'borst');
     const ik = this.el.camera.getWorldPosition(new this.T.Vector3()), D = ['hoofd', 'borst', 'buik', 'bovenarmL', 'bovenarmR', 'bovenbeenL', 'bovenbeenR', 'onderarmL', 'onderarmR', 'onderbeenL', 'onderbeenR'];
@@ -4960,7 +4984,7 @@ AFRAME.registerComponent('zombies', {
     return beste;
   },
   autoTick(s){
-    const A = this.auto, T = this.T, cam = document.getElementById('cam'); if (!A || !cam) return;
+    const A = this.auto, T = this.T, cam = document.getElementById('cam'); if (!A || !cam || this.actie) return;
     const o = cam.object3D, ik = this.el.camera.getWorldPosition(new T.Vector3()), nu = this.nu, r = this.el.canvas && this.el.canvas.getBoundingClientRect();
     const midden = r ? {button:0, clientX:r.left + r.width/2, clientY:r.top + r.height/2} : null;
     if (this.overleden === 'continue'){ this.autoZeg('DOWN → SHOOT TO CONTINUE', '#ffd060'); if (midden && this.doodT < CONTINUE_TIJD - 1.5) this.vuur('muis', midden); return; }
@@ -9452,7 +9476,7 @@ AFRAME.registerComponent('zombies', {
   },
   /* ---------- doodgaan: eerst nog doorlopen, dan inzakken (ragdoll-achtig) ---------- */
   omver(z, dir, opt){
-    if (z.ring) z.ring.visible = false; this._killZ = z; this._killOpt = opt || {}; if (!z.dood && z.ai) z.doodNu = this.nu;
+    if (z.ring) z.ring.visible = false; this._killZ = z; this._killOpt = opt || {}; if (this.auto && !z.dood && z.ai && z.s3d) this.actieKans(z, opt || {}); if (!z.dood && z.ai) z.doodNu = this.nu;
     if (!z.dood && z.ai && this.bronWapen) this.kill(this.bronWapen);                // kill telt voor het wapen
     if (!z.dood && z.ai) this.kistDrop(z);
     if (!z.dood && z.ai && this.bronWapen !== 'granaat' && (z.versuft || 0) > this.nu - 0.3) this.kill('granaat');   // en voor je granaat als hij nog versuft was
@@ -9747,7 +9771,7 @@ AFRAME.registerComponent('zombies', {
     } catch(_){}
   },
   /* ---------- elke beurt ---------- */
-  tick(t, dt){ const t0 = performance.now(); try { this.tickEcht(t, dt); } catch(e){ this.fout(e); } if (this.gestart) this.perfTick(dt, performance.now() - t0); },   // vangnet: een fout laat de game nooit vastlopen
+  tick(t, dt){ const t0 = performance.now(); try { if (this.actie) dt = this.actieTick(dt); this.tickEcht(t, dt); } catch(e){ this.fout(e); } if (this.gestart) this.perfTick(dt, performance.now() - t0); },   // vangnet: een fout laat de game nooit vastlopen
   fout(e){
     this.logboek('FOUT ' + String(e && e.stack || e).split('\n').slice(0, 3).join(' | '));
     this.fouten = (this.fouten || 0) + 1; (window.__fouten = window.__fouten || []).push(String(e && e.stack || e));
