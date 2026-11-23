@@ -1974,7 +1974,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v157";
+const VERSIE = "v158";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2704,7 +2704,7 @@ AFRAME.registerComponent('zombies', {
     else { st.body++; if (st.body >= 3 && (st.tier > 1 || st.n > 0)){ if (st.tier > 1) this.comboZet('pistool', 1, 'COMBO LOST'); else { st.n = 0; st.body = 0; } } }
     this.hudVuil = true; },
   COMBO_N: 10,
-  puntReset(alles){ this.pt = {score:0, kills:0, hs:0, reeks:0, besteReeks:0, ket:0, besteKet:0, ketT:0, schade:false}; if (alles) this.totaal = 0; this._ptK = ''; },
+  puntReset(alles){ this.pt = {score:0, kills:0, hs:0, gore:0, reeks:0, besteReeks:0, ket:0, besteKet:0, ketT:0, schade:false}; if (alles) this.totaal = 0; this._ptK = ''; },
   puntKill(w){ if (!this.comboAan() || !this.pt) return; const P = this.pt, nu = this.nu, z = this._killZ, o = this._killOpt || {};
     const hoofd = (this._raakT === nu && (this._raakDeel === 'hoofd' || this._raakDeel === 'nek')) || o.hoofd, expl = this._explT === nu || w === 'granaat';
     P.kills++; P.ket = (P.ket && nu > P.ketT) ? 1 : P.ket + 1; P.ketT = nu + 3; P.besteKet = Math.max(P.besteKet, P.ket);
@@ -2739,7 +2739,7 @@ AFRAME.registerComponent('zombies', {
     x.font = 'bold 30px sans-serif'; x.fillStyle = x2 > 1 ? '#ffd040' : '#6c7580'; x.fillText('x' + x2 + '  ·  chain ' + P.ket, 300, 136);
     x.fillStyle = P.reeks >= 5 ? '#ffd040' : '#9aa3ad'; x.font = 'bold 26px sans-serif'; x.fillText('headshots in a row: ' + P.reeks, 300, 174); Z.tx.needsUpdate = true; },
   eindTelling(lvl){ const P = this.pt; if (!P) return; const T = this.T;   /* eindtelling: regel voor regel optellen, highscore per level */
-    const regels = [['KILLS', P.kills, null], ['HEADSHOTS', P.hs, null], ['SCORE IN LEVEL', P.score, P.score], ['BEST HEADSHOT STREAK  ' + P.besteReeks + ' × 100', P.besteReeks*100, P.besteReeks*100], ['LONGEST CHAIN  ' + P.besteKet + ' × 50', P.besteKet*50, P.besteKet*50], ['NO DAMAGE', P.schade ? 0 : 2000, P.schade ? 0 : 2000]];
+    const regels = [['KILLS', P.kills, null], ['HEADSHOTS', P.hs, null], ['GORE BONUS', P.gore || 0, null], ['SCORE IN LEVEL', P.score, P.score], ['BEST HEADSHOT STREAK  ' + P.besteReeks + ' × 100', P.besteReeks*100, P.besteReeks*100], ['LONGEST CHAIN  ' + P.besteKet + ' × 50', P.besteKet*50, P.besteKet*50], ['NO DAMAGE', P.schade ? 0 : 2000, P.schade ? 0 : 2000]];
     const tot = regels.reduce((a, r) => a + (r[2] || 0), 0); let hs = 0; const sk = 'sf_hs_' + lvl; try { hs = +(localStorage.getItem(sk) || 0); if (tot > hs) localStorage.setItem(sk, String(tot)); } catch(_){}
     this.totaal = (this.totaal || 0) + tot;
     let B = this._talB; if (!B){ const c = document.createElement('canvas'); c.width = 900; c.height = 640; const tx = new T.CanvasTexture(c); tx.colorSpace = T.SRGBColorSpace;
@@ -2750,7 +2750,7 @@ AFRAME.registerComponent('zombies', {
     const k = n + '|' + Math.round(fr*20) + '|' + totNu; if (k === L.k) return; L.k = k; if (n > (L.n || 0) && this.pling) this.pling(0.5); L.n = n;
     const x = B.c.getContext('2d'); x.clearRect(0, 0, 900, 640); x.fillStyle = 'rgba(8,10,12,0.86)'; x.beginPath(); x.roundRect(8, 8, 884, 624, 26); x.fill(); x.lineWidth = 6; x.strokeStyle = '#ffd040'; x.stroke();
     x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = '#ffd040'; x.font = 'bold 54px sans-serif'; x.fillText('LEVEL ' + L.lvl + ' COMPLETE', 450, 64);
-    L.regels.forEach((r, i) => { if (i > n) return; const y = 140 + i*58, v = i < n ? r[1] : Math.round(r[1]*fr); x.font = 'bold 32px sans-serif'; x.textAlign = 'left'; x.fillStyle = '#c9d1d9'; x.fillText(r[0], 60, y);
+    L.regels.forEach((r, i) => { if (i > n) return; const y = 136 + i*51, v = i < n ? r[1] : Math.round(r[1]*fr); x.font = 'bold 32px sans-serif'; x.textAlign = 'left'; x.fillStyle = '#c9d1d9'; x.fillText(r[0], 60, y);
       x.textAlign = 'right'; x.fillStyle = r[2] == null ? '#9aa3ad' : '#ffffff'; x.fillText((r[2] != null && r[0] !== 'SCORE IN LEVEL' ? '+' : '') + v, 840, y); });
     if (L.t > L.regels.length*0.7){ x.fillStyle = '#ffd040'; x.fillRect(60, 488, 780, 3); x.font = 'bold 48px sans-serif'; x.textAlign = 'left'; x.fillText('TOTAL', 60, 532); x.textAlign = 'right'; x.fillText(String(totNu), 840, 532);
       x.font = 'bold 28px sans-serif'; x.fillStyle = L.nieuw ? '#7dff7a' : '#9aa3ad'; x.textAlign = 'center'; x.fillText(L.nieuw ? 'NEW HIGHSCORE!' : 'HIGHSCORE ' + L.hs, 450, 592); }
@@ -4901,7 +4901,7 @@ AFRAME.registerComponent('zombies', {
     if (vest && helm && !z.knieVast) return {p:this.deelMidden(z, Math.random() < 0.5 ? 'bovenbeenL' : 'bovenbeenR'), tekst:'VEST + HELMET → LEGS', kl:'#ffb060', maat:0.08};
     if (vest) return {p:this.deelMidden(z, 'hoofd'), tekst:'VEST → HEAD', kl:'#ffb060', maat:0.07};
     if (z.gewond || z.knieVast) return {p:this.deelMidden(z, 'hoofd'), tekst:'WOUNDED → FINISH', kl:'#ff8080', maat:0.07};
-    if (!z.autoZone){ const r = Math.random(); z.autoZone = r < 0.36 ? 'hoofd' : r < 0.62 ? (Math.random() < 0.5 ? 'buik' : 'borst') : ['bovenbeenL', 'bovenbeenR', 'onderbeenL', 'onderbeenR'][(Math.random()*4)|0]; }   /* afwisseling: headshots, lijf en benen */
+    if (!z.autoZone){ const r = Math.random(); z.autoZone = r < 0.3 ? 'hoofd' : r < 0.55 ? (Math.random() < 0.5 ? 'buik' : 'borst') : ['bovenbeenL', 'bovenbeenR', 'onderbeenL', 'onderbeenR'][(Math.random()*4)|0]; }   /* afwisseling: headshots, lijf en benen */
     const zp = this.deelMidden(z, z.autoZone); if (zp) return {p:zp, tekst:z.autoZone === 'hoofd' ? 'HEADSHOT' : /been/.test(z.autoZone) ? 'LEGS' : 'BODY', kl:z.autoZone === 'hoofd' ? '#ffd040' : '#ffffff', maat:z.autoZone === 'hoofd' ? 0.06 : 0.08};
     return {p:this.deelMidden(z, 'buik') || this.deelMidden(z, 'borst'), tekst:'NO ARMOR → BODY', kl:'#ffffff', maat:0.11};
   },
@@ -4968,7 +4968,9 @@ AFRAME.registerComponent('zombies', {
     // nieuw doel kiezen
     A.keuzeT -= s;
     const dood = d => !d || d.dood || d.kapot || d.weg || d.weggaan || (d.grond && d.g) ;
-    if (A.doel && (dood(A.doel.ding) || (A.doel.soort === 'lucht' && A.doel.ding.grond))) A.doel = null;
+    if (A.doel && A.doel.soort === 'soldaat' && A.doel.ding.dood && A.doel.ding.doodNu != null && A.doel.gore == null && this.comboAan() && (A.doel.gore = Math.random() < 0.6)){ A.doel.ding.autoZone = ['bovenbeenL', 'bovenbeenR', 'borst', 'onderbeenL'][(Math.random()*4)|0]; }   /* overkill */
+    if (A.doel && A.doel.gore && A.doel.ding.dood && this.nu - A.doel.ding.doodNu < 0.9){ A.keuzeT = 0.5; }
+    else if (A.doel && (dood(A.doel.ding) || (A.doel.soort === 'lucht' && A.doel.ding.grond))) A.doel = null;
     if (!A.doel || A.keuzeT <= 0){ const k = this.autoKeuze(); A.keuzeT = 0.35;
       if (k && (!A.doel || k.ding !== A.doel.ding)){ A.doel = k; A.richtT = 0; A.blokT = 0; A.zoneWissel = 0; } else if (!k) A.doel = null; }
     let D = A.doel;
@@ -5011,7 +5013,7 @@ AFRAME.registerComponent('zombies', {
     // kan ik hem zien? (niet in de dekking schieten)
     if (D.soort === 'soldaat' && w !== 'raket'){
       this.straal('muis', midden); const t = this.treffers(true)[0], pr = this.propRaak();
-      if (!t || (pr && pr.d < t.d) || t.z.dood){ A.blokT += s; const z = D.ding, Z = ['hoofd', 'borst', 'buik', 'bovenbeenL', 'bovenbeenR', 'onderbeenL', 'onderbeenR'];
+      if (!t || (pr && pr.d < t.d) || (t.z.dood && !D.gore)){ A.blokT += s; const z = D.ding, Z = ['hoofd', 'borst', 'buik', 'bovenbeenL', 'bovenbeenR', 'onderbeenL', 'onderbeenR'];
         if (A.blokT > (A.zoneWissel || 0)){ z.autoZone = Z[(Z.indexOf(z.autoZone) + 1) % Z.length]; A.zoneWissel = A.blokT + 0.12; }
         if (A.blokT > 0.9){ A.blok.set(D.ding, nu + 1.2); A.doel = null; A.zoneWissel = 0; } return; }
       A.zoneWissel = 0;
@@ -6184,6 +6186,14 @@ AFRAME.registerComponent('zombies', {
     this.spat(p, dir, 16); if (Math.random() < (z.dood ? 0.35 : 0.75)) this.bloedMuur(p, dir, zwaar ? 1.6 : 1);
     // ---- op een lijk blijven schieten: het knippen gaat gewoon door
     if (z.dood){
+      const gore = z.ai && z.doodNu != null && this.nu - z.doodNu < 1.0 && (z.goreN || 0) < 6;   /* gore-venster: 1 sec na de dood */
+      if (gore){ z.goreN = (z.goreN || 0) + 1; const lim = /arm|been|hand|voet/.test(deel), n = lim ? 50 : 25;
+        if (this.pt){ this.pt.gore = (this.pt.gore || 0) + (this.comboAan() ? n : 0); this.puntErbij(n, lim ? 'OVERKILL' : 'GORE', z); }
+        if (lim){ this.s3dDoorknip(z, bn, p, dir, 1.2); this.s3dRagDuw(z, p, dir, 2); return; }
+        if (deel === 'hoofd' || deel === 'nek'){ this.s3dHoofd(z, p, dir, wapen); this.s3dHoofd(z, p, dir, wapen); this.s3dRagDuw(z, p, dir, 2); return; }
+        this.s3dGat(z, bn, p, dir, 0.07, 'vlees'); const uit = p.clone().addScaledVector(dir, 0.28), R = this.s3dNaarRust(z, bn, uit);
+        if (R){ const c = R.p, r2 = 0.012; const eruit = this.s3dWeg(z, (I, t) => { const dx = I.cen[t*3] - c.x, dy = I.cen[t*3+1] - c.y, dz = I.cen[t*3+2] - c.z; return dx*dx + dy*dy + dz*dz < r2; }, [bn]); if (eruit.length) this.s3dStuk(z, eruit, dir, 1.3); this.s3dVlees(z, R.bi, c, 0.1, 'vlees'); }
+        this.s3dBits(p, dir, 6, 0.9); this.spat(uit, dir, 24); this.s3dRagDuw(z, p, dir, 2.5); return; }
       if (deel === 'hoofd' || deel === 'nek') this.s3dHoofd(z, p, dir, wapen);
       else if (/arm|been|hand|voet/.test(deel) && knipt) this.s3dDoorknip(z, bn, p, dir, 1);
       else this.s3dGat(z, bn, p, dir, zwaar ? 0.09 : groteLaser ? 0.08 : laser ? 0.045 : 0.035, groteLaser ? 'door' : laser ? 'gloei' : 'vlees');
@@ -9436,7 +9446,7 @@ AFRAME.registerComponent('zombies', {
   },
   /* ---------- doodgaan: eerst nog doorlopen, dan inzakken (ragdoll-achtig) ---------- */
   omver(z, dir, opt){
-    if (z.ring) z.ring.visible = false; this._killZ = z; this._killOpt = opt || {};
+    if (z.ring) z.ring.visible = false; this._killZ = z; this._killOpt = opt || {}; if (!z.dood && z.ai) z.doodNu = this.nu;
     if (!z.dood && z.ai && this.bronWapen) this.kill(this.bronWapen);                // kill telt voor het wapen
     if (!z.dood && z.ai) this.kistDrop(z);
     if (!z.dood && z.ai && this.bronWapen !== 'granaat' && (z.versuft || 0) > this.nu - 0.3) this.kill('granaat');   // en voor je granaat als hij nog versuft was
