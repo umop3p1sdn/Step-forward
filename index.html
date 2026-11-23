@@ -485,7 +485,12 @@ function kZakken(B, R, cx, cz, langs, L, D, lagen){
 function kProp(B, R, soort, x, z, o){ o = o || {}; const langs = o.as === 'x';
   const box = (n, w, d, y0, y1, extra) => B.doos(n, x - w/2, z - d/2, x + w/2, z + d/2, y0, y1, extra);
   const wd = (w, d) => langs ? [w, d] : [d, w];
-  if (soort === 'auto'){
+  if (soort === 'auto'){   /* echte auto (Scitizia, CC0): wordt na het bouwen geladen; hier alleen plek, botsbox en keuze */
+    const [w, d] = wd(3.95, 1.8); B.box(x - w/2, 0, z - d/2, x + w/2, 1.45, z + d/2);
+    const g = new B.T.Group(); g.position.set(x, 0, z); g.userData.auto = {i:(R()*K_AUTOS.length)|0, langs, om:R() < 0.5, dof:0.5 + R()*0.3, kapot:R() < 0.35, scheef:(R() - 0.5)*0.12};
+    B.extra.push(g); kAutoLaad(B.T, g); return {x, z, w, d, h:1.45};
+  }
+  if (soort === 'autoblok'){
     const kl = kKies(R, [[0.55, 0.12, 0.1], [0.2, 0.28, 0.42], [0.82, 0.8, 0.74], [0.3, 0.33, 0.28], [0.45, 0.32, 0.18]]), [w, d] = wd(4.3, 1.85), rot = R() < 0.4;
     const t = rot ? [0.42, 0.3, 0.22] : kl;
     B.doos(rot ? 'golf_roest' : 'kleur', x - w/2, z - d/2, x + w/2, z + d/2, 0.32, 0.98, {tint:t, f:rot ? 0.9 : 1});
@@ -558,6 +563,25 @@ function kInricht(B, R, o){
     } });
   if (th === 'chic' && (o.x1 - o.x0) > 3 && R() < 0.7){ const k = B.kiesMeubel(R, 'plafond', 'chic'); if (k) B.meubel(R, 'plafond', (o.x0 + o.x1)/2, (o.z0 + o.z1)/2, {item:k, y:(o.y || 0) + H - k.h - 0.05}); }
   return th;
+}
+
+/* ---------- auto's: 12 straatauto's (Scitizia rally fleet 64, kayquer, CC0) — dof en vuil, sommige met kapotte ramen ---------- */
+const K_AUTOS = ['bombom', 'dengo', 'rapadura', 'cocada', 'pudim', 'pirulito', 'brigadeiro', 'jujuba', 'fosforo', 'rastilho', 'lampejo', 'polvora'];
+const K_AUTO_GLB = {};
+function kAutoLaad(T, g){ const A = g.userData.auto, naam = K_AUTOS[A.i];
+  const zet = sc => { const m = sc.clone(true), bb = new T.Box3().setFromObject(m), sz = bb.getSize(new T.Vector3()), c = bb.getCenter(new T.Vector3());
+    const lx = sz.x > sz.z, f = 3.9/Math.max(sz.x, sz.z); m.scale.setScalar(f); m.position.set(-c.x*f, -bb.min.y*f, -c.z*f);
+    const h = new T.Group(); h.add(m); h.rotation.y = (A.langs ? (lx ? 0 : Math.PI/2) : (lx ? Math.PI/2 : 0)) + (A.om ? Math.PI : 0) + A.scheef;
+    m.traverse(o => { if (!o.isMesh) return; o.raycast = () => {};
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      o.material = mats.map(q => { const n = q.name || ''; if (n === 'Vidro' && A.kapot){ const v = q.clone(); v.visible = false; return v; }
+        if (n === 'Sombra') return q; const k = q.clone(); if (k.color) k.color.multiplyScalar(n === 'Carroceria' ? A.dof : (n === 'Banco' || n === 'Forro') ? 0.4 : 0.85); if (n === 'Carroceria' && typeof kVuil === 'function' && k.map) kVuil(T, k, 'auto'); return k; });
+      if (o.material.length === 1) o.material = o.material[0]; });
+    g.add(h); };
+  if (K_AUTO_GLB[naam] && K_AUTO_GLB[naam].sc) return zet(K_AUTO_GLB[naam].sc);
+  const L = K_AUTO_GLB[naam] || (K_AUTO_GLB[naam] = {wacht:[]}); L.wacht.push(zet);
+  if (L.wacht.length > 1) return;
+  new T.GLTFLoader().load('art/autos/' + naam + '.glb', r => { L.sc = r.scene; L.wacht.forEach(f => f(r.scene)); L.wacht = []; }, undefined, () => {});
 }
 
 /* ---------- werelden: per wereld een paar standen waar je doorheen trekt ---------- */
@@ -1950,7 +1974,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v153";
+const VERSIE = "v154";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -6930,9 +6954,9 @@ AFRAME.registerComponent('zombies', {
   isAuto(w){ const t = this.tierVan(w); if (t && this.COMBO[w]) return this.COMBO[w].auto[t - 1] || this.uberNu(w); return w === 'auto' || (AUTO_LV[w] || []).includes(this.lv(w)); },
   maxLv(w){ return (LVL_NAAM[w] || [1, 2, 3, 4]).length; },
   wStat(w){ const L = WAPEN_STAT[w]; if (!L) return null; const t = this.tierVan(w); if (t && this.COMBO[w]) return L[this.COMBO[w].stat[t - 1]]; return L[Math.min(L.length, this.lv(w)) - 1]; },
-  WAPEN_GELUID: {'GLOCK 17':['ppq', 1], 'BERETTA 92FS':['bersa', 0.95], 'SIG SAUER P226':['m1911', 1.06], 'FN FIVE-SEVEN':['bersa', 1.12], 'GLOCK 18':['ppq', 1.04], 'COLT PYTHON':['sw', 0.9], 'DESERT EAGLE':['m1911', 0.8], 'HEAVY REVOLVER':['sw', 0.74],
-    'MP5':['m45', 1.02], 'UMP45':['m45', 0.9], 'P90':['ppsh', 1.1], 'VECTOR':['ppsh', 1.02], 'AK-74':['ak', 1.06], 'M4A1':['ar', 1], 'SCAR-H':['ar', 0.86], 'RPK':['ak', 0.94], 'M249 SAW':['ar', 0.82], 'M240B':['ak', 0.8],
-    'REMINGTON 870':['m12', 1, 'nova'], 'MOSSBERG 500':['moss', 1, 'cd'], 'BENELLI M3':['nova', 1, 'nova'], 'BENELLI M4':['nova', 1.05], 'SAIGA-12':['cd', 1.04], 'SPAS-12':['cd', 0.94, 'cd'], 'AA-12':['cd', 1.08], 'ORIGIN-12':['m12', 0.94]},
+  WAPEN_GELUID: {'GLOCK 17':['ppq', 1], 'BERETTA 92FS':['bersa', 0.95], 'SIG SAUER P226':['m1911', 1.06], 'FN FIVE-SEVEN':['bersa', 1.12], 'GLOCK 18':['bersa', 1.18], 'COLT PYTHON':['sw', 0.9], 'DESERT EAGLE':['m1911', 0.66], 'HEAVY REVOLVER':['sw', 0.74],
+    'MP5':['m45', 1.02], 'UMP45':['m45', 0.9], 'P90':['ppsh', 1.1], 'VECTOR':['ppsh', 1.02], 'AK-74':['ak', 1.06], 'M4A1':['ar', 1], 'SCAR-H':['ak', 0.8], 'RPK':['ak', 0.94], 'M249 SAW':['ar', 0.7], 'M240B':['ak', 0.8],
+    'REMINGTON 870':['m12', 1, 'nova'], 'MOSSBERG 500':['moss', 1, 'cd'], 'BENELLI M3':['nova', 1, 'nova'], 'BENELLI M4':['nova', 1.05], 'SAIGA-12':['cd', 1.04], 'SPAS-12':['moss', 0.84], 'AA-12':['cd', 1.14], 'ORIGIN-12':['m12', 0.94]},
   wapenKnal(w, WS){                     // eigen opname per wapen: 4 takes, nooit twee keer dezelfde achter elkaar, plus een lage dreun voor de punch
     const G = WS && this.WAPEN_GELUID[WS.naam]; if (!G || !this.snd || !this.snd['w_' + G[0] + '_1']) return false;
     let i; do { i = 1 + (Math.random()*4|0); } while (i === this._wLaatst && Math.random() < 0.9); this._wLaatst = i;
@@ -6941,6 +6965,12 @@ AFRAME.registerComponent('zombies', {
     this.geluid((A, n) => { const o = A.createOscillator(), og = A.createGain(), f0 = sg ? 110 : 150 - fp*50; o.frequency.setValueAtTime(f0, n); o.frequency.exponentialRampToValueAtTime(34, n + 0.16);
       og.gain.setValueAtTime(0.25 + fp*(sg ? 0.75 : 0.55), n); og.gain.exponentialRampToValueAtTime(0.001, n + 0.2); o.connect(og).connect(this.uit); o.start(n); o.stop(n + 0.22); });
     if (G[2]) this.sample('d_pomp_' + G[2], 0.75, {t0:0.34, wiebel:0.04});                       /* pomp-actie na het schot */
+    if (WS.naam === 'DESERT EAGLE' || WS.naam === 'M249 SAW' || WS.naam === 'SPAS-12') this.geluid((A, n) => { const de = WS.naam === 'DESERT EAGLE', k = de ? 1 : 0.55;   /* extra klap: bijna een ontploffing */
+      const o = A.createOscillator(), og = A.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(de ? 90 : 120, n); o.frequency.exponentialRampToValueAtTime(24, n + 0.4);
+      og.gain.setValueAtTime(1.7*k, n); og.gain.exponentialRampToValueAtTime(0.001, n + 0.5); o.connect(og).connect(this.uit); o.start(n); o.stop(n + 0.52);
+      this.speel(A, this.ruisBuf(A, de ? 0.7 : 0.3, 2.6), 'lowpass', de ? 520 : 800, 1.1*k); if (de){ this.speel(A, this.ruisBuf(A, 0.9, 2), 'lowpass', 320, 0.5, 0.12); this.speel(A, this.ruisBuf(A, 0.08, 5), 'highpass', 1500, 0.9); } });
+    return true; },
+  wapenKnalOud(){
     return true; },
   herlaadSnd(w){                        // herladen in stappen, verdeeld over de echte herlaadtijd
     const WS = this.wStat(w); if (!this.snd || !this.snd.d_mag_in_ppq || !WS) return false; const T = this.herlaadTijd(w), S = (k, t, v) => this.sample('d_' + k, v || 0.9, {t0:Math.max(0, t), wiebel:0.03});
