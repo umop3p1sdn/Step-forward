@@ -1974,7 +1974,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v159";
+const VERSIE = "v160";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -4870,8 +4870,8 @@ AFRAME.registerComponent('zombies', {
     if (cam){ cam.removeAttribute('look-controls'); cam.object3D.rotation.order = 'YXZ'; cam.object3D.rotation.set(0, 0, 0); cam.setAttribute('camera', 'fov', 62); }
     const info = document.getElementById('info'); if (info) info.style.display = 'none';
     if (!document.getElementById('autoKruis')){ const k = document.createElement('div'); k.id = 'autoKruis';     // richtkruis: waar de bot mikt
-      k.style.cssText = 'position:fixed;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;border:2px solid rgba(255,60,40,.9);border-radius:50%;z-index:19;pointer-events:none;box-shadow:0 0 0 1px rgba(0,0,0,.5)';
-      k.innerHTML = '<div style="position:absolute;left:11px;top:11px;width:4px;height:4px;background:#ff3a28;border-radius:2px"></div>'; document.body.appendChild(k); this.autoKruisEl = k; }
+      k.style.cssText = 'position:fixed;left:50%;top:50%;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;background:#ff3a28;border-radius:50%;z-index:19;pointer-events:none;box-shadow:0 0 0 1px rgba(0,0,0,.6)';
+      document.body.appendChild(k); this.autoKruisEl = k; }
     let d = document.getElementById('autoInfo');
     if (!d){ d = document.createElement('div'); d.id = 'autoInfo';
       d.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:20;padding:8px 14px;border-radius:10px;background:rgba(0,0,0,.62);color:#fff;font:700 17px Trebuchet MS,sans-serif;text-align:center;pointer-events:none;max-width:94vw;white-space:nowrap';
