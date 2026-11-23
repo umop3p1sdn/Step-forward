@@ -1950,7 +1950,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v149";
+const VERSIE = "v150";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -3736,7 +3736,7 @@ AFRAME.registerComponent('zombies', {
   paraLos(z, dood){ const J = z.para; if (!J || !J.kapG || !J.kapG.parent) return; const T = this.T, kg = J.kapG, wp = kg.getWorldPosition(new T.Vector3()), wq = kg.getWorldQuaternion(new T.Quaternion());
     this.sc.add(kg); kg.position.copy(wp); kg.quaternion.copy(wq); (this.losKappen = this.losKappen || []).push({g:kg, t:0, v:new T.Vector3((Math.random() - 0.5)*1.5, dood ? 0.6 : -0.6, (Math.random() - 0.5)*0.5)}); J.kapG = null; },
   paraLosTick(s){
-    (this.paras || []).forEach(z => { if (z.dood && z.para){ this.paraLos(z, true); z.para.dood = true; } });
+    (this.paras || []).forEach(z => { if (z.dood && z.para && !z.s3d){ this.paraLos(z, true); z.para.dood = true; } });   /* 3D-para's: blijven dood aan de parachute hangen (s3dDood) */
     this.paras = (this.paras || []).filter(z => z.para && !z.dood);
     (this.losKappen || []).forEach(k => { k.t += s; k.g.position.addScaledVector(k.v, s); k.g.rotation.z += s*0.5*(k.v.x > 0 ? 1 : -1); k.g.scale.y = Math.max(0.05, 1 - k.t*0.35);
       if (k.g.position.y < 0.1) k.g.position.y = 0.1; if (k.t > 3) k.g.removeFromParent(); });
@@ -5689,6 +5689,12 @@ AFRAME.registerComponent('zombies', {
   },
   s3dDood(z, s){                        // korte reactie (per wapen/raakplek anders), dan ragdoll
     const S = z.s3d, T = this.T, g = z.grp;
+    if (z.para && z.para.kapG){ const J = z.para;   /* dood aan de parachute: slap hangen en verder zakken, pas op de grond valt hij */
+      if (!J.hang){ J.hang = true; J.dood = true; const hb = S.bot.Head; if (hb) hb.rotation.x += 0.55; ['upperarm_l', 'upperarm_r'].forEach(n => { const b = S.bot[n]; if (b) b.rotation.z *= 0.3; }); }
+      J.t += s; g.position.x += Math.sin(J.t*0.9)*0.2*s; J.y += J.v.y*s; g.position.y = Math.max(0, J.y);
+      J.kapG.rotation.z = Math.sin(J.t*1.3)*0.14; S.m.rotation.z = Math.sin(J.t*1.3 + 0.6)*0.12;
+      if (J.y > 0){ if (z.ai) z.ai.y0 = J.y; return; }
+      this.paraLos(z, true); z.para = null; g.position.y = 0; if (z.ai) z.ai.y0 = 0; S.m.rotation.z = 0; }
     if (!S.valt){ S.valt = true; const o = S.doodOpt || {}, w = o.wapen, ik = this.el.camera.getWorldPosition(new T.Vector3());
       g.rotation.set(0, g.rotation.y, 0); S.m.rotation.z = 0;
       const weg = g.position.clone().sub(ik).setY(0).normalize(), r = Math.random();
@@ -6930,7 +6936,7 @@ AFRAME.registerComponent('zombies', {
     if (S) return 0.6*Math.pow(0.975, S.fr);                           // revolver 0,36 s ... Vector 0,05 s
     return WAPENS[w].wacht; },
   kill(w){
-    if (this.comboAan() && this.combo && !this.COMBO[w]) this.comboVerleng();   /* granaat, ton, enz.: houdt de combo-timer vol */
+    if (this.comboAan() && this.combo && !this.COMBO[w]) this.comboKill(this.wapen[this.gunHand] || 'pistool');   /* granaat e.d.: telt voor het wapen in je hand */
     if (this.onwLijst && this.onwLijst.length) this.alarm();
     if (!this.kills || !(w in this.kills)) return;
     this.kills[w]++; this.hudVuil = true; this.paneelVuil = true; if (w === 'granaat' && this.granHud) this.granHud();
