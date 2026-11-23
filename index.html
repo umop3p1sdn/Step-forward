@@ -1974,7 +1974,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v156";
+const VERSIE = "v157";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -4901,12 +4901,14 @@ AFRAME.registerComponent('zombies', {
     if (vest && helm && !z.knieVast) return {p:this.deelMidden(z, Math.random() < 0.5 ? 'bovenbeenL' : 'bovenbeenR'), tekst:'VEST + HELMET → LEGS', kl:'#ffb060', maat:0.08};
     if (vest) return {p:this.deelMidden(z, 'hoofd'), tekst:'VEST → HEAD', kl:'#ffb060', maat:0.07};
     if (z.gewond || z.knieVast) return {p:this.deelMidden(z, 'hoofd'), tekst:'WOUNDED → FINISH', kl:'#ff8080', maat:0.07};
+    if (!z.autoZone){ const r = Math.random(); z.autoZone = r < 0.36 ? 'hoofd' : r < 0.62 ? (Math.random() < 0.5 ? 'buik' : 'borst') : ['bovenbeenL', 'bovenbeenR', 'onderbeenL', 'onderbeenR'][(Math.random()*4)|0]; }   /* afwisseling: headshots, lijf en benen */
+    const zp = this.deelMidden(z, z.autoZone); if (zp) return {p:zp, tekst:z.autoZone === 'hoofd' ? 'HEADSHOT' : /been/.test(z.autoZone) ? 'LEGS' : 'BODY', kl:z.autoZone === 'hoofd' ? '#ffd040' : '#ffffff', maat:z.autoZone === 'hoofd' ? 0.06 : 0.08};
     return {p:this.deelMidden(z, 'buik') || this.deelMidden(z, 'borst'), tekst:'NO ARMOR → BODY', kl:'#ffffff', maat:0.11};
   },
   autoKeuze(){                          // wat is nu het belangrijkst?
     const T = this.T, A = this.auto, ik = this.el.camera.getWorldPosition(new T.Vector3()), a = this.ammo || {}, nu = this.nu;
     const vrij = d => !(A.blok.get(d) > nu);
-    const raket = this.upg.raket && (a.raket >= 1 || this.oneindigNu()), granaat = !this.upg.raket && (a.raket >= 1 || this.oneindigNu());
+    const oud = !this.comboAan(), raket = oud && this.upg.raket && (a.raket >= 1 || this.oneindigNu()), granaat = oud && !this.upg.raket && (a.raket >= 1 || this.oneindigNu());   /* v157: geen oude raketwerper meer in levels */
     // 1. dreiging in de lucht: granaten en raketten van de vijand
     for (const gr of this.vGranaten || []) if (!gr.grond && !gr.weg && gr.g.position.distanceTo(ik) < 22 && vrij(gr))
       return {soort:'lucht', ding:gr, p:() => gr.g.position.clone().addScaledVector(gr.v || new T.Vector3(), 0.03), w:'pistool', tekst:'GRENADE IN THE AIR → SHOOT IT', kl:'#ffd060', maat:0.2};
@@ -4919,7 +4921,7 @@ AFRAME.registerComponent('zombies', {
       return {soort:'ding', ding:h, p:() => (h.romp || h.g).getWorldPosition(new T.Vector3()), w:raket ? 'raket' : this.lv('laser') >= 2 ? 'laser' : 'auto',
               tekst:raket ? 'CHOPPER → ROCKET' : 'CHOPPER → NO ROCKETS: ' + (this.lv('laser') >= 2 ? 'LASER' : 'AUTOMATIC'), kl:'#ff9040', maat:1.2, lood:raket}; }
     const tanks = (this.tanks || []).filter(t => !t.kapot && vrij(t));
-    if (tanks.length && (raket || granaat || this.lv('laser') >= 1)){ const t = tanks[0];
+    if (tanks.length && (raket || granaat || (oud && this.lv('laser') >= 1))){ const t = tanks[0];
       return {soort:'ding', ding:t, p:() => t.g.position.clone().add(new T.Vector3(0, 1.1, 0)), w:(raket || granaat) ? 'raket' : 'laser',
               tekst:'TANK → BULLETS BOUNCE OFF: ' + (raket ? 'ROCKET' : granaat ? 'GRENADE' : 'LASER'), kl:'#ff9040', maat:1.5, boog:!raket && granaat}; }
     const wagens = (this.wagens || []).filter(w => !w.kapot && !w.weg && !w.cross && !w.vertrek && (w.lading > 0 || w.bak) && vrij(w) && w.g.position.z < -3);
@@ -4968,11 +4970,14 @@ AFRAME.registerComponent('zombies', {
     const dood = d => !d || d.dood || d.kapot || d.weg || d.weggaan || (d.grond && d.g) ;
     if (A.doel && (dood(A.doel.ding) || (A.doel.soort === 'lucht' && A.doel.ding.grond))) A.doel = null;
     if (!A.doel || A.keuzeT <= 0){ const k = this.autoKeuze(); A.keuzeT = 0.35;
-      if (k && (!A.doel || k.ding !== A.doel.ding)){ A.doel = k; A.richtT = 0; A.blokT = 0; } else if (!k) A.doel = null; }
+      if (k && (!A.doel || k.ding !== A.doel.ding)){ A.doel = k; A.richtT = 0; A.blokT = 0; A.zoneWissel = 0; } else if (!k) A.doel = null; }
     let D = A.doel;
     if (!D){ this.autoZeg('SCANNING…', '#a0a0a0'); const y = Math.sin(nu*0.4)*0.35; o.rotation.y += (y - o.rotation.y)*Math.min(1, s*2); o.rotation.x += (-0.05 - o.rotation.x)*Math.min(1, s*2); return; }
     // wapen: wissel in plaats van herladen (wat in de holster zit laadt zichzelf)
     let w = D.w, waarom = '';
+    if (this.comboAan && this.comboAan() && D.soort === 'soldaat'){ const vrij = ['pistool', 'shotgun', 'auto'].filter(x => this.wapenVrij(x));   /* alleen wat vrij is; zo nu en dan wisselen voor mooie combo's */
+      if (!A.wapenKeus || !vrij.includes(A.wapenKeus) || nu > (A.wapenT || 0)){ A.wapenKeus = vrij[(Math.random()*vrij.length)|0]; A.wapenT = nu + 6 + Math.random()*8; }
+      w = A.wapenKeus; if (!this.heeftAmmo(w)){ const ander = vrij.find(x => x !== w && this.heeftAmmo(x)); if (ander){ w = A.wapenKeus = ander; waarom = 'EMPTY → SWITCH (RELOADS IN THE HOLSTER)'; } } }
     if (D.vast === 'groepLaser') waarom = 'GROUP → LASER: LIGHTNING JUMPS OVER';
     if (w === 'pistool' && !this.heeftAmmo('pistool')){ w = 'auto'; waarom = 'PISTOL EMPTY → SWITCH (IT RELOADS IN THE HOLSTER)'; }
     if (w === 'auto' && !this.heeftAmmo('auto')){ w = this.heeftAmmo('pistool') ? 'pistool' : 'laser'; waarom = 'AUTOMATIC EMPTY → SWITCH'; }
@@ -4994,17 +4999,22 @@ AFRAME.registerComponent('zombies', {
     const yaw = Math.atan2(-dir.x, -dir.z); let pitch = Math.atan2(dir.y, hor);
     if (D.boog) pitch = this.autoBoog(p);
     let dy = yaw - o.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
-    const draai = Math.min(1, s*9);
+    const draai = Math.min(1, s*14);
     o.rotation.y += dy*draai; o.rotation.x += (pitch - o.rotation.x)*draai;
     o.updateMatrixWorld(true);
     this.autoZeg(tekst, kl);
     const fout = Math.hypot(dy, pitch - o.rotation.x)*Math.max(1, dir.length());
     A.wisselT -= s; A.richtT += s;
+    A.st = A.st || {mik:0, blok:0, ok:0, scan:0}; A.st[A.wisselT > 0 || fout > Math.max(0.05, maat*0.6) ? 'mik' : 'ok']++;
+    A.dbg = {fout:+fout.toFixed(3), maat, wissel:+A.wisselT.toFixed(2), blokT:+(A.blokT||0).toFixed(2)};
     if (A.wisselT > 0 || fout > Math.max(0.05, maat*0.6) || !midden) return;
     // kan ik hem zien? (niet in de dekking schieten)
     if (D.soort === 'soldaat' && w !== 'raket'){
       this.straal('muis', midden); const t = this.treffers(true)[0], pr = this.propRaak();
-      if (!t || (pr && pr.d < t.d) || t.z.dood){ A.blokT += s; if (A.blokT > 0.5){ A.blok.set(D.ding, nu + 1.5); A.doel = null; } return; }
+      if (!t || (pr && pr.d < t.d) || t.z.dood){ A.blokT += s; const z = D.ding, Z = ['hoofd', 'borst', 'buik', 'bovenbeenL', 'bovenbeenR', 'onderbeenL', 'onderbeenR'];
+        if (A.blokT > (A.zoneWissel || 0)){ z.autoZone = Z[(Z.indexOf(z.autoZone) + 1) % Z.length]; A.zoneWissel = A.blokT + 0.12; }
+        if (A.blokT > 0.9){ A.blok.set(D.ding, nu + 1.2); A.doel = null; A.zoneWissel = 0; } return; }
+      A.zoneWissel = 0;
       A.blokT = 0; }
     if ((w === 'raket' || D.boog) && A.schotT > nu) return;
     this.vuur('muis', midden);
@@ -5801,7 +5811,8 @@ AFRAME.registerComponent('zombies', {
       if (o.p && w !== 'explosie' && !o.hoofd){                                         // klap op het lichaamsdeel dat geraakt is (niet altijd de borst)
         let best = null, bd = 9; for (const n of this.RAG_P){ const b = S.bot[n]; if (!b) continue; const d = b.getWorldPosition(new T.Vector3()).distanceTo(o.p); if (d < bd){ bd = d; best = n; } }
         if (best) S.impuls.push([best, weg.clone().multiplyScalar({kanon:3.2, laser:1.8, auto:1.2}[w] || 1.4)]); }
-      if (!blast && w !== 'explosie' && w !== 'kanon' && !o.gezicht){   /* rustig: geen plof-neer, maar wankelen, naar de wond grijpen en langzaam zakken */
+      const knie = Math.random() < (o.hoofd ? 0.5 : 0.3); if (!blast && w !== 'explosie' && w !== 'kanon' && !o.gezicht && !knie) S.impuls = S.impuls.map(([n, v]) => [n, v.clone().multiplyScalar(0.55)]);   /* gewoon omvallen, niet te wild */
+      if (!blast && w !== 'explosie' && w !== 'kanon' && !o.gezicht && knie){   /* rustig: geen plof-neer, maar wankelen, naar de wond grijpen en langzaam zakken */
         const hoofd = !!o.hoofd; S.wacht = hoofd ? 0.35 + Math.random()*0.35 : 1.2 + Math.random()*1.1;
         S.impuls = S.impuls.map(([n, v]) => [n, v.clone().multiplyScalar(hoofd ? 0.55 : 0.3)]);
         this.s3dStop(S); const a = this.s3dAct(z, Math.random() < 0.5 ? 'Death01' : 'Death02'); if (a){ a.reset(); a.setLoop(T.LoopOnce, 1); a.clampWhenFinished = true; a.timeScale = hoofd ? 0.7 : 0.3 + Math.random()*0.25; a.play(); }
@@ -6616,14 +6627,14 @@ AFRAME.registerComponent('zombies', {
     x.textAlign = 'center'; x.textBaseline = 'middle';
     x.font = '900 70px Trebuchet MS, sans-serif'; x.fillStyle = '#7dff7a'; x.fillText(L ? `LEVEL ${L} COMPLETE` : `WAVE ${this.waveNr} CLEARED`, W/2, 64);
     x.font = '600 30px Trebuchet MS, sans-serif'; x.fillStyle = '#cfe0d4'; x.fillText(L ? `next: LEVEL ${this.lvlNr} · ${LEVELS[this.lvlNr - 1] ? LEVELS[this.lvlNr - 1].naam : ''}` : `next: WAVE ${Math.min(10, (this.waveNr || 0) + 1)} of 10 · HP ${Math.ceil(this.speler.hp)}`, W/2, 118);
-    const nv = this.nieuwVrij || []; let y = 180;
-    x.font = '800 34px Trebuchet MS, sans-serif'; x.fillStyle = '#ffd24a'; x.fillText(nv.length ? 'UNLOCKED' : 'NO NEW UNLOCKS', W/2, y); y += 50;
-    nv.slice(0, 4).forEach(q => { x.font = '800 36px Trebuchet MS, sans-serif'; x.fillStyle = q.kl === '#ffffff' ? '#e8f2ea' : q.kl; x.fillText(q.t, W/2, y); y += 46; });
-    y = Math.max(y + 10, 330); x.font = '700 26px Trebuchet MS, sans-serif'; x.textAlign = 'left';
-    [['pistool', 'PISTOL'], ['auto', 'MACHINE GUN'], ['shotgun', 'SHOTGUN'], ['granaat', 'GRENADE']].forEach(([w, nm]) => { const l = this.lv(w), mx = this.maxLv(w), k = this.kills[w] || 0, nd = WAPEN_LVL[w] && WAPEN_LVL[w][l - 1];
-      const kl = WAPENS[w] ? (WAPENS[w].kleur === '#ffffff' ? '#e8f2ea' : WAPENS[w].kleur) : '#a8d060'; x.fillStyle = '#9aa4ac'; x.fillText(nm, 90, y); x.fillStyle = kl; x.fillText(LVL_NAAM[w] ? LVL_NAAM[w][l - 1] : '', 290, y);
-      const f = l >= mx ? 1 : Math.min(1, k/(nd || 1)); x.fillStyle = '#2a3036'; x.fillRect(620, y - 11, 230, 22); x.fillStyle = kl; x.fillRect(620, y - 11, 230*f, 22);
-      x.fillStyle = '#e8f2ea'; x.textAlign = 'right'; x.fillText(l >= mx ? 'MAX' : `${k}/${nd}`, 940, y); x.textAlign = 'left'; y += 40; });
+    const nv = (this.nieuwVrij || []).filter(q => !q.upg); let y = 175;   /* v157: geen upgrade-balken meer; wel wat je vrijspeelde + je uitrusting */
+    if (nv.length){ x.font = '800 34px Trebuchet MS, sans-serif'; x.fillStyle = '#ffd24a'; x.fillText('UNLOCKED', W/2, y); y += 50;
+      nv.slice(0, 4).forEach(q => { x.font = '800 34px Trebuchet MS, sans-serif'; x.fillStyle = q.kl === '#ffffff' ? '#e8f2ea' : q.kl; x.fillText(q.t, W/2, y); y += 44; }); y += 14; }
+    if (this.modus === 'lvl'){ this.vrijLaad(); const V = this.vrij || {}, C = this.COMBO, naam = w => this.wapenVrij(w) ? C[w].naam[Math.max(0, this.basisTier(w) - 1)] : 'LOCKED';
+      x.font = '800 30px Trebuchet MS, sans-serif'; x.fillStyle = '#9fd0ff'; x.fillText('YOUR GEAR', W/2, y); y += 46;
+      [['HANDGUN', naam('pistool')], ['SHOTGUN', naam('shotgun')], ['AUTOMATIC', naam('auto')], ['BODY ARMOR', VEST_LV[V.vest || 0].naam], ['HELMET', HELM_LV[V.helm || 0].naam]].forEach(([k, v]) => {
+        x.font = '700 28px Trebuchet MS, sans-serif'; x.textAlign = 'left'; x.fillStyle = '#9aa4ac'; x.fillText(k, 200, y); x.textAlign = 'right'; x.fillStyle = /^(LOCKED|NO )/.test(v) ? '#5a646c' : '#e8f2ea'; x.fillText(v, 824, y); y += 40; });
+      x.textAlign = 'center'; }
     x.textAlign = 'center'; x.font = '900 46px Trebuchet MS, sans-serif'; x.fillStyle = '#ffffff'; x.fillText('PULL TRIGGER TO CONTINUE', W/2, H - 52);
     this.wachtT.needsUpdate = true; this.wachtSinds = this.nu; this.pling && this.pling(0); },
   wachtWeg(){ this.wachtKnop = false; if (this.wachtB) this.wachtB.removeFromParent(); },
@@ -7053,8 +7064,8 @@ AFRAME.registerComponent('zombies', {
   },
   levelUp(w){
     this.lvl[w]++; this.syncUpg();
-    (this.nieuwVrij = this.nieuwVrij || []).push({t:(WAPENS[w] ? WAPENS[w].naam : w.toUpperCase()) + ': ' + (LVL_NAAM[w] ? LVL_NAAM[w][this.lvl[w] - 1] : 'LV ' + this.lvl[w]), kl:WAPENS[w] ? WAPENS[w].kleur : '#ffd24a'});
-    if (this.modus === 'lvl' && w in {pistool:1, auto:1, shotgun:1, granaat:1}){ this.vrijLaad(); if (this.lvl[w] > (this.vrij[w] || 1)){ this.vrij[w] = this.lvl[w]; this.kit[w] = this.lvl[w]; this.vrijBewaar(); } }   // blijft vrij voor je loadout
+    (this.nieuwVrij = this.nieuwVrij || []).push({upg:true, t:(WAPENS[w] ? WAPENS[w].naam : w.toUpperCase()) + ': ' + (LVL_NAAM[w] ? LVL_NAAM[w][this.lvl[w] - 1] : 'LV ' + this.lvl[w]), kl:WAPENS[w] ? WAPENS[w].kleur : '#ffd24a'});
+    if (this.modus === 'lvl' && w in {pistool:1, auto:1, shotgun:1, granaat:1}){ this.vrijLaad(); if (this.lvl[w] > (this.vrij[w] || 1)){ this.vrij[w] = this.lvl[w]; this.kit[w] = this.lvl[w]; if (!this.auto) this.vrijBewaar(); } }   // blijft vrij voor je loadout
     if (w === 'granaat' && this.gran){ this.gran.sel = this.lv('granaat') - 1; this.gran.n = Math.max(this.gran.n, GRAN_MAX); this.granHud && this.granHud(); }   // nieuwe granaat: vervangt de vorige, voorraad vol
     if (this.ammo && w !== 'raket') this.ammo[w] = this.clip(w);                  // nieuw level: vol
     if (w === 'raket' && this.ammo) this.ammo.raket += 2;
@@ -7552,9 +7563,9 @@ AFRAME.registerComponent('zombies', {
         tekst(x, `${naam}: ${aan ? 'ON' : 'OFF'}`, h*0.52, 40, '#ffffff'); });
       k.position.set(x0, y0 ?? 0.56, -2.6); k.userData.optie = o; g.add(k); this.menuKnop[o] = k;
     });
-    if (false){ const k = bord(1.0, 0.36, (x, w, h) => { x.fillStyle = 'rgba(90,30,120,0.88)'; x.fillRect(0, 0, w, h); x.strokeStyle = '#e0b0ff'; x.lineWidth = 9; x.strokeRect(5, 5, w-10, h-10);
-        tekst(x, 'AUTO', h*0.4, 80, '#ffffff'); tekst(x, 'watch the game play itself', h*0.8, 28, '#f0d8ff'); });
-      k.position.set(0, 2.62, -2.6); k.userData.modus = 'auto'; g.add(k); this.menuKnop.auto = k; }
+    if (true){ const k = bord(1.0, 0.36, (x, w, h) => { x.fillStyle = 'rgba(90,30,120,0.88)'; x.fillRect(0, 0, w, h); x.strokeStyle = '#e0b0ff'; x.lineWidth = 9; x.strokeRect(5, 5, w-10, h-10);
+        tekst(x, 'WATCH DEMO', h*0.4, 70, '#ffffff'); tekst(x, 'the game plays itself', h*0.8, 28, '#f0d8ff'); });
+      k.scale.setScalar(0.7); k.rotation.y = -0.35; k.position.set(1.75, 1.55, -2.35); k.userData.modus = 'auto'; g.add(k); this.menuKnop.auto = k; }
     { const G = new T.Group(); G.position.set(0, 0.065, -2.6); G.scale.setScalar(0.85); g.add(G);           /* GAMES: in het midden */
       const kop = bord(1.5, 0.3, (x, w, h) => { tekst(x, 'GAMES', h*0.45, 64, '#7dff7a'); tekst(x, 'each game keeps its own upgrades', h*0.85, 22, '#e8f2ea'); }); kop.position.set(0, 2.45, 0); kop.visible = false;
       [1, 2, 3].forEach((n, i) => { const inf = this.slotInfo(n), aan = this.menuGame === n;
