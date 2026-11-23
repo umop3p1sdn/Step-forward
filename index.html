@@ -1950,7 +1950,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v151";
+const VERSIE = "v152";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -5327,7 +5327,7 @@ AFRAME.registerComponent('zombies', {
       sh.vertexShader = 'varying vec3 vKitP;\n' + sh.vertexShader.replace('#include <skinning_vertex>', '#include <skinning_vertex>\n vKitP = position;');
       sh.fragmentShader = 'uniform sampler2D uCamo; uniform float uS; uniform float uK; varying vec3 vKitP;\n' + sh.fragmentShader.replace('#include <map_fragment>',
         '#include <map_fragment>\n { vec3 q = vKitP*uS; vec3 cm = texture2D(uCamo, vec2(q.x + q.z*0.6, q.y)).rgb; float l = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)); diffuseColor.rgb = mix(diffuseColor.rgb, cm*(0.45 + l*1.25), uK); }'); };
-    m.customProgramCacheKey = () => 'kit-' + K.naam; m.userData.kit = K.naam; return M[K.naam + o.name] = m; },
+    m.customProgramCacheKey = () => 'kit-' + K.naam; m.userData.kit = K.naam; (this._kitU = this._kitU || {})[K.naam] = U; return M[K.naam + o.name] = m; },
   kitKap(soort, K){                       /* hoes over het hoofd: bivakmuts, sjaal, gasmasker of muts (gaten = doorzichtig: daar zie je het gezicht) */
     const M = this._kapMat = this._kapMat || {}, key = soort + K.naam; if (M[key]) return M[key]; const T = this.T;
     const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), Y = v => (1 - v)*128;
@@ -5833,7 +5833,7 @@ AFRAME.registerComponent('zombies', {
     return eruit.reduce((a, e) => a + e.lijst.length, 0);
   },
   s3dStuk(z, eruit, dir, kracht){       // weggeknipte driehoeken → los 3D-stuk in de houding van nu, valt en rolt
-    const T = this.T, pos = [], uv = [];
+    const T = this.T, pos = [], uv = [], kitP = [];
     let kl = null;
     for (const {K, lijst} of eruit){ const m = K.mesh, g = m.geometry, U = g.attributes.uv, I = K.info, sk = m.skeleton, si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
       kl = kl || m.material; sk.update(); const BM = sk.boneMatrices, P = I.P, klaar = new Map();
@@ -5841,12 +5841,19 @@ AFRAME.registerComponent('zombies', {
         for (let k=0;k<4;k++){ const w = sw.getComponent(i, k); if (!w) continue; const o = si.getComponent(i, k)*16;
           ox += w*(BM[o]*x + BM[o+4]*y + BM[o+8]*zz + BM[o+12]); oy += w*(BM[o+1]*x + BM[o+5]*y + BM[o+9]*zz + BM[o+13]); oz += w*(BM[o+2]*x + BM[o+6]*y + BM[o+10]*zz + BM[o+14]); }
         r = [ox, oy, oz]; klaar.set(i, r); return r; };
-      for (const t of lijst) for (let a=0;a<3;a++){ const i = I.idx[t*3+a], r = zet(i); pos.push(r[0], r[1], r[2]); uv.push(U.getX(i), U.getY(i)); } }
+      for (const t of lijst) for (let a=0;a<3;a++){ const i = I.idx[t*3+a], r = zet(i); pos.push(r[0], r[1], r[2]); uv.push(U.getX(i), U.getY(i)); kitP.push(P[i*3], P[i*3+1], P[i*3+2]); } }
     if (pos.length < 9) return null;
     const mid = new T.Vector3(); for (let i=0;i<pos.length;i+=3){ mid.x += pos[i]; mid.y += pos[i+1]; mid.z += pos[i+2]; } mid.multiplyScalar(3/pos.length);
     let rmax = 0.05; for (let i=0;i<pos.length;i+=3){ pos[i] -= mid.x; pos[i+1] -= mid.y; pos[i+2] -= mid.z; rmax = Math.max(rmax, Math.hypot(pos[i], pos[i+1], pos[i+2])); }
     const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); g.computeVertexNormals();
-    let mat = kl && kl.userData.dubbel; if (kl && !mat){ mat = kl.userData.dubbel = kl.clone(); mat.side = T.DoubleSide; } mat = mat || new T.MeshLambertMaterial({color:0x555044, side:T.DoubleSide});
+    g.setAttribute('kitP', new T.Float32BufferAttribute(kitP, 3));
+    let mat = kl && kl.userData.dubbel; if (kl && !mat){ mat = kl.userData.dubbel = kl.clone(); mat.side = T.DoubleSide; const U = kl.userData.kit && this._kitU && this._kitU[kl.userData.kit];
+      if (U){ mat.onBeforeCompile = sh => { Object.assign(sh.uniforms, U);   /* zelfde camo als op de soldaat: print op de rust-positie van het pak */
+        sh.vertexShader = 'attribute vec3 kitP;\nvarying vec3 vKitP;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vKitP = kitP;');
+        sh.fragmentShader = 'uniform sampler2D uCamo; uniform float uS; uniform float uK; varying vec3 vKitP;\n' + sh.fragmentShader.replace('#include <map_fragment>',
+          '#include <map_fragment>\n { vec3 q = vKitP*uS; vec3 cm = texture2D(uCamo, vec2(q.x + q.z*0.6, q.y)).rgb; float l = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)); diffuseColor.rgb = mix(diffuseColor.rgb, cm*(0.45 + l*1.25), uK); }'); };
+        mat.customProgramCacheKey = () => 'kitstuk-' + kl.userData.kit; } }
+    mat = mat || new T.MeshLambertMaterial({color:0x555044, side:T.DoubleSide});
     const me = new T.Mesh(g, mat); me.position.copy(mid); me.raycast = () => {}; this.sc.add(me);
     const d = (dir || new T.Vector3(0, 0, -1)).clone().setY(0).normalize();
     (this.stukken3d = this.stukken3d || []).push({o:me, v:new T.Vector3(d.x*2.2 + (Math.random()-0.5)*1.5, (1.5 + Math.random()*2)*(kracht || 1), d.z*2.2 + (Math.random()-0.5)*1.5),
@@ -5925,9 +5932,13 @@ AFRAME.registerComponent('zombies', {
     const mats = this._plMat || (this._plMat = {}), mat = mats[kleur] || (mats[kleur] = new T.MeshBasicMaterial({color:kleur, polygonOffset:true, polygonOffsetFactor:-4, side:T.DoubleSide})), geo = this._kopGatGeo || (this._kopGatGeo = new T.CircleGeometry(1, 10));
     const k = h.object, n = h.face.normal.clone().transformDirection(k.matrixWorld), m = new T.Mesh(geo, mat); m.raycast = () => {}; m.userData.plak = true;
     const ws = k.getWorldScale(new T.Vector3()).x || 1; m.position.copy(k.worldToLocal(h.point.clone().addScaledVector(n, 0.002))); k.add(m); m.lookAt(k.localToWorld(m.position.clone()).add(n)); m.scale.setScalar(r*(0.8 + Math.random()*0.5)/ws); return h.point; },
-  s3dBits(p, dir, n, kracht){           // kleine stukjes: bot, hersenen, vlees
-    const T = this.T, G = this._bitG || (this._bitG = [new T.IcosahedronGeometry(1, 0), new T.TetrahedronGeometry(1, 0)]), M = this._bitM || (this._bitM = [0xe9e0cc, 0xc4707a, 0x6e0d0b, 0x8c1712].map(c => new T.MeshLambertMaterial({color:c})));
-    for (let i = 0; i < n; i++){ const m = new T.Mesh(G[i % 2], M[(Math.random()*M.length)|0]); m.raycast = () => {}; m.scale.setScalar(0.006 + Math.random()*0.011); m.position.copy(p); this.sc.add(m);
+  s3dBits(p, dir, n, kracht){           // kleine stukjes: bot, hersenen, vlees, stof van het pak — elke keer anders, soms niks
+    const T = this.T, G = this._bitG || (this._bitG = [new T.IcosahedronGeometry(1, 0), new T.TetrahedronGeometry(1, 0), new T.OctahedronGeometry(1, 0), new T.DodecahedronGeometry(1, 0), new T.BoxGeometry(1, 0.35, 0.6), new T.BoxGeometry(1.6, 0.12, 1.1)]),
+      M = this._bitM || (this._bitM = [0xe9e0cc, 0xc4707a, 0x6e0d0b, 0x8c1712, 0x4a0606, 0xd9c7a8].map(c => new T.MeshLambertMaterial({color:c}))), Z = this._bitZ, K = Z && Z._kit, MS = this._bitStof = this._bitStof || {};
+    const stof = K && K.camo ? K.camo.map(c => MS[c] || (MS[c] = new T.MeshLambertMaterial({color:new T.Color(c), side:T.DoubleSide}))) : null;
+    const r0 = Math.random(); n = r0 < 0.25 ? 0 : Math.round(n*(0.35 + Math.random()*1.2));   /* 1 op 4 keer geen stukjes */
+    for (let i = 0; i < n; i++){ const isStof = stof && Math.random() < 0.3, m = new T.Mesh(isStof ? G[5] : G[(Math.random()*5)|0], isStof ? stof[(Math.random()*stof.length)|0] : M[(Math.random()*M.length)|0]); m.raycast = () => {};
+      const s = (0.005 + Math.random()*Math.random()*0.02)*(isStof ? 1.4 : 1); m.scale.set(s*(0.6 + Math.random()*0.8), s*(0.6 + Math.random()*0.8), s*(0.6 + Math.random()*0.8)); m.rotation.set(Math.random()*6, Math.random()*6, Math.random()*6); m.position.copy(p); this.sc.add(m);
       const v = dir.clone().multiplyScalar((kracht || 1)*(1.5 + Math.random()*2.5)).add(new T.Vector3((Math.random() - 0.5)*2.2, 0.8 + Math.random()*2.2, (Math.random() - 0.5)*2.2));
       this.los.push({o:m, v, w:new T.Vector3(Math.random()*12, Math.random()*12, Math.random()*12), t:0, grond:false, klein:true}); } },
   s3dFrag(k, uit, dir, kracht, cel){    // weggeknipte driehoeken in meerdere echte brokken (met gezicht/vest erop)
@@ -8297,7 +8308,7 @@ AFRAME.registerComponent('zombies', {
   },
   raak(z, deel, p, dir, opt){
     if (z){ z.impactM = this.impactMul || 1; z.impactT = this.nu; }
-    opt = opt || {}; const wapen = opt.wapen || 'pistool';
+    opt = opt || {}; const wapen = opt.wapen || 'pistool'; this._bitZ = z;
     if (z && !z.dood && z.ai && this._schotT === this.nu && deel !== 'schild') this.comboHit(deel);
     if (deel === 'schild' && z.s3d){ this.ketst(p, dir, 14); this.klang && this.klang(0.5); if (!z.dood){ this.s3dDuw(z, p, dir, wapen === 'kanon' ? 1.6 : 0.5); z.grp.position.addScaledVector(new this.T.Vector3(dir.x, 0, dir.z).normalize(), wapen === 'kanon' ? 0.15 : 0.03); }
       z.schildHp = (z.schildHp ?? 14) - ({kanon:7, laser:5, auto:0.7}[wapen] || 1); if (z.schildHp <= 0) this.schildWeg(z, dir); return; }
