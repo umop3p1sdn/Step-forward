@@ -1974,7 +1974,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v162";
+const VERSIE = "v163";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -5002,7 +5002,7 @@ AFRAME.registerComponent('zombies', {
     const sold = this.lijst.filter(z => !z.dood && z.ai && vrij(z) && zicht(z) && z.grp.position.distanceTo(ik) < 32);
     if (!sold.length) return null;
     const score = z => { const d = z.grp.position.distanceTo(ik), ai = z.ai;
-      return d + (ai.mik ? -6 : 0) + (z.vWapen === 'sniper' || z.vWapen === 'bazooka' ? -12 : 0) + (['rennen','storm','volg'].includes(ai.staat) ? -1 : 0) + (z.gewond ? 6 : 0) + (z.ongewapend ? 12 : 0) + (A.doel && A.doel.ding === z ? -3 : 0) + ((ai.zak || 0) >= 0.35 ? 8 : 0); };
+      return d + (ai.mik ? -6 : 0) + (z.vWapen === 'sniper' || z.vWapen === 'bazooka' ? -12 : 0) + (['rennen','storm','volg'].includes(ai.staat) ? -1 : 0) + (z.gewond ? 6 : 0) + (z.ongewapend ? 12 : 0) + (A.doel && A.doel.ding === z ? -3 : 0) + ((ai.zak || 0) >= 0.35 ? 8 : 0) + (z.para ? -10 : 0); };
     sold.sort((x, y) => score(x) - score(y)); const z = sold[0];
     // groepje bij elkaar? laser lvl 3+ (bliksem springt over) of een granaat
     const buren = this.lijst.filter(q => !q.dood && q !== z && q.grp.position.distanceTo(z.grp.position) < ELEKTRO_AFSTAND).length;
@@ -5036,9 +5036,10 @@ AFRAME.registerComponent('zombies', {
     const dood = d => !d || d.dood || d.kapot || d.weg || d.weggaan || (d.grond && d.g) ;
     if (A.doel && A.doel.soort === 'soldaat' && A.doel.ding.dood && A.doel.ding.doodNu != null && A.doel.gore == null && this.comboAan() && (A.doel.gore = Math.random() < 0.6)){ A.doel.ding.autoZone = ['bovenbeenL', 'bovenbeenR', 'borst', 'onderbeenL'][(Math.random()*4)|0]; }   /* overkill */
     if (A.doel && A.doel.gore && A.doel.ding.dood && this.nu - A.doel.ding.doodNu < 0.9){ A.keuzeT = 0.5; }
-    else if (A.doel && (dood(A.doel.ding) || (A.doel.soort === 'lucht' && A.doel.ding.grond))) A.doel = null;
+    else if (A.doel && (dood(A.doel.ding) || (A.doel.soort === 'lucht' && A.doel.ding.grond))){ if (A.doel.soort === 'soldaat' && A.doel.ding.dood) A.rustT = nu + 0.5; A.doel = null; }
+    if (!A.doel && A.rustT > nu){ this.autoZeg('…', '#a0a0a0'); return; }   /* even blijven kijken na een kill */
     if (!A.doel || A.keuzeT <= 0){ const k = this.autoKeuze(); A.keuzeT = 0.35;
-      if (k && (!A.doel || k.ding !== A.doel.ding)){ A.doel = k; A.richtT = 0; A.blokT = 0; A.zoneWissel = 0; } else if (!k) A.doel = null; }
+      if (k && (!A.doel || (k.ding !== A.doel.ding && (k.soort !== 'soldaat' || k.vast || A.doel.soort !== 'soldaat')))){ A.doel = k; A.richtT = 0; A.blokT = 0; A.zoneWissel = 0; } else if (!k) A.doel = null; }
     let D = A.doel;
     if (!D){ this.autoZeg('SCANNING…', '#a0a0a0'); const y = Math.sin(nu*0.4)*0.35; o.rotation.y += (y - o.rotation.y)*Math.min(1, s*2); o.rotation.x += (-0.05 - o.rotation.x)*Math.min(1, s*2); return; }
     // wapen: wissel in plaats van herladen (wat in de holster zit laadt zichzelf)
@@ -5057,7 +5058,7 @@ AFRAME.registerComponent('zombies', {
       p = m.p; maat = m.maat; tekst = D.vast === 'groepLaser' ? waarom : m.tekst; kl = m.kl; if (D.vast === 'groepLaser') maat = 0.15; }
     else { p = D.p(); maat = D.maat; tekst = D.tekst; kl = D.kl; }
     if (waarom && D.vast !== 'groepLaser') tekst = waarom;
-    if (!A.ruis || A.ruisT <= nu){ A.ruis = new T.Vector3((Math.random()-0.5), (Math.random()-0.5), 0).multiplyScalar(maat*0.5); A.ruisT = nu + 0.4; }
+    if (!A.ruis || A.ruisT <= nu){ A.ruis = new T.Vector3((Math.random()-0.5), (Math.random()-0.5), 0).multiplyScalar(maat*0.3); A.ruisT = nu + 1.5; }
     p = p.clone().add(A.ruis);
     if (D.lood && D.ding.g){                                    // raket: voorhouden op een bewegend doel
       const vp = D.ding.g.position, oud = A.oud && A.oud.d === D.ding ? A.oud.p : null;
@@ -5067,15 +5068,17 @@ AFRAME.registerComponent('zombies', {
     const yaw = Math.atan2(-dir.x, -dir.z); let pitch = Math.atan2(dir.y, hor);
     if (D.boog) pitch = this.autoBoog(p);
     let dy = yaw - o.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
-    const draai = Math.min(1, s*14);
-    o.rotation.y += dy*draai; o.rotation.x += (pitch - o.rotation.x)*draai;
+    const hoekF = Math.hypot(dy, pitch - o.rotation.x); A.rate = hoekF > 0.14 ? 14 : 4.5; const draai = Math.min(1, s*A.rate);   /* ver weg: snel erheen; vlakbij: rustig de laatste ~0,5 s */
+    let vy = 0, vx = 0; if (A.vD === D.ding && A.vYaw != null && s > 0){ vy = Math.atan2(Math.sin(yaw - A.vYaw), Math.cos(yaw - A.vYaw))/s; vx = (pitch - A.vPit)/s; if (Math.abs(vy) > 3 || Math.abs(vx) > 3){ vy = vx = 0; } } A.vD = D.ding; A.vYaw = yaw; A.vPit = pitch;   /* bewegend doel (para): meedraaien */
+    A.vy = (A.vy || 0) + (vy - (A.vy || 0))*0.3; A.vx = (A.vx || 0) + (vx - (A.vx || 0))*0.3;
+    o.rotation.y += dy*draai + A.vy*s; o.rotation.x += (pitch - o.rotation.x)*draai + A.vx*s;
     o.updateMatrixWorld(true);
     this.autoZeg(tekst, kl);
     const fout = Math.hypot(dy, pitch - o.rotation.x)*Math.max(1, dir.length());
     A.wisselT -= s; A.richtT += s;
-    A.st = A.st || {mik:0, blok:0, ok:0, scan:0}; A.st[A.wisselT > 0 || fout > Math.max(0.05, maat*0.6) ? 'mik' : 'ok']++;
+    A.st = A.st || {mik:0, blok:0, ok:0, scan:0}; A.st[A.wisselT > 0 || fout > Math.max(0.06, maat*0.75) ? 'mik' : 'ok']++;
     A.dbg = {fout:+fout.toFixed(3), maat, wissel:+A.wisselT.toFixed(2), blokT:+(A.blokT||0).toFixed(2)};
-    if (A.wisselT > 0 || fout > Math.max(0.05, maat*0.6) || !midden) return;
+    if (A.wisselT > 0 || fout > Math.max(0.06, maat*0.75) || !midden) return;
     // kan ik hem zien? (niet in de dekking schieten)
     if (D.soort === 'soldaat' && w !== 'raket'){
       this.straal('muis', midden); const t = this.treffers(true)[0], pr = this.propRaak();
