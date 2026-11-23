@@ -1269,7 +1269,7 @@ KWERELD.oud = (T, R) => {
   // 0 · STADSPOORT: straatje naar een oude stadsmuur met een poort; achter de poort een pleintje met een gevel
   { const oz = 0, HW = 4.5, zM = oz - 6.5, zE = oz - 11.8; B.vlakH('kinderkop', -9, zE - 1, 9, oz + 4, 0, {stap:2.2});
     const L = rij(-1, oz + 4, zM, {hw:HW}), Rr = rij(1, oz + 4, zM, {hw:HW});
-    const M = kGevel(B, R, {x0:-HW, z0:zM, x1:HW, z1:zM, n:[0, 1], H:6, mat:'baksteen4', deuren:[1.4], ramen:[[7.6, 2.2]], gaten:[{a0:HW - 1.6, a1:HW + 1.6, b0:0, b1:3.4}]});
+    const M = kGevel(B, R, {x0:-HW, z0:zM, x1:HW, z1:zM, n:[0, 1], H:6, mat:'baksteen4', deuren:[1.4], ramen:[[7.6, 2.2]], gaten:[{a0:HW - 1.6, a1:HW + 1.6, b0:0, b1:4.8}]});
     B.wand('baksteen4', -HW, zM, HW, zM, 6, 6.8, {dik:0.6, gaten:[{a0:0.6, a1:1.6, b0:6, b1:6.8}, {a0:2.6, a1:3.6, b0:6, b1:6.8}, {a0:5.4, a1:6.4, b0:6, b1:6.8}, {a0:7.4, a1:8.4, b0:6, b1:6.8}]});   // kantelen
     const E = kGevel(B, R, {x0:-8, z0:zE, x1:8, z1:zE, n:[0, 1], H:9, mat:kKies(R, ['gevel_geel', 'gevel_beige']), deuren:[8], ramen:[[8, 3.4], [5, 3.4], [11, 3.4], [8, 6.6]]});
     zw('baksteen', -8, zM, -8, zE, 7); zw('baksteen', 8, zE, 8, zM, 7); zw('baksteen', -HW, oz + 4, HW, oz + 4, 7);
@@ -1974,7 +1974,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v163";
+const VERSIE = "v164";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
