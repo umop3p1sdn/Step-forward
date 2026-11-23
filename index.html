@@ -1974,7 +1974,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v158";
+const VERSIE = "v159";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -4880,16 +4880,22 @@ AFRAME.registerComponent('zombies', {
   },
   autoZeg(t, kl){ const A = this.auto; if (!A || (A.tekst === t)) return; A.tekst = t; if (this.autoDiv) this.autoDiv.innerHTML = `<span style="color:#7dff7a">AUTO</span> · <span style="color:${kl || '#fff'}">${t}</span>`; },
   deelMidden(z, deel){                  // midden van het plaatje van een lichaamsdeel (wereld)
-    if (z.s3d){ const B = {hoofd:['Head', 0.1], buik:['spine_02', 0.05], borst:['spine_03', 0.1], bovenbeenL:['thigh_l', 0.2], bovenbeenR:['thigh_r', 0.2], onderbeenR:['calf_l', 0.18], onderbeenL:['calf_r', 0.18]}[deel] || ['spine_02', 0];
+    if (z.s3d){ const B = {hoofd:['Head', 0.1], buik:['spine_02', 0.05], borst:['spine_03', 0.1], bovenbeenL:['thigh_l', 0.2], bovenbeenR:['thigh_r', 0.2], onderbeenR:['calf_l', 0.18], onderbeenL:['calf_r', 0.18], bovenarmL:['upperarm_r', 0.13], bovenarmR:['upperarm_l', 0.13], onderarmL:['lowerarm_r', 0.12], onderarmR:['lowerarm_l', 0.12]}[deel] || ['spine_02', 0];
       const b = z.s3d.bot[B[0]]; if (!b || b.userData.los) return null; return b.localToWorld(new this.T.Vector3(0, B[1]/(b.getWorldScale(new this.T.Vector3()).x || 1), 0)); }
     const kn = z.knoop[deel]; if (!kn || kn.userData.los) return null;
     const m = kn.userData.bin && kn.userData.bin.children.find(c => c.isMesh && c.userData.D);
     return (m || kn).getWorldPosition(new this.T.Vector3());
   },
+  autoZichtP(z, voorkeur){              // eerste lichaamsdeel dat je vanaf hier echt ziet (deurpost, hoek van een muur)
+    const st = this.el.components.stad; if (!st || !st.kaartNu()) return this.deelMidden(z, voorkeur || 'borst');
+    const ik = this.el.camera.getWorldPosition(new this.T.Vector3()), D = ['hoofd', 'borst', 'buik', 'bovenarmL', 'bovenarmR', 'bovenbeenL', 'bovenbeenR', 'onderarmL', 'onderarmR', 'onderbeenL', 'onderbeenR'];
+    if (voorkeur) D.unshift(voorkeur);
+    for (const d of D){ const p = this.deelMidden(z, d); if (!p) continue; const h = st.kaartSeg(ik, p); if (!(h && h.d < ik.distanceTo(p) - 0.15)) return Object.assign(p, {deel:d}); }
+    return null; },
   autoMikpunt(z){                       // in een 3D-wereld: zit het mikpunt achter dekking, dan het hoofd
     const r = this.autoMikpunt0(z), st = this.el.components.stad; if (!r || !r.p || !st || !st.kaartNu()) return r;
     const ik = this.el.camera.getWorldPosition(new this.T.Vector3()), h = st.kaartSeg(ik, r.p);
-    if (h && h.d < ik.distanceTo(r.p) - 0.3){ const k = this.deelMidden(z, 'hoofd'); if (k) return {p:k, tekst:'BEHIND COVER → HEAD', kl:'#9ad0ff', maat:0.07}; }
+    if (h && h.d < ik.distanceTo(r.p) - 0.3){ const k = this.autoZichtP(z, 'hoofd'); if (k) return {p:k, tekst:k.deel === 'hoofd' ? 'BEHIND COVER → HEAD' : 'PEEKING → ' + (/been/.test(k.deel) ? 'LEG' : /arm/.test(k.deel) ? 'ARM' : 'BODY'), kl:'#9ad0ff', maat:/arm|been/.test(k.deel) ? 0.06 : 0.07}; }
     return r; },
   autoMikpunt0(z){                       // waar raak je deze soldaat het best?
     const j = this.soorten[z.n].j, helm = !!(z.helmSprite || (j.helm != null)) && !z.helmAf, vest = z.vestHard && !!j.vest && (z.vestT || 0) < VEST_TREFFERS;
@@ -4932,11 +4938,11 @@ AFRAME.registerComponent('zombies', {
     for (const b of this.blokken || []) if (!b.weg && vrij(b) && b.kist){ const p = b.kist.getWorldPosition(new T.Vector3()); if (p.y > 1.2 && p.distanceTo(ik) < 20)
       return {soort:'kist', ding:b, p:() => b.kist.getWorldPosition(new T.Vector3()), w:'pistool', tekst:'AMMO CRATE → SHOOT IT', kl:'#7dff7a', maat:0.25}; }
     // 4. soldaten: wie schiet er nu op mij, wie is dichtbij
-    const zicht = z => z.ai && (z.ai.zak || 0) < 0.35 && !this.kaartBlok(z);
+    const zicht = z => z.ai && (z.s3d ? (!this.kaartBlok(z) || !!this.autoZichtP(z)) && ((z.ai.zak || 0) < 0.35 || !!this.autoZichtP(z, 'hoofd')) : (z.ai.zak || 0) < 0.35 && !this.kaartBlok(z));   /* v159: ook half in een deurpost of met het hoofd boven dekking */
     const sold = this.lijst.filter(z => !z.dood && z.ai && vrij(z) && zicht(z) && z.grp.position.distanceTo(ik) < 32);
     if (!sold.length) return null;
     const score = z => { const d = z.grp.position.distanceTo(ik), ai = z.ai;
-      return d + (ai.mik ? -6 : 0) + (z.vWapen === 'sniper' || z.vWapen === 'bazooka' ? -12 : 0) + (['rennen','storm','volg'].includes(ai.staat) ? -1 : 0) + (z.gewond ? 6 : 0) + (z.ongewapend ? 12 : 0) + (A.doel && A.doel.ding === z ? -3 : 0); };
+      return d + (ai.mik ? -6 : 0) + (z.vWapen === 'sniper' || z.vWapen === 'bazooka' ? -12 : 0) + (['rennen','storm','volg'].includes(ai.staat) ? -1 : 0) + (z.gewond ? 6 : 0) + (z.ongewapend ? 12 : 0) + (A.doel && A.doel.ding === z ? -3 : 0) + ((ai.zak || 0) >= 0.35 ? 8 : 0); };
     sold.sort((x, y) => score(x) - score(y)); const z = sold[0];
     // groepje bij elkaar? laser lvl 3+ (bliksem springt over) of een granaat
     const buren = this.lijst.filter(q => !q.dood && q !== z && q.grp.position.distanceTo(z.grp.position) < ELEKTRO_AFSTAND).length;
