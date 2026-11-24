@@ -97,7 +97,7 @@ const KAART = {
   klaar(){ return this.wacht <= 0; },
   wereld(T, soort, seed){ const k = soort + ':' + seed; if (this.werelden[k]) return this.werelden[k];
     Object.keys(this.werelden).forEach(q => { const w = this.werelden[q]; if (w.g.parent) return; w.g.traverse(o => { if (o.geometry) o.geometry.dispose(); }); delete this.werelden[q]; });   // oude werelden uit het geheugen
-    KBouw.prototype._atmos = KATMOS[soort] || null; const t0 = performance.now(), W = KWERELD[soort](T, kRng(seed), seed); KBouw.prototype._atmos = null; W.ms = Math.round(performance.now() - t0); W.soort = soort; W.seed = seed;
+    KBouw.prototype._atmos = KATMOS[soort] || null; KBouw.prototype._soort = soort; const t0 = performance.now(), W = KWERELD[soort](T, kRng(seed), seed); KBouw.prototype._atmos = null; KBouw.prototype._soort = null; W.ms = Math.round(performance.now() - t0); W.soort = soort; W.seed = seed;
     kStandVerdeel(T, W, soort);
     kCentreer(T, W);
     kSpawnCheck(T, W);
@@ -270,6 +270,7 @@ KBouw.prototype = {
     const m = new T.Mesh(new T.SphereGeometry(320, 24, 12), new T.MeshBasicMaterial({map:t, side:T.BackSide, fog:false, depthWrite:false}));
     m.renderOrder = -5; this.extra.push(m); },
   maak(){
+    if (this._atmos && this._soort && !this._aangekleed) try { kAankleden(this, this._soort); } catch(e){ console.warn('aankleden', e); }
     const T = this.T; this.vl.forEach(a => this._vlakH(...a)); this.vl = [];
     const g = new T.Group(); let tris = 0;
     Object.entries(this.e).forEach(([n, e]) => { if (!e.i.length) return;
@@ -583,6 +584,90 @@ function kInricht(B, R, o){
     } });
   if (th === 'chic' && (o.x1 - o.x0) > 3 && R() < 0.7){ const k = B.kiesMeubel(R, 'plafond', 'chic'); if (k) B.meubel(R, 'plafond', (o.x0 + o.x1)/2, (o.z0 + o.z1)/2, {item:k, y:(o.y || 0) + H - k.h - 0.05}); }
   return th;
+}
+
+/* ---------- v182: AANKLEDEN — elke binnenruimte in de levels krijgt echte 3D-inrichting langs de wanden, plinten, schilderijen/posters, leidingen en pilaren ---------- */
+const K_INRICHT = {
+  oud:['kast', 'lagekast', 'tafel', 'bank', 'kratten', 'vaten', 'plant', 'haard', 'rek'], stad:['bureau', 'bureau', 'archief', 'kast', 'plant', 'bank', 'bureau'],
+  kade:['kratten', 'vaten', 'rek', 'werkbank', 'kluisjes', 'kratten'], woestijn:['lagekast', 'tafel', 'kratten', 'plant', 'vaten', 'bank'],
+  hotel:['bed', 'lagekast', 'bank', 'tafel', 'plant', 'kast', 'balie'], winter:['stapelbed', 'kluisjes', 'tafel', 'kachel', 'rek', 'stapelbed'],
+  loods:['rek', 'rek', 'kratten', 'werkbank', 'vaten', 'kratten'], bunker:['serverrek', 'serverrek', 'kluisjes', 'bureau', 'rek', 'archief']};
+const K_INDUSTRIE = {kade:1, loods:1, bunker:1, winter:1};
+function kAankleden(B, soort){
+  const lijst = K_INRICHT[soort]; if (!lijst) return; const T = B.T, R = kRng(7919 + soort.length*131 + soort.charCodeAt(0));
+  const mijd = [];
+  (B.standen || []).forEach(S => { mijd.push([S.x, S.z, 2.6]);
+    (S.spawns || []).forEach(q => { const pts = [q.p].concat(q.via || []); pts.forEach(p => p && mijd.push([p[0], p[1], 1.05]));
+      for (let i = 1; i < pts.length; i++){ const a = pts[i-1], b = pts[i]; if (!a || !b) continue; const n = Math.ceil(Math.hypot(b[0]-a[0], b[1]-a[1])/0.6); for (let k = 1; k < n; k++) mijd.push([a[0] + (b[0]-a[0])*k/n, a[1] + (b[1]-a[1])*k/n, 0.95]); } });
+    (S.plek || []).forEach(q => q && q.p && mijd.push([q.p[0], q.p[1], 0.8])); (S.props || []).forEach(p => p && mijd.push([p.x, p.z, Math.max(p.w || 1, p.d || 1)*0.6])); });
+  B.deuren.forEach(d => mijd.push([d.c[0], d.c[1], 1.45]));
+  const pv = new T.Vector3(), vrijP = (x, z, r) => !mijd.some(m => (m[0]-x)*(m[0]-x) + (m[1]-z)*(m[1]-z) < (m[2] + r)*(m[2] + r));
+  const bb = new T.Box3(), boxVrij = (x0, z0, x1, z1, y0, y1) => { bb.min.set(Math.min(x0, x1) - 0.02, y0 + 0.03, Math.min(z0, z1) - 0.02); bb.max.set(Math.max(x0, x1) + 0.02, y1, Math.max(z0, z1) + 0.02); return !B.boxen.some(c => !c.uit && c.intersectsBox(bb)); };
+  const vast = (x, y, z) => { pv.set(x, y, z); return B.boxen.some(c => !c.uit && !c.deur && c.containsPoint(pv)); };
+  const HOUT = [0.55, 0.4, 0.3], HOUTL = [0.78, 0.62, 0.45], META = [0.42, 0.45, 0.48], DONK = [0.16, 0.17, 0.19], STOF = kKies(R, [[0.45, 0.2, 0.18], [0.22, 0.3, 0.42], [0.3, 0.38, 0.24], [0.5, 0.42, 0.3]]);
+  let stuks = 0; const DBG = {muur:0, vrij:0, box:0, kamers:0};
+  for (const r of B.binnen){ const W = r.x1 - r.x0, D = r.z1 - r.z0; if (W < 2.2 || D < 2.2 || r.h > (K_INDUSTRIE[soort] ? 9.5 : 4.9) || r.h < 2.3 || W*D > 2600) continue;
+    DBG.kamers++; const H = r.h, kanten = [{k:'N', as:'x', a0:r.x0, a1:r.x1, w:r.z0, s:1}, {k:'Z', as:'x', a0:r.x0, a1:r.x1, w:r.z1, s:-1}, {k:'W', as:'z', a0:r.z0, a1:r.z1, w:r.x0, s:1}, {k:'O', as:'z', a0:r.z0, a1:r.z1, w:r.x1, s:-1}];
+    const muurDicht = (K, u, y) => K.as === 'x' ? vast(u, y, K.w - K.s*0.14) : vast(K.w - K.s*0.14, y, u);
+    for (const K of kanten){
+      const P = (u, v) => K.as === 'x' ? [u, K.w + K.s*(v + 0.155)] : [K.w + K.s*(v + 0.155), u];   /* v gemeten vanaf de binnenkant van de muur (muren zijn 30 cm dik) */
+      const bx = (n, u0, u1, v0, v1, y0, y1, o) => { const a = P(u0, v0), b = P(u1, v1); B.doos(n, a[0], a[1], b[0], b[1], y0, y1, Object.assign({geenAo:false}, o || {})); };
+      // plint over de dichte stukken
+      for (let u = K.a0 + 0.1; u < K.a1 - 0.1; u += 0.5){ const u1 = Math.min(K.a1 - 0.1, u + 0.5); if (muurDicht(K, (u + u1)/2, 0.3) && muurDicht(K, (u + u1)/2, 0.05)) bx('kleur', u, u1, 0.005, 0.022, 0, 0.11, {tint:DONK, geenBots:true, geenAo:true}); }
+      let u = K.a0 + 0.35 + R()*0.5, n = 0; const max = Math.max(1, Math.round((K.a1 - K.a0)/2.6));
+      while (u < K.a1 - 0.6 && n < max){
+        const soortM = kKies(R, lijst), M = {kast:[1.0, 0.56, 1.95], lagekast:[1.4, 0.46, 0.85], tafel:[1.3, 0.8, 0.76], bank:[1.9, 0.85, 0.85], kratten:[1.2, 0.8, 1.3], vaten:[1.3, 0.65, 0.95], plant:[0.6, 0.6, 1.3], haard:[1.4, 0.5, 1.2], rek:[1.8, 0.55, 2.0],
+          bureau:[1.5, 0.75, 1.1], archief:[1.0, 0.6, 1.35], werkbank:[1.8, 0.7, 0.95], kluisjes:[1.6, 0.48, 1.85], bed:[1.5, 2.05, 0.9], balie:[2.4, 0.62, 1.08], stapelbed:[1.0, 2.0, 1.8], kachel:[0.8, 0.7, 1.4], serverrek:[0.65, 0.95, 2.05]}[soortM];
+        const [wd, dp, hh] = M; if (u + wd > K.a1 - 0.25 || hh > H - 0.3){ u += 0.5; continue; }
+        let ok = true; for (let q = u + 0.1; q <= u + wd - 0.1 + 1e-6; q += 0.35){ if (!muurDicht(K, q, 0.45) || (hh > 1.25 && !muurDicht(K, q, Math.min(hh, 1.8)))){ ok = false; break; } }
+        const c = P(u + wd/2, dp/2 + 0.04), f0 = P(u, 0.06), f1 = P(u + wd, dp + 0.05);
+        if (!ok){ DBG.muur++; u += 0.45; continue; } if (!vrijP(c[0], c[1], Math.max(wd, dp)*0.45)){ DBG.vrij++; u += 0.45; continue; } if (!boxVrij(f0[0], f0[1], f1[0], f1[1], 0, hh)){ DBG.box++; u += 0.45; continue; }
+        const v0 = 0.04, v1 = dp + 0.04, U = (a, b) => [u + a, u + b];
+        const plank = (a, b, va, vb, y0, y1, t) => bx('plank', ...U(a, b), va, vb, y0, y1, {tint:t || HOUT, geenBots:true});
+        const kleur = (a, b, va, vb, y0, y1, t) => bx('kleur', ...U(a, b), va, vb, y0, y1, {tint:t, geenBots:true});
+        const poten = (a, b, va, vb, y1, t, dik) => { const d = dik || 0.05; [[a, va], [b - d, va], [a, vb - d], [b - d, vb - d]].forEach(([x, v]) => kleur(x, x + d, v, v + d, 0, y1, t)); };
+        if (soortM === 'kast'){ plank(0, wd, v0, v1, 0, hh); kleur(wd/2 - 0.006, wd/2 + 0.006, v1, v1 + 0.008, 0.08, hh - 0.08, DONK); kleur(wd/2 - 0.08, wd/2 - 0.05, v1, v1 + 0.03, 0.95, 1.1, META); kleur(wd/2 + 0.05, wd/2 + 0.08, v1, v1 + 0.03, 0.95, 1.1, META); }
+        else if (soortM === 'lagekast'){ plank(0, wd, v0, v1, 0.08, hh, HOUTL); kleur(0.04, wd - 0.04, v0 + 0.02, v1 - 0.02, 0, 0.08, DONK); [0.25, 0.75].forEach(f => kleur(wd*f - 0.06, wd*f + 0.06, v1, v1 + 0.02, hh - 0.18, hh - 0.14, META));
+          if (R() < 0.7) B.cilinder('kleur', ...P(u + wd*0.3, dp/2), 0.07, hh, hh + 0.28, {tint:kKies(R, [[0.7, 0.3, 0.2], [0.25, 0.4, 0.6], [0.8, 0.8, 0.75]]), geenBots:true}); if (R() < 0.6) kleur(wd*0.55, wd*0.85, v0 + 0.08, v1 - 0.08, hh, hh + 0.06, kKies(R, [[0.6, 0.15, 0.1], [0.15, 0.3, 0.5], [0.2, 0.2, 0.2]])); }
+        else if (soortM === 'tafel'){ plank(0, wd, v0, v1, hh - 0.05, hh, HOUTL); poten(0.05, wd - 0.05, v0 + 0.05, v1 - 0.05, hh - 0.05, HOUT, 0.06);
+          [0.25, 0.75].forEach(f => { const a = wd*f - 0.22; plank(a, a + 0.44, v1 + 0.08, v1 + 0.5, 0.44, 0.48, HOUT); poten(a + 0.02, a + 0.42, v1 + 0.1, v1 + 0.48, 0.44, HOUT, 0.04); plank(a, a + 0.44, v1 + 0.46, v1 + 0.5, 0.48, 0.95, HOUT); }); }
+        else if (soortM === 'bank'){ kleur(0, wd, v0, v1, 0.12, 0.45, STOF); kleur(0, wd, v0, v0 + 0.22, 0.45, hh, STOF); kleur(0, 0.16, v0, v1, 0.45, 0.65, STOF); kleur(wd - 0.16, wd, v0, v1, 0.45, 0.65, STOF); poten(0.05, wd - 0.05, v0 + 0.05, v1 - 0.05, 0.12, DONK, 0.05);
+          [0.3, 0.7].forEach(f => kleur(wd*f - 0.2, wd*f + 0.2, v0 + 0.22, v0 + 0.34, 0.45, 0.75, STOF.map(x => x*1.25))); }
+        else if (soortM === 'kratten'){ plank(0, 0.7, v0, v0 + 0.7, 0, 0.6, HOUTL); plank(0.75, 1.2, v0, v0 + 0.5, 0, 0.45, HOUT); if (R() < 0.7) plank(0.08, 0.6, v0 + 0.05, v0 + 0.6, 0.6, 1.1, HOUT); }
+        else if (soortM === 'vaten'){ const t = kKies(R, [[0.25, 0.4, 0.3], [0.55, 0.18, 0.12], [0.2, 0.28, 0.45], [0.5, 0.45, 0.2]]); [0.32, 0.98].forEach(f => B.cilinder('kleur', ...P(u + f, 0.34), 0.3, 0, 0.9, {tint:t, geenBots:true})); }
+        else if (soortM === 'plant'){ B.cilinder('kleur', ...P(u + 0.3, 0.3), 0.2, 0, 0.42, {tint:[0.55, 0.3, 0.2], geenBots:true}); kleur(0.08, 0.52, v0 + 0.06, v0 + 0.5, 0.42, 0.9, [0.2, 0.42, 0.18]); kleur(0.16, 0.44, v0 + 0.14, v0 + 0.42, 0.9, 1.3, [0.25, 0.5, 0.2]); }
+        else if (soortM === 'haard'){ kleur(0, wd, v0, v1, 0, hh, [0.55, 0.5, 0.46]); kleur(0.3, wd - 0.3, v1, v1 + 0.01, 0.1, 0.7, [0.05, 0.04, 0.04]); kleur(-0.05, wd + 0.05, v0, v1 + 0.06, hh, hh + 0.08, HOUT); }
+        else if (soortM === 'rek' || soortM === 'werkbank'){ const rk = soortM === 'rek';
+          [0, wd - 0.05].forEach(x => { kleur(x, x + 0.05, v0, v0 + 0.05, 0, hh, META); kleur(x, x + 0.05, v1 - 0.05, v1, 0, hh, META); });
+          (rk ? [0.1, 0.65, 1.2, 1.75] : [0.2, 0.9]).forEach(y => { kleur(0, wd, v0, v1, y, y + 0.04, rk ? META : HOUTL); if (rk || y > 0.5) for (let x = 0.08; x < wd - 0.3; x += 0.32 + R()*0.3) if (R() < 0.75){ const hb = 0.15 + R()*0.3; kleur(x, x + 0.22 + R()*0.15, v0 + 0.06, v1 - 0.06, y + 0.04, Math.min(y + 0.04 + hb, rk ? y + 0.5 : y + 0.4), kKies(R, [[0.6, 0.5, 0.35], [0.3, 0.35, 0.4], [0.55, 0.2, 0.15], [0.35, 0.45, 0.3]])); } }); }
+        else if (soortM === 'bureau'){ plank(0, wd, v0, v1, 0.72, 0.76, HOUTL); kleur(0.03, 0.08, v0, v1, 0, 0.72, META); kleur(wd - 0.08, wd - 0.03, v0, v1, 0, 0.72, META); kleur(wd - 0.48, wd - 0.08, v0 + 0.05, v1 - 0.05, 0.1, 0.72, META);
+          kleur(wd*0.3, wd*0.3 + 0.55, v0 + 0.12, v0 + 0.16, 0.86, 1.1, DONK); kleur(wd*0.3 + 0.03, wd*0.3 + 0.52, v0 + 0.16, v0 + 0.165, 0.88, 1.08, [0.12, 0.2, 0.28]); kleur(wd*0.3 + 0.24, wd*0.3 + 0.31, v0 + 0.1, v0 + 0.18, 0.76, 0.86, DONK);
+          kleur(wd*0.3 + 0.05, wd*0.3 + 0.5, v0 + 0.3, v0 + 0.45, 0.76, 0.78, DONK); kleur(wd*0.3 - 0.05, wd*0.3 + 0.45, v1 + 0.1, v1 + 0.55, 0.44, 0.5, DONK); kleur(wd*0.3 - 0.05, wd*0.3 + 0.45, v1 + 0.5, v1 + 0.56, 0.5, 1.0, DONK); kleur(wd*0.3 + 0.17, wd*0.3 + 0.23, v1 + 0.3, v1 + 0.36, 0.05, 0.44, META); }
+        else if (soortM === 'archief' || soortM === 'kluisjes'){ const n2 = soortM === 'kluisjes' ? 4 : 2, bw = wd/n2, t = soortM === 'kluisjes' ? kKies(R, [[0.35, 0.42, 0.5], [0.42, 0.45, 0.35], [0.5, 0.52, 0.55]]) : [0.6, 0.62, 0.6];
+          for (let i = 0; i < n2; i++){ kleur(i*bw + 0.01, (i + 1)*bw - 0.01, v0, v1, 0.04, hh, t); if (soortM === 'kluisjes'){ [hh - 0.25, hh - 0.32, hh - 0.39].forEach(y => kleur(i*bw + 0.08, (i + 1)*bw - 0.08, v1, v1 + 0.005, y, y + 0.025, DONK)); kleur((i + 1)*bw - 0.08, (i + 1)*bw - 0.05, v1, v1 + 0.02, hh*0.5, hh*0.5 + 0.12, DONK); }
+            else for (let k = 0; k < 4; k++){ const y = 0.1 + k*0.31; kleur(i*bw + 0.03, (i + 1)*bw - 0.03, v1, v1 + 0.004, y, y + 0.27, t.map(x => x*0.9)); kleur(i*bw + bw/2 - 0.06, i*bw + bw/2 + 0.06, v1, v1 + 0.02, y + 0.2, y + 0.23, DONK); } } }
+        else if (soortM === 'bed'){ plank(0, wd, v0, v0 + 0.08, 0, 1.05, HOUT); plank(0, wd, v0, v1, 0.18, 0.36, HOUT); kleur(0.04, wd - 0.04, v0 + 0.08, v1 - 0.04, 0.36, 0.55, [0.88, 0.88, 0.85]);
+          kleur(0.12, wd - 0.12, v0 + 0.12, v0 + 0.5, 0.55, 0.66, [0.95, 0.95, 0.95]); kleur(0.02, wd - 0.02, v0 + 0.7, v1 - 0.02, 0.5, 0.6, STOF); poten(0.02, wd - 0.02, v0 + 0.02, v1 - 0.02, 0.18, HOUT, 0.06); }
+        else if (soortM === 'stapelbed'){ [0, wd - 0.05].forEach(x => [v0, v1 - 0.05].forEach(v => kleur(x, x + 0.05, v, v + 0.05, 0, hh, META)));
+          [0.35, 1.3].forEach(y => { kleur(0, wd, v0, v1, y, y + 0.05, META); kleur(0.04, wd - 0.04, v0 + 0.04, v1 - 0.04, y + 0.05, y + 0.2, [0.4, 0.45, 0.35]); kleur(0.1, wd - 0.1, v0 + 0.08, v0 + 0.4, y + 0.2, y + 0.29, [0.85, 0.85, 0.82]); }); }
+        else if (soortM === 'balie'){ plank(0, wd, v0, v1, 0, hh - 0.05, HOUT); kleur(-0.04, wd + 0.04, v0 - 0.02, v1 + 0.04, hh - 0.05, hh, [0.25, 0.22, 0.2]); kleur(0.1, wd - 0.1, v1, v1 + 0.01, 0.1, hh - 0.15, HOUTL); }
+        else if (soortM === 'kachel'){ kleur(0, wd, v0, v1, 0.1, 0.95, [0.18, 0.18, 0.19]); kleur(0.15, wd - 0.15, v1, v1 + 0.01, 0.3, 0.7, [0.55, 0.18, 0.06]); B.cilinder('kleur', ...P(u + wd/2, dp/2), 0.08, 0.95, H - 0.02, {tint:[0.2, 0.2, 0.2], geenBots:true}); }
+        else if (soortM === 'serverrek'){ kleur(0, wd, v0, v1, 0, hh, [0.08, 0.09, 0.1]); for (let y = 0.25; y < hh - 0.2; y += 0.17){ kleur(0.05, wd - 0.05, v1, v1 + 0.004, y, y + 0.12, [0.15, 0.16, 0.18]); if (R() < 0.8) bx('lamp', ...U(0.08 + R()*0.3, 0.12 + R()*0.3), v1 + 0.004, v1 + 0.008, y + 0.04, y + 0.06, {geenBots:true, geenAo:true}); } }
+        if (soortM !== 'plant' && soortM !== 'vaten') B.box(Math.min(f0[0], f1[0]), 0, Math.min(f0[1], f1[1]), Math.max(f0[0], f1[0]), hh, Math.max(f0[1], f1[1]));   /* kogels en soldaten houden er rekening mee */
+        mijd.push([c[0], c[1], Math.max(wd, dp)*0.5]); n++; stuks++; u += wd + 0.35 + R()*1.1; }
+      // schilderij of poster op een vrij stuk muur
+      for (let t = 0; t < 2; t++){ const ww = 0.6 + R()*0.5, hw = 0.45 + R()*0.35, uu = K.a0 + 0.4 + R()*Math.max(0.1, K.a1 - K.a0 - 0.8 - ww), cc = P(uu + ww/2, 0.4);
+        if (uu + ww > K.a1 - 0.3 || !muurDicht(K, uu + 0.05, 1.45) || !muurDicht(K, uu + ww - 0.05, 1.45) || !muurDicht(K, uu + ww/2, 1.45 + hw) || !vrijP(cc[0], cc[1], 0.3)) continue;
+        const y0 = 1.35 + R()*0.15; bx('kleur', uu, uu + ww, 0.006, 0.03, y0, y0 + hw, {tint:K_INDUSTRIE[soort] ? [0.75, 0.7, 0.55] : HOUT, geenBots:true, geenAo:true});
+        bx('kleur', uu + 0.05, uu + ww - 0.05, 0.03, 0.034, y0 + 0.05, y0 + hw - 0.05, {tint:kKies(R, [[0.55, 0.35, 0.2], [0.25, 0.4, 0.55], [0.7, 0.62, 0.4], [0.35, 0.45, 0.3], [0.6, 0.2, 0.18], [0.85, 0.82, 0.7]]), geenBots:true, geenAo:true}); }
+    }
+    if (K_INDUSTRIE[soort]){ const lang = W > D, n = 1 + (R() < 0.5 ? 1 : 0); for (let i = 0; i < n; i++){ const off = (i ? -1 : 1)*(0.6 + R()*0.6), r2 = 0.06 + R()*0.05, y = H - 0.25 - i*0.18;   /* leidingen langs het plafond */
+        if (lang){ const z = (r.z0 + r.z1)/2 + off; B.doos('kleur', r.x0 + 0.05, z - r2, r.x1 - 0.05, z + r2, y - r2*2, y, {tint:i ? [0.55, 0.25, 0.15] : [0.45, 0.48, 0.5], geenBots:true}); }
+        else { const x = (r.x0 + r.x1)/2 + off; B.doos('kleur', x - r2, r.z0 + 0.05, x + r2, r.z1 - 0.05, y - r2*2, y, {tint:i ? [0.55, 0.25, 0.15] : [0.45, 0.48, 0.5], geenBots:true}); } } }
+    if (W >= 9 && D >= 9){ for (const [fx, fz] of [[0.33, 0.33], [0.67, 0.33], [0.33, 0.67], [0.67, 0.67]]){ const x = r.x0 + W*fx, z = r.z0 + D*fz;   /* pilaren: grote zalen niet meer leeg en vierkant */
+        if (!vrijP(x, z, 0.9) || !boxVrij(x - 0.3, z - 0.3, x + 0.3, z + 0.3, 0, H - 0.1)) continue; B.doos(soort === 'hotel' || soort === 'oud' ? 'pleister2' : 'beton', x - 0.28, z - 0.28, x + 0.28, z + 0.28, 0, H, {tint:[0.9, 0.88, 0.85]}); mijd.push([x, z, 0.6]); } }
+  }
+  B._aangekleed = stuks; (window.__aankleed = window.__aankleed || {})[soort] = {stuks, DBG, kamers:B.binnen.map(r => [+(r.x1 - r.x0).toFixed(1), +(r.z1 - r.z0).toFixed(1), +r.h.toFixed(1)])};
 }
 
 /* ---------- auto's: 12 straatauto's (Scitizia rally fleet 64, kayquer, CC0) — dof en vuil, sommige met kapotte ramen ---------- */
@@ -1994,7 +2079,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v181";
+const VERSIE = "v182";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
