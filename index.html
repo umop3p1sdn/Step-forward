@@ -45,6 +45,16 @@ function kRng(seed){ let s = Math.floor(Math.abs(seed)*2654435761) % 4294967296 
 const kSm = t => { t = Math.min(1, Math.max(0, t)); return t*t*(3 - 2*t); };
 const kKies = (R, a) => a[R()*a.length|0];
 
+const NACHT_LUCHT = [['0', '#03060e'], ['0.45', '#0c1530'], ['0.5', '#1a2440'], ['1', '#0a0c12']];
+const KATMOS = {   /* per wereld (= per level): mul = gebakken licht op de wereld, kleur = [ambient, zon] als lichtkleur (kleurt ook soldaten), mist buiten / binnen */
+  oud:     {mul:[1.08, 0.95, 0.8], lucht:[['0', '#4a6fa8'], ['0.38', '#e3b27a'], ['0.47', '#f8d49c'], ['0.52', '#f0c48a'], ['1', '#9a8468']], wolk:0.16, licht:[0.92, 1.1], kleur:[0xfff0dc, 0xffd49a], mist:[0xe2c49a, 45, 210], binnenMist:[0x241c14, 16, 70]},
+  stad:    {mul:[0.78, 0.82, 0.9], lucht:[['0', '#3f474f'], ['0.45', '#6f7880'], ['0.5', '#848c93'], ['1', '#555a5f']], wolk:0.5, licht:[0.85, 0.5], kleur:[0xd0dae4, 0xb4c2d0], mist:[0x767f88, 22, 130], binnenMist:[0x15181c, 16, 70], weer:'regen'},
+  kade:    {mul:[1.1, 0.84, 0.78], lucht:[['0', '#2c2a5a'], ['0.34', '#8a4a78'], ['0.45', '#f07a4a'], ['0.5', '#ffb066'], ['1', '#3e3240']], wolk:0.22, licht:[0.85, 0.95], kleur:[0xffd6c4, 0xff9a5a], mist:[0xb88274, 28, 165], binnenMist:[0x20161a, 16, 70]},
+  woestijn:{mul:[1.12, 1.02, 0.86], lucht:[['0', '#2f6fd0'], ['0.45', '#9cc8f0'], ['0.5', '#f2e6cc'], ['1', '#e0c690']], wolk:0.03, licht:[1.0, 1.25], kleur:[0xfff6e2, 0xfff0d0], mist:[0xe6d6b2, 60, 240], binnenMist:[0x2a2216, 16, 70], storm:{vanaf:8, mist:[0xc09a62, 10, 62], weer:'zand'}},
+  hotel:   {mul:[0.55, 0.6, 0.86], binnenMul:[0.98, 0.93, 0.86], lucht:NACHT_LUCHT, wolk:0.04, sterren:true, licht:[0.55, 0.5], kleur:[0xa8b8ff, 0xb8c6ff], mist:[0x0b1020, 30, 150], binnenMist:[0x12121a, 16, 70], stroom:{vanaf:6}},
+  winter:  {mul:[0.76, 0.83, 0.98], lucht:[['0', '#7a8aa0'], ['0.45', '#bcc6d2'], ['0.5', '#d4dbe2'], ['1', '#c4cad2']], wolk:0.4, licht:[0.82, 0.5], kleur:[0xd4e0ff, 0xbcd0ff], mist:[0xb4bec9, 12, 85], binnenMist:[0x161a20, 16, 70], weer:'sneeuw'},
+  loods:   {mul:[0.62, 0.66, 0.86], binnenMul:[0.92, 0.9, 0.85], lucht:NACHT_LUCHT, wolk:0.03, sterren:true, licht:[0.72, 0.66], kleur:[0x8aa0d8, 0xa0b0e8], mist:[0x080c16, 24, 125], binnenMist:[0x0e1014, 16, 70], zoek:true},
+  bunker:  {mul:[0.92, 0.62, 0.56], binnenMul:[0.92, 0.66, 0.6], lucht:[['0', '#1a0a0a'], ['0.45', '#3a1410'], ['0.5', '#4a2018'], ['1', '#140808']], wolk:0.3, licht:[0.62, 0.5], kleur:[0xffa090, 0xffb4a0], mist:[0x220c0a, 18, 90], binnenMist:[0x1c0a0a, 12, 60], alarm:true}};
 const KAART = {
   cache:{}, mats:{}, wacht:0, werelden:{},
   tex(T, n, o){ o = o || {}; const key = n + (o.band ? '|b' : '') + (o.clamp ? '|c' : '');
@@ -78,7 +88,7 @@ const KAART = {
   klaar(){ return this.wacht <= 0; },
   wereld(T, soort, seed){ const k = soort + ':' + seed; if (this.werelden[k]) return this.werelden[k];
     Object.keys(this.werelden).forEach(q => { const w = this.werelden[q]; if (w.g.parent) return; w.g.traverse(o => { if (o.geometry) o.geometry.dispose(); }); delete this.werelden[q]; });   // oude werelden uit het geheugen
-    const t0 = performance.now(), W = KWERELD[soort](T, kRng(seed), seed); W.ms = Math.round(performance.now() - t0); W.soort = soort; W.seed = seed;
+    KBouw.prototype._atmos = KATMOS[soort] || null; const t0 = performance.now(), W = KWERELD[soort](T, kRng(seed), seed); KBouw.prototype._atmos = null; W.ms = Math.round(performance.now() - t0); W.soort = soort; W.seed = seed;
     kStandVerdeel(T, W, soort);
     kCentreer(T, W);
     kSpawnCheck(T, W);
@@ -93,9 +103,9 @@ KBouw.prototype = {
   licht(x, y, z){
     for (const r of this.binnen){ if (x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1 && y <= r.h + 0.05){
       let l = r.basis; for (const q of r.lampen){ const d2 = (x-q[0])*(x-q[0]) + (y-q[1])*(y-q[1])*0.6 + (z-q[2])*(z-q[2]); l += q[3]/(1 + d2/(q[4]*q[4])); }
-      return Math.min(1.25, l); } }
-    return 1; },
-  kl(x, y, z, ao, tint){ const l = this.licht(x, y, z)*ao, M = this.lichtMul || [1, 1, 1]; return tint ? [l*tint[0]*M[0], l*tint[1]*M[1], l*tint[2]*M[2]] : [l*M[0], l*M[1], l*M[2]]; },   // lichtMul: dag/schemer/nacht
+      this._inn = true; return Math.min(1.25, l); } }
+    this._inn = false; return 1; },
+  kl(x, y, z, ao, tint){ const l = this.licht(x, y, z)*ao, A = this._atmos, M = this.lichtMul || (A ? (this._inn ? A.binnenMul || A.mul.map(v => 0.5 + v*0.5) : A.mul) : null) || [1, 1, 1]; return tint ? [l*tint[0]*M[0], l*tint[1]*M[1], l*tint[2]*M[2]] : [l*M[0], l*M[1], l*M[2]]; },   // lichtMul: dag/schemer/nacht
   quad(n, P, U, C){ const e = this.em(n), b = e.p.length/3;
     for (let k=0;k<4;k++){ e.p.push(P[k][0], P[k][1], P[k][2]); e.u.push(U[k][0], U[k][1]); e.c.push(C[k][0], C[k][1], C[k][2]); e.v.push(this._vh == null ? 0 : this._vh === 'vloer' ? -1 : 1 + Math.max(0, P[k][1] - this._vh)); }   /* vuil: 0 = alleen vlekken, -1 = vloer, 1+h = muur (h boven de vloer) */
     e.i.push(b, b+1, b+2, b, b+2, b+3); },
@@ -241,6 +251,7 @@ KBouw.prototype = {
   lamp(r, x, y, z, k){ r.lampen.push([x, y, z, k ?? 0.85, 2.8]); this.doos('lamp', x - 0.22, z - 0.22, x + 0.22, z + 0.22, y - 0.06, y, {geenBots:true, geenAo:true}); },
   ruimte(x0, z0, x1, z1, h, basis){ const r = {x0:Math.min(x0,x1), x1:Math.max(x0,x1), z0:Math.min(z0,z1), z1:Math.max(z0,z1), h, basis:basis ?? 0.32, lampen:[]}; this.binnen.push(r); return r; },
   lucht(stops, wolk, sterren){   // hemelkoepel met een zachte verloopkleur en wat wolken (varianten: eigen kleuren, sterren)
+    if (!stops && this._atmos){ stops = this._atmos.lucht; wolk = this._atmos.wolk; sterren = this._atmos.sterren; }   /* v180: sfeer per level */
     const T = this.T, c = document.createElement('canvas'); c.width = 256; c.height = 256; const x = c.getContext('2d');
     const gr = x.createLinearGradient(0, 0, 0, 256); (stops || [['0', '#5f86b8'], ['0.42', '#a9c2dc'], ['0.5', '#d9dfe2'], ['1', '#c8c4bb']]).forEach(([o, kl]) => gr.addColorStop(+o, kl));
     x.fillStyle = gr; x.fillRect(0, 0, 256, 256);
@@ -1974,7 +1985,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v179";
+const VERSIE = "v180";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2105,8 +2116,11 @@ AFRAME.registerComponent('stad', {
                                                      : {as:'z', w:s.w - o[1], a0:s.a0 - o[0], a1:s.a1 - o[0], open:s.open.map(r => [r[0] - o[0], r[1] - o[0]])});
     this.kaartS = {W, S, o, naam:S.naam, breed:S.breed, wagZ:S.wagZ, mg:S.mg ? {x:S.mg[0], z:S.mg[1]} : null, binnen:!!S.binnen, geenWagens:!!S.geenWagens, lucht:!!S.lucht, tank:!!S.tank, geenMuur:!!S.geenMuur,
       plekken, scheid:sch, spawns:(S.spawns || []).filter(s => !this.achterBlok(blok, s.p)).map(s => ({p:v(s.p), via:(s.via || []).map(v), deur:s.deur || null, dicht:!!s.dicht}))};
-    this.lichtZet(S.licht ? S.licht[0] : S.binnen ? 0.6 : 1, S.licht ? S.licht[1] : S.binnen ? 0.5 : 1);
-    this.el.object3D.fog = S.mist ? new T.Fog(S.mist[0], S.mist[1], S.mist[2]) : new T.Fog(S.binnen ? 0x16181b : 0xc4cbd1, S.binnen ? 16 : 35, S.binnen ? 70 : 170);
+    const A = this.atmos = KATMOS[W.soort] || null;
+    this.lichtZet(S.licht ? S.licht[0] : S.binnen ? 0.6 : A ? A.licht[0] : 1, S.licht ? S.licht[1] : S.binnen ? 0.5 : A ? A.licht[1] : 1, A ? A.kleur : null);
+    const mi = A ? (S.binnen ? A.binnenMist : A.mist) : null;
+    this.el.object3D.fog = mi ? new T.Fog(mi[0], mi[1], mi[2]) : S.mist ? new T.Fog(S.mist[0], S.mist[1], S.mist[2]) : new T.Fog(S.binnen ? 0x16181b : 0xc4cbd1, S.binnen ? 16 : 35, S.binnen ? 70 : 170);
+    this.atmosBasis = {fog:this.el.object3D.fog.color.getHex(), near:this.el.object3D.fog.near, far:this.el.object3D.fog.far, a:S.licht ? S.licht[0] : S.binnen ? 0.6 : A ? A.licht[0] : 1, d:S.licht ? S.licht[1] : S.binnen ? 0.5 : A ? A.licht[1] : 1, binnen:!!S.binnen};
     // deuren staan open; meubels draaien naar jou toe (nooit op hun kant)
     { const dichtS = new Set((S.spawns || []).filter(q => q.deur).map(q => q.deur));   /* deuren waar iemand uit komt: dicht tot ze opengetrapt worden; eenmaal open = open */
       W.deuren.forEach(d => { if (d.basis == null) d.basis = d.g.rotation.y; d.trap = null; const dicht = dichtS.has(d) && !d.ooit; d.dicht = dicht; d.doel = d.open = dicht ? 0 : 1.55; d.g.rotation.y = d.basis + d.open; d.b.uit = !dicht; d.g.children.forEach(m => { m.userData.blad = true; }); }); }
@@ -2120,9 +2134,38 @@ AFRAME.registerComponent('stad', {
     this.kaartS.plekken = this.kaartS.plekken.map(g => Object.assign(g, {lijst:g.lijst.filter(kegel)})).filter(g => g.lijst.length);
   },
   kaartWeg(){ if (this.kaartG){ this.kaartG.removeFromParent(); this.kaartG = null; } this.kaartW = null; this.kaartS = null; this.extraY = 0;
-    [this.wand, this.vloer, this.vloerVer, this.voet, this.achter, this.muren].forEach(m => { if (m) m.visible = true; }); this.lichtZet(1, 1); this.el.object3D.fog = null; },
-  lichtZet(a, d){ if (!this.lichten){ this.lichten = []; document.querySelectorAll('[light]').forEach(el => { const l = el.getObject3D('light'); if (l) this.lichten.push({l, i:l.intensity}); }); }
-    this.lichten.forEach(q => q.l.intensity = q.i*(q.l.isAmbientLight ? a : d)); },
+    [this.wand, this.vloer, this.vloerVer, this.voet, this.achter, this.muren].forEach(m => { if (m) m.visible = true; }); this.lichtZet(1, 1); this.el.object3D.fog = null; this.atmos = null; this.atmosBasis = null; this.weerZet(null); },
+  lichtZet(a, d, kl){ if (!this.lichten){ this.lichten = []; document.querySelectorAll('[light]').forEach(el => { const l = el.getObject3D('light'); if (l) this.lichten.push({l, i:l.intensity, c:l.color.getHex()}); }); }
+    this.lichten.forEach(q => { q.l.intensity = q.i*(q.l.isAmbientLight ? a : d); q.l.color.setHex(kl ? (q.l.isAmbientLight ? kl[0] : kl[1]) : q.c); }); },
+  atmosTick(s){                         // weer, stroomuitval, alarm, zoeklichten, zandstorm — volgt de wave
+    const A = this.atmos, B = this.atmosBasis, Z = this.el.components.zombies; if (!A || !B || !Z){ if (this._weer) this.weerZet(null); return; }
+    const wv = Z.waveNr || 1, nu = (this._atT = (this._atT || 0) + s), fog = this.el.object3D.fog, T = this.T;
+    const storm = A.storm && wv >= A.storm.vanaf, weer = B.binnen ? null : storm ? A.storm.weer : A.weer; this.weerZet(weer); if (this._weer) this.weerTick(s);
+    if (fog){ const m = storm && !B.binnen ? A.storm.mist : null; if (m){ fog.color.setHex(m[0]); fog.near += (m[1] - fog.near)*Math.min(1, s*0.6); fog.far += (m[2] - fog.far)*Math.min(1, s*0.6); } }
+    if (A.stroom && wv >= A.stroom.vanaf){ const p = 0.55 + 0.45*Math.max(0, Math.sin(nu*2.2)) + (Math.random() < 0.02 ? 0.4 : 0);   /* stroom uitgevallen: rood noodlicht dat pulseert */
+      this.lichtZet(B.a*0.55*p, B.d*0.32*p, [0xff4a38, 0xff6050]); if (fog) fog.color.setHex(0x1a0606); }
+    else if (A.alarm){ const p = 0.75 + 0.25*Math.sin(nu*4.5); this.lichtZet(B.a*p, B.d*p, [0xff9080 , 0xffa898]); }
+    this.zoekTick(A.zoek && !B.binnen, nu); },
+  weerZet(soort){ if ((this._weer && this._weer.soort) === soort) return; if (this._weer){ this._weer.m.removeFromParent(); this._weer.m.geometry.dispose(); this._weer = null; } if (!soort) return;
+    const T = this.T, N = soort === 'regen' ? 900 : soort === 'sneeuw' ? 1400 : 1100, pos = new Float32Array(N*(soort === 'regen' ? 6 : 3)), v = new Float32Array(N*3);
+    for (let i=0;i<N;i++){ const x = (Math.random() - 0.5)*30, y = Math.random()*14, z = (Math.random() - 0.5)*30; v[i*3] = soort === 'zand' ? 6 + Math.random()*5 : soort === 'sneeuw' ? (Math.random() - 0.5)*0.8 : 0.6; v[i*3+1] = soort === 'regen' ? -15 - Math.random()*4 : soort === 'sneeuw' ? -1.1 - Math.random()*0.9 : (Math.random() - 0.5)*0.6; v[i*3+2] = soort === 'zand' ? 1.5 : (Math.random() - 0.5)*0.4;
+      if (soort === 'regen'){ pos.set([x, y, z, x + 0.02, y + 0.5, z], i*6); } else pos.set([x, y, z], i*3); }
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(pos, 3));
+    const m = soort === 'regen' ? new T.LineSegments(g, new T.LineBasicMaterial({color:0xb8c4d0, transparent:true, opacity:0.38, depthWrite:false}))
+      : new T.Points(g, new T.PointsMaterial({color:soort === 'zand' ? 0xc8a46e : 0xffffff, size:soort === 'zand' ? 0.05 : 0.065, transparent:true, opacity:soort === 'zand' ? 0.6 : 0.9, depthWrite:false, sizeAttenuation:true}));
+    m.frustumCulled = false; m.renderOrder = 3; m.raycast = () => {}; this.el.object3D.add(m); this._weer = {soort, m, v, N}; },
+  weerTick(s){ const W = this._weer, cam = this.el.camera; if (!W || !cam) return; const ik = cam.getWorldPosition(this._wIk || (this._wIk = new this.T.Vector3())), P = W.m.geometry.attributes.position.array, regen = W.soort === 'regen', st = regen ? 6 : 3;
+    for (let i=0;i<W.N;i++){ const o = i*st; let x = P[o] + W.v[i*3]*s, y = P[o+1] + W.v[i*3+1]*s, z = P[o+2] + W.v[i*3+2]*s;
+      if (y < ik.y - 2 || y > ik.y + 13 || Math.abs(x - ik.x) > 15 || Math.abs(z - ik.z) > 15){ x = ik.x + (Math.random() - 0.5)*30; z = ik.z + (Math.random() - 0.5)*30; y = W.soort === 'zand' ? ik.y - 1.5 + Math.random()*6 : ik.y + 6 + Math.random()*7; if (W.soort === 'zand') x = ik.x - 15; }
+      P[o] = x; P[o+1] = y; P[o+2] = z; if (regen){ P[o+3] = x + 0.02; P[o+4] = y + 0.5; P[o+5] = z; } }
+    W.m.geometry.attributes.position.needsUpdate = true; },
+  zoekTick(aan, nu){ const T = this.T; if (!aan){ if (this._zoek) this._zoek.forEach(b => b.visible = false); return; }
+    if (!this._zoek){ const mat = new T.MeshBasicMaterial({color:0xdfe8ff, transparent:true, opacity:0.075, blending:T.AdditiveBlending, depthWrite:false, side:T.DoubleSide, fog:false});
+      this._zoek = [0, 1, 2].map(i => { const g = new T.Group(), c = new T.Mesh(new T.CylinderGeometry(0.25, 2.6, 30, 16, 1, true), mat); c.position.y = -15; c.raycast = () => {}; g.add(c);
+        const vlek = new T.Mesh(new T.CircleGeometry(2.4, 20), new T.MeshBasicMaterial({color:0xeef2ff, transparent:true, opacity:0.16, blending:T.AdditiveBlending, depthWrite:false})); vlek.rotation.x = -Math.PI/2; vlek.raycast = () => {}; vlek.userData.vlek = true; this.el.object3D.add(vlek); g.userData.vlek = vlek;
+        g.renderOrder = 4; this.el.object3D.add(g); return g; }); }
+    this._zoek.forEach((g, i) => { g.visible = true; const hx = (i - 1)*16, hz = -34 - i*4, a = nu*(0.35 + i*0.08) + i*2.1, rx = 0.45*Math.sin(a), rz = 0.3*Math.cos(a*0.8);
+      g.position.set(hx, 26, hz); g.rotation.set(rx, 0, rz); const d = new T.Vector3(0, -1, 0).applyEuler(g.rotation), t = (26 - 0.05)/-d.y, V = g.userData.vlek; V.visible = true; V.position.set(hx + d.x*t, 0.05, hz + d.z*t); }); },
   kaartNu(){ const p = PLEKKEN[this.i]; return p && p.kaart && this.kaartS ? this.kaartS : null; },
   standBlok(W, S){ const T = this.T;               /* niet te diep: lange straten/gangen vooruit krijgen op ~16 m een eindgevel (alleen zichtbaar bij deze stand) */
     W._blok = W._blok || []; W._blok.forEach(b => { b.m.visible = b.S === S; b.box.uit = b.S !== S; });
@@ -2279,6 +2322,7 @@ AFRAME.registerComponent('stad', {
   },
   tick(t, dt){
     { const Z = this.el.components.zombies; if (Z && (Z.actie || (Z.ult && Z.ult.aan))) dt *= (Z.tijdF || 1); }
+    this.atmosTick(Math.min(0.05, dt/1000));
     { const rig = document.getElementById('rig'); if (rig && rig.object3D){ if (this.rigY == null) this.rigY = rig.object3D.position.y; rig.object3D.position.y = this.rigY + (this.extraY || 0); } }
     this.deurTick(Math.min(0.05, (dt)/1000));
     const s = Math.min(dt/1000, 0.1);
