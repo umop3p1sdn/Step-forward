@@ -1974,7 +1974,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v174";
+const VERSIE = "v175";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -5061,7 +5061,7 @@ AFRAME.registerComponent('zombies', {
     if (A.doel && A.doel.gore && A.doel.ding.dood && this.nu - A.doel.ding.doodNu < 0.9){ A.keuzeT = 0.5; }
     else if (A.doel && A.doel.soort === 'kist' && A.doel.ding.weg) A.doel = null;
     else if (A.doel && (dood(A.doel.ding) || (A.doel.soort === 'lucht' && A.doel.ding.grond))){ if (A.doel.soort === 'soldaat' && A.doel.ding.dood){ A.rustT = nu + 0.5; A.kistNa = true; A.spray = nu + 0.3; } A.doel = null; }
-    if (!A.doel && A.rustT > nu){ if (A.spray > nu && midden && this.wapen[this.gunHand] === 'auto') this.vuur('muis', midden); this.autoZeg('…', '#a0a0a0'); return; }   /* even blijven kijken na een kill; met de automaat nog even doorratelen */
+    if (!A.doel && A.rustT > nu){ if (midden && ((A.spray > nu && this.wapen[this.gunHand] === 'auto') || (A.burstN > 0 && this.wapen[this.gunHand] === 'pistool'))) this.vuur('muis', midden); this.autoZeg('…', '#a0a0a0'); return; }   /* even blijven kijken na een kill; met de automaat nog even doorratelen */
     if (!A.doel || A.keuzeT <= 0){ const k = this.autoKeuze(); A.keuzeT = 0.35;
       if (k && (!A.doel || (k.ding !== A.doel.ding && (k.soort !== 'soldaat' || k.vast || A.doel.soort !== 'soldaat')))){ A.doel = k; A.richtT = 0; A.blokT = 0; A.zoneWissel = 0; } else if (!k) A.doel = null; }
     let D = A.doel;
@@ -7148,7 +7148,7 @@ AFRAME.registerComponent('zombies', {
   herlaadTijd(w){ const S = this.wStat(w); return S ? Math.max(0.4, 2.8 - S.rs*0.026) : 1.0; },       // snelle reload is écht snel
   wachtTijd(w){ const l = this.lv(w);
     const S = this.wStat(w);
-    if (w === 'pistool' && this.auto) return 0.4;   /* alleen de DEMO: handgun max 2,5 per seconde; in het spel ongewijzigd */
+    if (w === 'pistool' && this.auto){ const A = this.auto; if (this.tierVan('pistool') === 2){ if ((A.burstN || 0) > 0){ A.burstN--; return 0.075; } A.burstN = Math.random() < 0.5 ? 2 + ((Math.random()*3)|0) : 0; } return 0.4; }   /* alleen de DEMO: handgun max 2,5 per seconde, auto pistol soms een korte burst (prrrt); in het spel ongewijzigd */
     if (S && w === 'shotgun' && this.tierVan('shotgun') === 2) return 0.12;   /* heavy shotgun: zo snel als je tikt */
     if (S && w === 'shotgun') return 1.6*Math.pow(0.975, S.fr);        // pomp ~0,7 s ... AA-12 ~0,15 s
     if (S && w === 'pistool' && !this.isAuto('pistool')) return 0.06;   /* handgun: zo snel als je tikt (recoil en spread remmen het af) */
