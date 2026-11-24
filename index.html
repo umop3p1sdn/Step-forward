@@ -1974,7 +1974,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v177";
+const VERSIE = "v178";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2149,17 +2149,27 @@ AFRAME.registerComponent('stad', {
     return S._blok = uit; },
   achterBlok(blok, p){ return (blok || []).some(b => { const vx = p[0] - b.c[0], vz = p[1] - b.c[1]; return vx*b.d[0] + vz*b.d[1] > -0.3 && Math.abs(-vx*b.d[1] + vz*b.d[0]) < b.hw + 1; }); },
   // straal in spelerruimte tegen de muren/props van de wereld; dichtstbijzijnde treffer met normaal
-  kaartStraal(o, d, max){ const K = this.kaartNu(); if (!K) return null; const T = this.T;
+  kaartStraal(o, d, max, rand){ const K = this.kaartNu(); if (!K) return null; const T = this.T;
     const ray = this._ray || (this._ray = new T.Ray()), tmp = this._tmp || (this._tmp = new T.Vector3());
     ray.origin.set(o.x + K.o[0], o.y, o.z + K.o[1]); ray.direction.copy(d).normalize();
     let best = null;
     for (const b of K.W.boxen){ if (b.uit || b.containsPoint(ray.origin)) continue; const p = ray.intersectBox(b, tmp); if (!p) continue;
-      const dd = p.distanceTo(ray.origin); if (dd <= (max ?? 1e9) && (!best || dd < best.d)) best = {d:dd, p:p.clone(), b}; }
+      const dd = p.distanceTo(ray.origin); if (dd <= (max ?? 1e9) && (!best || dd < best.d)){ if (rand && this.kaartRand(K, b, p, rand)) continue; best = {d:dd, p:p.clone(), b}; } }
     if (!best) return null;
     const b = best.b, p = best.p, ka = [[Math.abs(p.x - b.min.x), -1, 0, 0], [Math.abs(p.x - b.max.x), 1, 0, 0], [Math.abs(p.z - b.min.z), 0, 0, -1], [Math.abs(p.z - b.max.z), 0, 0, 1], [Math.abs(p.y - b.max.y), 0, 1, 0], [Math.abs(p.y - b.min.y), 0, -1, 0]];
     ka.sort((a, c) => a[0] - c[0]); best.n = new T.Vector3(ka[0][1], ka[0][2], ka[0][3]);
     best.p.x -= K.o[0]; best.p.z -= K.o[1]; return best; },
   kaartSeg(a, b){ const d = b.clone().sub(a), l = d.length(); if (l < 1e-6) return null; return this.kaartStraal(a, d, l); },
+  kaartRand(K, b, p, r){                // raakt de kogel het buitenste randje van een blok (pilaar, deurpost, muurhoek)? dan gaat hij erlangs
+    const ka = [['x', Math.min(Math.abs(p.x - b.min.x), Math.abs(p.x - b.max.x))], ['y', Math.min(Math.abs(p.y - b.min.y), Math.abs(p.y - b.max.y))], ['z', Math.min(Math.abs(p.z - b.min.z), Math.abs(p.z - b.max.z))]];
+    const as = ka.reduce((a, c) => c[1] < a[1] ? c : a)[0], nz = Math.abs(p[as] - b.min[as]) < Math.abs(p[as] - b.max[as]) ? -1 : 1;   /* as van het vlak dat je raakt */
+    const q = this._randQ || (this._randQ = new this.T.Vector3());
+    for (const a of ['x', 'y', 'z']){ if (a === as) continue;
+      for (const kant of [-1, 1]){ const rd = kant < 0 ? p[a] - b.min[a] : b.max[a] - p[a]; if (rd > r) continue;
+        if (a === 'y' && kant < 0 && b.min.y < 0.05) continue;   /* onderrand op de vloer telt niet */
+        q.copy(p); q[a] = kant < 0 ? b.min[a] - 0.05 : b.max[a] + 0.05; q[as] -= nz*0.04;   /* net voorbij de rand: zit daar een ander blok (naad in een muur), dan is het geen echte rand */
+        if (!K.W.boxen.some(c => c !== b && !c.uit && c.containsPoint(q))) return true; } }
+    return false; },
   deurOpen(d){ if (d){ d.doel = Math.max(d.doel, 1.45); d.ooit = true; } },
   deurTick(s){ if (!this.kaartW) return;
     for (const d of this.kaartW.deuren){ if (d.basis == null) d.basis = d.g.rotation.y;
@@ -3016,7 +3026,7 @@ AFRAME.registerComponent('zombies', {
   naarMij(g){ const ik = this.el.camera.getWorldPosition(new this.T.Vector3()); g.rotation.y = Math.atan2(ik.x - g.position.x, ik.z - g.position.z); },
   /* ---------- trefproef op props (dekking, voertuigen, heli's) ---------- */
   propRaak(){
-    const stM = this.el.components.stad, mw = stM && stM.kaartNu() ? stM.kaartStraal(this.rc.ray.origin, this.rc.ray.direction, this.rc.far) : null;
+    const stM = this.el.components.stad, mw = stM && stM.kaartNu() ? stM.kaartStraal(this.rc.ray.origin, this.rc.ray.direction, this.rc.far, 0.12) : null;   /* v178: randjes laten jouw kogels door */
     this._muurHit = mw;
     let mh = null;
     if (mw !== undefined && stM && stM.kaartW && stM.kaartNu() && (stM.kaartW.meubels || []).length){
