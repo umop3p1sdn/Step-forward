@@ -1974,7 +1974,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v175";
+const VERSIE = "v176";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -7720,6 +7720,7 @@ AFRAME.registerComponent('zombies', {
   meerMenu(g, bord, tekst){            // VR-menu: SHARE en MORE GAMES links, en het paneel dat je opent
     const T = this.T, zijKnop = (titel, sub, kl, y, p) => { const k = bord(1.0, 0.32, (x, w, h) => { x.fillStyle = kl; x.fillRect(0, 0, w, h); x.strokeStyle = 'rgba(255,255,255,0.7)'; x.lineWidth = 7; x.strokeRect(4, 4, w-8, h-8); tekst(x, titel, h*0.42, 62, '#ffffff'); tekst(x, sub, h*0.8, 24, '#e8f2ea'); });
       k.scale.setScalar(0.7); k.rotation.y = 0.35; k.position.set(-1.75, y, -2.35); k.userData.paneel = p; g.add(k); this.menuKnop['p_' + p] = k; };
+    { const v = bord(0.6, 0.15, (x, w, h) => { x.clearRect(0, 0, w, h); tekst(x, VERSIE, h*0.55, 76, 'rgba(225,235,240,0.9)'); }); v.position.set(1.75, 1.3, -2.35); v.rotation.y = -0.35; g.add(v); }   /* versienummer, ook in VR te zien */
     zijKnop('SHARE', 'send the game to a friend', this.menuPaneel === 'share' ? 'rgba(30,110,60,0.95)' : 'rgba(20,70,40,0.88)', 1.72, 'share');
     zijKnop('MORE GAMES', 'my other games', this.menuPaneel === 'meer' ? 'rgba(30,80,140,0.95)' : 'rgba(20,50,95,0.88)', 1.4, 'meer');
     const doek = (w, h, px, teken) => { const c = document.createElement('canvas'); c.width = px; c.height = Math.round(px*h/w); const x = c.getContext('2d'); teken(x, c.width, c.height);
