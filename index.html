@@ -1974,7 +1974,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v167";
+const VERSIE = "v168";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -4928,9 +4928,9 @@ AFRAME.registerComponent('zombies', {
     const cam = this.el.camera; if (!cam) return; this.actieKlaar = this.nu + 8;
     this.actie = {z, t:0, f:1, fov0:cam.fov, bot:o.hoofd ? 'Head' : 'spine_03', p:null, muurV:!!(this.muur && this.muur.m && this.muur.m.visible)}; if (this.muur && this.muur.m) this.muur.m.visible = false;   /* eigen dekking even weg: niets voor de lens */
     if (this.autoKruisEl) this.autoKruisEl.style.display = 'none'; },
-  actieVoor(z, midden){                 // DEMO: eerst inzoomen op het hoofd, dan pas de knal
+  actieVoor(z, midden, deel){           // DEMO: eerst inzoomen op het lichaamsdeel, dan pas de knal
     if (this.actie || this.nu < (this.actieKlaar || 0) || Math.random() > 0.55 || !z || z.dood || !z.s3d) return false; const cam = this.el.camera; if (!cam) return false;
-    this.actieKlaar = this.nu + 8; this.actie = {z, t:0, f:1, fov0:cam.fov, bot:'Head', p:null, voor:true, midden, schotT:null, muurV:!!(this.muur && this.muur.m && this.muur.m.visible)}; if (this.muur && this.muur.m) this.muur.m.visible = false; return true; },
+    this.actieKlaar = this.nu + 8; this.actie = {z, t:0, f:1, fov0:cam.fov, bot:deel === 'hoofd' ? 'Head' : 'spine_03', deel:deel || 'hoofd', p:null, voor:true, midden, schotT:null, muurV:!!(this.muur && this.muur.m && this.muur.m.visible)}; if (this.muur && this.muur.m) this.muur.m.visible = false; return true; },
   actieTick(dt){                        // echte tijd erin, game-tijd eruit
     const A = this.actie, T = this.T, cam = this.el.camera, el = document.getElementById('cam'); if (!A || !cam || !el){ this.actie = null; return dt; }
     for (const q of this._zweef || []) q.sp.visible = false;   /* geen punten-tekst voor de lens */
@@ -4941,7 +4941,7 @@ AFRAME.registerComponent('zombies', {
     const t0 = A.voor ? (A.schotT == null ? 1e9 : A.schotT) : 0, ts = t - t0;   /* slow motion telt vanaf het schot */
     const k = t < IN ? glad(t/IN) : ts < SLO ? 1 : glad(Math.max(0, 1 - (ts - SLO)/UIT));
     A.f = A.voor && A.schotT == null ? 0.55 : ts < SLO ? 0.22 : 0.22 + 0.78*Math.min(1, (ts - SLO)/UIT);
-    const b = A.z.s3d && A.z.s3d.bot[A.bot] || A.z.s3d && A.z.s3d.bot.spine_03, doel = (A.bot === 'Head' && this.deelMidden(A.z, 'hoofd')) || (b ? b.getWorldPosition(new T.Vector3()) : A.z.grp.position.clone().setY(1.2));   /* midden van het gezicht, niet de nek */
+    const b = A.z.s3d && A.z.s3d.bot[A.bot] || A.z.s3d && A.z.s3d.bot.spine_03, doel = (A.deel && this.deelMidden(A.z, A.deel)) || (A.bot === 'Head' && this.deelMidden(A.z, 'hoofd')) || (b ? b.getWorldPosition(new T.Vector3()) : A.z.grp.position.clone().setY(1.2));   /* midden van het gezicht, niet de nek */
     if (A.schotT != null || !A.voor){ if (A.y00 == null) A.y00 = doel.y; doel.y = Math.max(doel.y, A.y00 - 0.5); }   /* volg de val maar niet de grond in */
     A.p = A.p ? A.p.lerp(doel, Math.min(1, dt/1000*(A.voor && A.schotT == null ? 30 : 5))) : doel;
     const o = el.object3D, ik = cam.getWorldPosition(new T.Vector3());
@@ -5095,7 +5095,7 @@ AFRAME.registerComponent('zombies', {
       A.zoneWissel = 0;
       A.blokT = 0; }
     if ((w === 'raket' || D.boog) && A.schotT > nu) return;
-    if (D.soort === 'soldaat' && this.comboAan() && !D.gore && !D.ding.dood && /HEAD|FINISH/.test(tekst || '') && ((w === 'pistool' && this.tierVan('pistool') >= 3) || w === 'shotgun') && this.actieVoor(D.ding, midden)) return;   /* action shot: eerst inzoomen */
+    if (D.soort === 'soldaat' && this.comboAan() && !D.gore && !D.ding.dood && ((w === 'pistool' && this.tierVan('pistool') >= 3) || w === 'shotgun') && this.actieVoor(D.ding, midden, /HEAD|FINISH/.test(tekst || '') ? 'hoofd' : (D.ding.autoZone && D.ding.autoZone !== 'hoofd' ? D.ding.autoZone : 'borst'))) return;   /* action shot op hoofd, lijf of benen */   /* action shot: eerst inzoomen */
     this.vuur('muis', midden);
     if (this.autoKruisEl){ this.autoKruisEl.style.transform = 'scale(1.5)'; clearTimeout(this.autoKruisT); this.autoKruisT = setTimeout(() => { if (this.autoKruisEl) this.autoKruisEl.style.transform = ''; }, 70); }
     if (w === 'raket'){ A.schotT = nu + 1.6; if (D.soort === 'groep') A.blok.set(D.ding, nu + 3); }
