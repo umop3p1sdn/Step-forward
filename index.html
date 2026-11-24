@@ -1974,7 +1974,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v173";
+const VERSIE = "v174";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -5060,8 +5060,8 @@ AFRAME.registerComponent('zombies', {
     if (A.doel && A.doel.soort === 'soldaat' && A.doel.ding.dood && A.doel.ding.doodNu != null && A.doel.gore == null && this.comboAan() && (A.doel.gore = Math.random() < 0.6)){ A.doel.ding.autoZone = ['bovenbeenL', 'bovenbeenR', 'borst', 'onderbeenL'][(Math.random()*4)|0]; }   /* overkill */
     if (A.doel && A.doel.gore && A.doel.ding.dood && this.nu - A.doel.ding.doodNu < 0.9){ A.keuzeT = 0.5; }
     else if (A.doel && A.doel.soort === 'kist' && A.doel.ding.weg) A.doel = null;
-    else if (A.doel && (dood(A.doel.ding) || (A.doel.soort === 'lucht' && A.doel.ding.grond))){ if (A.doel.soort === 'soldaat' && A.doel.ding.dood){ A.rustT = nu + 0.5; A.kistNa = true; } A.doel = null; }
-    if (!A.doel && A.rustT > nu){ this.autoZeg('…', '#a0a0a0'); return; }   /* even blijven kijken na een kill */
+    else if (A.doel && (dood(A.doel.ding) || (A.doel.soort === 'lucht' && A.doel.ding.grond))){ if (A.doel.soort === 'soldaat' && A.doel.ding.dood){ A.rustT = nu + 0.5; A.kistNa = true; A.spray = nu + 0.3; } A.doel = null; }
+    if (!A.doel && A.rustT > nu){ if (A.spray > nu && midden && this.wapen[this.gunHand] === 'auto') this.vuur('muis', midden); this.autoZeg('…', '#a0a0a0'); return; }   /* even blijven kijken na een kill; met de automaat nog even doorratelen */
     if (!A.doel || A.keuzeT <= 0){ const k = this.autoKeuze(); A.keuzeT = 0.35;
       if (k && (!A.doel || (k.ding !== A.doel.ding && (k.soort !== 'soldaat' || k.vast || A.doel.soort !== 'soldaat')))){ A.doel = k; A.richtT = 0; A.blokT = 0; A.zoneWissel = 0; } else if (!k) A.doel = null; }
     let D = A.doel;
@@ -5100,9 +5100,9 @@ AFRAME.registerComponent('zombies', {
     this.autoZeg(tekst, kl);
     const fout = Math.hypot(dy, pitch - o.rotation.x)*Math.max(1, dir.length());
     A.wisselT -= s; A.richtT += s;
-    A.st = A.st || {mik:0, blok:0, ok:0, scan:0}; A.st[A.wisselT > 0 || fout > Math.max(0.06, maat*0.75) ? 'mik' : 'ok']++;
+    A.st = A.st || {mik:0, blok:0, ok:0, scan:0}; A.st[A.wisselT > 0 || fout > (w === 'auto' ? Math.max(0.16, maat*1.8) : Math.max(0.06, maat*0.75)) ? 'mik' : 'ok']++;
     A.dbg = {fout:+fout.toFixed(3), maat, wissel:+A.wisselT.toFixed(2), blokT:+(A.blokT||0).toFixed(2)};
-    if (A.wisselT > 0 || fout > Math.max(0.06, maat*0.75) || !midden) return;
+    if (A.wisselT > 0 || fout > (w === 'auto' ? Math.max(0.16, maat*1.8) : Math.max(0.06, maat*0.75)) || !midden) return;
     // kan ik hem zien? (niet in de dekking schieten)
     if (D.soort === 'soldaat' && w !== 'raket'){
       this.straal('muis', midden); const t = this.treffers(true)[0], pr = this.propRaak();
@@ -7148,7 +7148,7 @@ AFRAME.registerComponent('zombies', {
   herlaadTijd(w){ const S = this.wStat(w); return S ? Math.max(0.4, 2.8 - S.rs*0.026) : 1.0; },       // snelle reload is écht snel
   wachtTijd(w){ const l = this.lv(w);
     const S = this.wStat(w);
-    if (w === 'pistool' && this.tierVan('pistool') >= 3) return 0.34;   /* Desert Eagle: max 3 per seconde */
+    if (w === 'pistool' && this.auto) return 0.4;   /* alleen de DEMO: handgun max 2,5 per seconde; in het spel ongewijzigd */
     if (S && w === 'shotgun' && this.tierVan('shotgun') === 2) return 0.12;   /* heavy shotgun: zo snel als je tikt */
     if (S && w === 'shotgun') return 1.6*Math.pow(0.975, S.fr);        // pomp ~0,7 s ... AA-12 ~0,15 s
     if (S && w === 'pistool' && !this.isAuto('pistool')) return 0.06;   /* handgun: zo snel als je tikt (recoil en spread remmen het af) */
