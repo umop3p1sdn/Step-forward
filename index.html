@@ -1974,7 +1974,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v169";
+const VERSIE = "v170";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -7700,12 +7700,68 @@ AFRAME.registerComponent('zombies', {
         lab.position.set(0, y, 0); L.add(lab);
         [['◀', -1, -0.76], ['▶', 1, 0.76]].forEach(([t, st, x0]) => { const k = bord(0.26, 0.26, (x, W, H) => { x.fillStyle = 'rgba(40,70,100,0.9)'; x.fillRect(0, 0, W, H); tekst(x, t, H*0.5, 300, '#ffffff'); });
           k.position.set(x0, y, 0); k.userData.kit = [w, st]; L.add(k); this.menuKnop['kit' + w + st] = k; }); }); }
+    this.meerMenu(g, bord, tekst);
     this.sc.add(g); this.menu = g;
   },
+  meerGames(){ return [
+    {naam:'DIEPE TRIP', url:'https://umop3p1sdn.github.io/VR/', img:'art/meer/diepetrip.jpg', kl:'#d07aff',
+     tekst:'A psychedelic ride through plasma tunnels, fractal space and kaleidoscopes, moving to the beat of the music. Shoot the snakes of blocks that wind around you — tiny fast ones and giants that take a few hits. Sit back, about four minutes, best in a Meta Quest.'},
+    {naam:'COSMIC SHOOTER', url:'https://umop3p1sdn.github.io/Cosmic/', img:'art/meer/cosmic.jpg', kl:'#6ad8ff',
+     tekst:'Fly through alien worlds — from the pyramids to deep space — and shoot down whole fleets of ships. Every level ends with a boss with its own attack. Machine gun, rockets, shotgun, laser and lightning, plus three difficulty settings. Made for VR on the Meta Quest.'},
+    {naam:'HO-ME LIVE TRACKER', url:'https://umop3p1sdn.github.io/Tracker/', img:'art/meer/home.jpg', kl:'#3ad0e0',
+     tekst:'Ride together with friends: see everyone live on the map, share your route and get spoken turn-by-turn directions and speed camera warnings. No account needed, just share a code. Runs on your phone — add it to your home screen.'}]; },
+  meerUrl(){ return 'https://umop3p1sdn.github.io/Step-forward/'; },
+  meerImg(src){ const I = this._meerImg = this._meerImg || {}; if (!I[src]){ const im = new Image(); im.onload = () => { if (this.menu && this.menuPaneel && !this.gestart) this.kiesHand(this.menuHand || 'handR'); }; im.src = src; I[src] = im; } return I[src]; },
+  meerOpen(url){ const s = this.el.sceneEl; try { if (s.is('vr-mode')){ s.exitVR(); setTimeout(() => { location.href = url; }, 400); return; } } catch(_){} window.open(url, '_blank') || (location.href = url); },
+  meerDeel(){ const url = this.meerUrl(), d = {title:'Step Forward', text:'Step Forward — arcade VR shooter for the Meta Quest. Play it in your browser:', url};
+    if (navigator.share){ navigator.share(d).catch(() => {}); return; }
+    const klaar = () => this.meerToast('LINK COPIED'); try { navigator.clipboard.writeText(url).then(klaar, () => prompt('Copy this link:', url)); } catch(_){ prompt('Copy this link:', url); } },
+  meerToast(t){ let e = document.getElementById('meerToast'); if (!e){ e = document.createElement('div'); e.id = 'meerToast'; e.style.cssText = 'position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#1d6b3a;color:#fff;font:800 18px Trebuchet MS,sans-serif;padding:12px 22px;border-radius:10px;z-index:60;pointer-events:none'; document.body.appendChild(e); }
+    e.textContent = t; e.style.display = 'block'; clearTimeout(this._toastT); this._toastT = setTimeout(() => { e.style.display = 'none'; }, 1800); },
+  meerMenu(g, bord, tekst){            // VR-menu: SHARE en MORE GAMES links, en het paneel dat je opent
+    const T = this.T, zijKnop = (titel, sub, kl, y, p) => { const k = bord(1.0, 0.32, (x, w, h) => { x.fillStyle = kl; x.fillRect(0, 0, w, h); x.strokeStyle = 'rgba(255,255,255,0.7)'; x.lineWidth = 7; x.strokeRect(4, 4, w-8, h-8); tekst(x, titel, h*0.42, 62, '#ffffff'); tekst(x, sub, h*0.8, 24, '#e8f2ea'); });
+      k.scale.setScalar(0.7); k.rotation.y = 0.35; k.position.set(-1.75, y, -2.35); k.userData.paneel = p; g.add(k); this.menuKnop['p_' + p] = k; };
+    zijKnop('SHARE', 'send the game to a friend', this.menuPaneel === 'share' ? 'rgba(30,110,60,0.95)' : 'rgba(20,70,40,0.88)', 1.72, 'share');
+    zijKnop('MORE GAMES', 'my other games', this.menuPaneel === 'meer' ? 'rgba(30,80,140,0.95)' : 'rgba(20,50,95,0.88)', 1.4, 'meer');
+    const doek = (w, h, px, teken) => { const c = document.createElement('canvas'); c.width = px; c.height = Math.round(px*h/w); const x = c.getContext('2d'); teken(x, c.width, c.height);
+      const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; return new T.Mesh(new T.PlaneGeometry(w, h), new T.MeshBasicMaterial({map:t, transparent:true, depthWrite:false})); };
+    const regels = (x, s, X, y, maxW, lh, max) => { const w = s.split(' '); let r = '', n = 0; for (const woord of w){ const t = r ? r + ' ' + woord : woord; if (x.measureText(t).width > maxW && r){ x.fillText(r, X, y + n*lh); r = woord; if (++n >= max) return; } else r = t; } if (r && n < max) x.fillText(r, X, y + n*lh); };
+    if (this.menuPaneel === 'share'){ const qr = this.meerImg('art/meer/qr.png');
+      const k = doek(1.1, 1.3, 1024, (x, w, h) => { x.fillStyle = 'rgba(10,16,22,0.96)'; x.fillRect(0, 0, w, h); x.strokeStyle = '#7dff7a'; x.lineWidth = 10; x.strokeRect(6, 6, w-12, h-12);
+        x.textAlign = 'center'; x.fillStyle = '#7dff7a'; x.font = '800 64px Trebuchet MS, sans-serif'; x.fillText('SHARE STEP FORWARD', w/2, 100);
+        if (qr.complete && qr.naturalWidth){ x.imageSmoothingEnabled = false; x.drawImage(qr, w/2 - 300, 150, 600, 600); }
+        x.fillStyle = '#e8f2ea'; x.font = '700 40px Trebuchet MS, sans-serif'; x.fillText('Scan with your phone', w/2, 830); x.fillStyle = '#9fd0ff'; x.font = '700 34px Trebuchet MS, sans-serif'; x.fillText('umop3p1sdn.github.io/Step-forward', w/2, 900);
+        x.fillStyle = '#9aa4ac'; x.font = '700 30px Trebuchet MS, sans-serif'; x.fillText('tap to close', w/2, h - 50); });
+      k.position.set(0, 1.55, -2.0); k.userData.sluit = true; g.add(k); this.menuKnop.p_qr = k; }
+    if (this.menuPaneel === 'meer'){ this.meerGames().forEach((G, i) => { const im = this.meerImg(G.img);
+        const k = doek(0.95, 1.32, 1024, (x, w, h) => { x.fillStyle = 'rgba(10,14,20,0.96)'; x.fillRect(0, 0, w, h); x.strokeStyle = G.kl; x.lineWidth = 10; x.strokeRect(6, 6, w-12, h-12);
+          const ih = Math.round((w - 60)*9/16); if (im.complete && im.naturalWidth) x.drawImage(im, 30, 30, w - 60, ih); else { x.fillStyle = '#222a33'; x.fillRect(30, 30, w - 60, ih); }
+          x.textAlign = 'center'; x.fillStyle = G.kl; x.font = '800 64px Trebuchet MS, sans-serif'; x.fillText(G.naam, w/2, ih + 110);
+          x.fillStyle = '#e8f2ea'; x.font = '600 36px Trebuchet MS, sans-serif'; regels(x, G.tekst, w/2, ih + 175, w - 90, 46, 10);
+          x.fillStyle = G.kl; x.font = '800 40px Trebuchet MS, sans-serif'; x.fillText('▶ TAP TO PLAY', w/2, h - 45); });
+        k.position.set((i - 1)*1.02, 1.5, -2.05); k.userData.url = G.url; g.add(k); this.menuKnop['p_g' + i] = k; });
+      const s = bord(0.6, 0.18, (x, w, h) => { x.fillStyle = 'rgba(60,20,20,0.9)'; x.fillRect(0, 0, w, h); tekst(x, 'CLOSE', h*0.52, 60, '#ffffff'); }); s.position.set(0, 0.7, -2.05); s.userData.sluit = true; g.add(s); this.menuKnop.p_sluit = s; }
+  },
+  meerTick(){                           // startscherm (niet in VR): SHARE- en MORE GAMES-knoppen
+    let K = document.getElementById('meerKnop'); const toon = !this.gestart && !this.el.sceneEl.is('vr-mode');
+    if (!K){ if (!toon) return; K = document.createElement('div'); K.id = 'meerKnop'; K.style.cssText = 'position:fixed;left:14px;top:14px;display:flex;gap:10px;z-index:30';
+      const knop = (t, kl, f) => { const b = document.createElement('button'); b.textContent = t; b.style.cssText = `font:800 17px Trebuchet MS,sans-serif;letter-spacing:.06em;color:#fff;background:${kl};border:2px solid rgba(255,255,255,.55);border-radius:10px;padding:12px 18px;cursor:pointer`; b.onclick = e => { e.stopPropagation(); f(); }; ['mousedown', 'pointerdown', 'touchstart'].forEach(ev => b.addEventListener(ev, e => e.stopPropagation())); K.appendChild(b); };
+      knop('SHARE', '#1d6b3a', () => this.meerDeel()); knop('MORE GAMES', '#1d4a80', () => this.meerLijst(true)); document.body.appendChild(K); }
+    K.style.display = toon ? 'flex' : 'none'; if (!toon) this.meerLijst(false); },
+  meerLijst(aan){ let O = document.getElementById('meerLijst'); if (!aan){ if (O) O.style.display = 'none'; return; }
+    if (!O){ O = document.createElement('div'); O.id = 'meerLijst'; O.style.cssText = 'position:fixed;inset:0;background:rgba(6,9,13,.94);z-index:50;overflow:auto;padding:24px 16px;box-sizing:border-box;font-family:Trebuchet MS,sans-serif;color:#e8f2ea';
+      const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;'}[c]));
+      O.innerHTML = '<div style="max-width:1100px;margin:0 auto"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px"><div style="font:800 30px Trebuchet MS,sans-serif;letter-spacing:.08em">MORE GAMES</div><button id="meerDicht" style="font:800 20px sans-serif;background:#5a1d1d;color:#fff;border:0;border-radius:10px;padding:10px 18px;cursor:pointer">✕</button></div><div style="display:flex;flex-wrap:wrap;gap:18px">' +
+        this.meerGames().map(G => `<div style="flex:1 1 300px;background:#0e141b;border:2px solid ${G.kl};border-radius:14px;overflow:hidden"><a href="${G.url}" target="_blank" rel="noopener"><img src="${G.img}" alt="${esc(G.naam)}" style="display:block;width:100%;aspect-ratio:16/9;object-fit:cover"></a><div style="padding:14px 16px 18px"><a href="${G.url}" target="_blank" rel="noopener" style="color:${G.kl};text-decoration:none;font:800 22px Trebuchet MS,sans-serif">${esc(G.naam)} ▶</a><p style="margin:10px 0 0;font:15px/1.5 Trebuchet MS,sans-serif;display:-webkit-box;-webkit-line-clamp:10;-webkit-box-orient:vertical;overflow:hidden">${esc(G.tekst)}</p></div></div>`).join('') + '</div></div>';
+      document.body.appendChild(O); O.addEventListener('click', e => e.stopPropagation()); ['mousedown', 'pointerdown', 'touchstart'].forEach(ev => O.addEventListener(ev, e => e.stopPropagation())); O.querySelector('#meerDicht').onclick = () => this.meerLijst(false); }
+    O.style.display = 'block'; },
   menuKies(bron, e){
     this.maakMenu(); if (!this.straal(bron, e)) return;
     const hit = this.rc.intersectObjects(Object.values(this.menuKnop), false)[0];
     if (!hit) return; const u = hit.object.userData;
+    if (u.paneel){ this.menuPaneel = this.menuPaneel === u.paneel ? null : u.paneel; this.kiesHand(this.menuHand || 'handR'); return; }
+    if (u.sluit){ this.menuPaneel = null; this.kiesHand(this.menuHand || 'handR'); return; }
+    if (u.url){ this.meerOpen(u.url); return; }
     if (u.kit){ const [w, st] = u.kit, min = /vest|helm/.test(w) ? 0 : 1, max = this.vrij[w] ?? min, n = max - min + 1;   // loadout: bladeren door wat je vrij hebt
       this.kit[w] = ((this.kitLv(w) - min + st + n) % n) + min; this.vrijBewaar(); this.kiesHand(this.menuHand || 'handR'); return; }
     if (u.slot){ this.wisArm = null; this.menuGame = u.slot; this.slotLaad(u.slot); this.kiesHand(this.menuHand || 'handR'); return; }
@@ -9840,7 +9896,8 @@ AFRAME.registerComponent('zombies', {
   },
   /* ---------- elke beurt ---------- */
   tick(t, dt){ const t0 = performance.now(); try { const dt0 = dt; if (this.actie) dt = this.actieTick(dt); else if (this.ult && this.ult.aan) dt = this.ultTick(dt); this.tijdF = dt0 > 0 ? dt/dt0 : 1; this.tickEcht(t, dt);
-      if (this.actie){ for (const q of this._zweef || []) q.sp.visible = false; if (this.mbord) this.mbord.visible = false; } }   /* action shot: geen tekst voor de lens */ catch(e){ this.fout(e); } if (this.gestart) this.perfTick(dt, performance.now() - t0); },   // vangnet: een fout laat de game nooit vastlopen
+      if (this.actie){ for (const q of this._zweef || []) q.sp.visible = false; if (this.mbord) this.mbord.visible = false; }
+      this.meerTick(); }   /* action shot: geen tekst voor de lens */ catch(e){ this.fout(e); } if (this.gestart) this.perfTick(dt, performance.now() - t0); },   // vangnet: een fout laat de game nooit vastlopen
   fout(e){
     this.logboek('FOUT ' + String(e && e.stack || e).split('\n').slice(0, 3).join(' | '));
     this.fouten = (this.fouten || 0) + 1; (window.__fouten = window.__fouten || []).push(String(e && e.stack || e));
