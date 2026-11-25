@@ -2228,7 +2228,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v187";
+const VERSIE = "v188";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2676,8 +2676,8 @@ function maakLevels(){
     if (w === 'kruis' && n >= 4) L.extra[5] = {apache:1};
     if (w === 'kruis') L.extra[6] = {wagens:['jeep']};
     if (w === 'dorp') L.extra[5] = {wagens:[n >= 9 ? 'swat_truck' : 'truck']};
-    { const buiten = kStandLijst(w).map(S => !S.binnen); let k = 0;   /* v187: heli in elke buitengolf vanaf golf 3: deurschutter, fast-rope, Apache om de beurt */
-      for (let g = 3; g <= 9; g++){ if (!buiten[Math.min(g - 1, buiten.length - 1)] || (n === 1 && k >= 2)) continue; const s = ['huey', 'touw', n >= 3 ? 'apache' : 'huey'][k % 3]; k++; L.extra[g] = Object.assign({}, L.extra[g], {[s]:1}); } }
+    { const buiten = kStandLijst(w).map(S => !S.binnen); let k = 0;   /* v188: heli in elke buitengolf vanaf golf 3: deurschutter en fast-rope om de beurt; Apache alleen bij de eindbaas */
+      for (let g = 3; g <= 9; g++){ if (!buiten[Math.min(g - 1, buiten.length - 1)] || (n === 1 && k >= 2)) continue; const s = ['huey', 'touw'][k % 2]; k++; L.extra[g] = Object.assign({}, L.extra[g], {[s]:1}); } }
     L.baas = w === 'fabriek' ? {tekst:'TANK', tank:1, lopers:8, max:7} : w === 'hq' ? {tekst:'FINAL STAND + CHOPPER', apache:1, lopers:9, max:8} : w === 'woestijn' ? {tekst:'GUN TRUCK + CHOPPER', vracht:{mg:true, rijdt:true}, apache:1, lopers:7, max:7} : w === 'winter' ? {tekst:'TRUCK + HEAVY GUNNER', wagens:['truck'], zwaar:1, lopers:8, max:8}
            : w === 'hotel' ? {tekst:'SWAT TRUCK + HEAVY GUNNER', wagens:['swat_truck'], zwaar:1, vest:1, lopers:9, max:8}
            : w === 'kade' ? {tekst:'HEAVY GUNNERS', zwaar:2, vest:1, lopers:9, max:8}
@@ -4294,19 +4294,21 @@ AFRAME.registerComponent('zombies', {
   },
   heli(naam, opt){
     const K0 = this.kaartNu(); if (K0 && !K0.lucht) return null;
-    const plek = K0 ? this.heliPlek(naam === 'apache' ? 'apache' : opt && opt.touw ? 'touw' : 'huey') : null; if (K0 && !plek) return null;   /* v187: geen ruimte = geen heli */
+    const st0 = this.el.components.stad, R = K0 ? this.rngVan((this.lvlNr || 1)*7919 + (this.waveNr || 1)*104729 + ((st0 && st0.i) || 0)*1299709 + (this._heliN = (this._heliN || 0) + 1)*7907) : Math.random;   /* v188: elke keer dezelfde heli */
+    const sH = naam === 'apache' ? 'apache' : opt && opt.touw ? 'touw' : 'huey', plek = K0 ? this.heliPlek(sH, R) : null; if (K0 && !plek) return null;
     opt = opt || {}; const T = this.T, P = this.props[naam]; if (!P) return;
     const g = new T.Group(), apache = naam === 'apache';
     const romp = this.propMesh(naam, {mat:P.mat.clone()}); g.add(romp);
-    const links = Math.random() < 0.5;
+    const links = R() < 0.5;
     const h = {soort:'heli', naam, g, romp, hp:apache ? 140 : 80, staat:'komt', t:0, apache, spiegel:false, rotors:[]};
-    if (apache){ g.position.set((links ? -1 : 1)*(8 + Math.random()*10), 15, -46);
+    if (apache){ g.position.set((links ? -1 : 1)*(8 + R()*10), 15, -46);
       h.doel = new T.Vector3((Math.random()-0.5)*12, 7.5 + Math.random()*2.5, -24 - Math.random()*5); h.wapenT = 3.5; }
-    else if (opt.touw){ h.spiegel = links; h.touw = true; h.deur = P.i.deur; g.position.set((links ? -1 : 1)*26, 11, -14 - Math.random()*2.5);
+    else if (opt.touw){ h.spiegel = links; h.touw = true; h.deur = P.i.deur; g.position.set((links ? -1 : 1)*26, 11, -14 - R()*2.5);
       h.doel = new T.Vector3((links ? -1 : 1)*(1 + Math.random()*2), 8.2, g.position.z); }
-    else { h.spiegel = links; g.position.set((links ? -1 : 1)*24, 9, -19 - Math.random()*3);
+    else { h.spiegel = links; g.position.set((links ? -1 : 1)*24, 9, -19 - R()*3);
       h.doel = new T.Vector3((links ? -1 : 1)*(3 + Math.random()*4), 5.6 + Math.random()*1.2, g.position.z); }
-    if (plek){ h.doel.copy(plek); g.position.z = plek.z; if (!apache) g.position.y = Math.max(g.position.y, plek.y + 1.5); }
+    if (plek){ h.doel.copy(plek); g.position.z = plek.z; if (!apache) g.position.y = Math.max(g.position.y, plek.y + 1.5);
+      if (sH !== 'touw'){ h.route = [plek.clone()]; for (let i = 0; i < 2; i++){ const p2 = this.heliPlek(sH, R); if (p2) h.route.push(p2); } h.ri = 0; h.wpT = 6; } }   /* vaste route langs 2-3 plekken */
     if (h.spiegel) romp.scale.x = -1;
     const sx = h.spiegel ? -1 : 1;
     // draaiende rotor: een vage schijf die knippert
@@ -4468,7 +4470,7 @@ AFRAME.registerComponent('zombies', {
     if (this.modus === 'test') this.testOpstelling();
   },
   waveBegin(){
-    const W = this.wave = this.waveDef(), T = this.T, st = this.el.components.stad;
+    const W = this.wave = this.waveDef(), T = this.T, st = this.el.components.stad; this._sN = 0; this._heliN = 0;
     if (this.modus === 'lvl' && st){ const L = LEVELS[this.lvlNr - 1];
       const si = this.standIdx(L), vi = this.waveNr > 1 ? this.standIdx(L, this.waveNr - 1) : si;
       if (this.waveNr === 1) st.gaNaar(L.plek[si], L.plek[si + 1] ?? null);
@@ -4507,10 +4509,11 @@ AFRAME.registerComponent('zombies', {
     if (W.baasProf) q.push({t:5, geenSoldaat:true, f:() => { this.spawnBij(null, {soort:'zwaar', baas:W.baasProf}); this.melding(W.baasProf.naam + '!', '#ff3a2a'); this.knal && this.knal(1.2); }});
     if (W.zwaar) q.push({t:14, geenSoldaat:true, f:() => { const binnen = this.opVoet(); if (binnen || !this.wagen('truck', 1, {zwaar:true})) this.spawnBij(null, {soort:'zwaar'}); this.melding('HEAVY GUNNER!', '#ff5a3a'); }});
     for (let i=0;i<(W.cross || 0);i++) q.push({t:6 + i*11 + Math.random()*5, geenSoldaat:true, f:() => this.wagen(['jeep', 'jeep_zand', 'jeep_snorkel'][Math.random()*3|0], 0, {cross:true})});
-    for (let i=0;i<(W.touw || 0);i++) q.push({t:20 + i*20, geenSoldaat:true, f:() => this.heli('huey_grijs', {touw:true})});
+    const beurt = (na, cap) => this.arcadeAan() ? {t:999, na, cap} : {};   /* v188: in de werelden komt de heli na de N-de soldaat */
+    for (let i=0;i<(W.touw || 0);i++) q.push(Object.assign({t:20 + i*20, geenSoldaat:true, f:() => this.heli('huey_grijs', {touw:true})}, beurt(7 + i*6, 45 + i*20)));
     if (W.mg) q.push({t:5, f:() => this.loper('mg')});
-    for (let i=0;i<(W.apache || 0);i++) q.push({t:16 + i*14, geenSoldaat:true, f:() => this.heli('apache')});
-    for (let i=0;i<(W.huey || 0);i++) q.push({t:11 + i*15, geenSoldaat:true, f:() => this.heli('huey_groen')});
+    for (let i=0;i<(W.apache || 0);i++) q.push(Object.assign({t:16 + i*14, geenSoldaat:true, f:() => this.heli('apache')}, beurt(4 + i*6, 35 + i*20)));
+    for (let i=0;i<(W.huey || 0);i++) q.push(Object.assign({t:11 + i*15, geenSoldaat:true, f:() => this.heli('huey_groen')}, beurt(5 + i*5, 35 + i*20)));
     this.wq = q.sort((a, b) => a.t - b.t); this.wt = 0; this.waveKlaar = false;
   },
   script(K){ if (K._script) return K._script; const T = this.T, slots = [], hoek = v => Math.atan2(v[0], -v[1]);   /* vaste posten per plek, verdeeld over zones */
@@ -4557,7 +4560,7 @@ AFRAME.registerComponent('zombies', {
       if (!post) post = {schuil:h.p.clone(), uit:h.uit.clone(), laag:false, fase:'schuil', hoek:h, gehad:true, leun:e.hoe === 'stap' ? null : this.leunPlek(h.p, rich)};
       z = this.soldaat(h.p.clone(), opt); if (z && z.ai){ h.bezet = z; z.ai.arcade = true; z.ai.post = post; z.ai.staat = 'arcade'; } }
     if (!z || !z.ai){ if (sl.soort !== 'deur' && sl.soort !== 'hoek') D.i++; return null; }
-    D.i++; z.r = this.rngVan(e.seed); z.dodelijk = e.dodelijk; if (z.ai.staat === 'arcade') z.ai.t = e.t0 + (sl.soort === 'deur' ? 0.4 : sl.soort === 'dek' ? 1.3 : 0);
+    D.i++; this._sN = (this._sN || 0) + 1; z.r = this.rngVan(e.seed); z.dodelijk = e.dodelijk; if (z.ai.staat === 'arcade') z.ai.t = e.t0 + (sl.soort === 'deur' ? 0.4 : sl.soort === 'dek' ? 1.3 : 0);
     sl.bezet = z; sl.lastT = this.nu; z.ai.vast = true; z.ai.script = sl.soort; z.ai.hoe = e.hoe; return z; },
   loper(soort){
     { const K = this.kaartNu(); if (K && this.arcadeAan && this.arcadeAan() && (!soort || soort === 'dekking')){ const z = this.scriptLoper(K); if (z) return z; const S9 = this.script(K); if (S9.slots.length){ this.wq.push({t:this.wt + 1.2, f:() => this.loper(soort)}); this.wq.sort((a, b) => a.t - b.t); return null; } } }
@@ -4590,6 +4593,7 @@ AFRAME.registerComponent('zombies', {
     if (false){ const B = {}, lev = 0;   /* ritme: een groep springt tegelijk tevoorschijn, jij ruimt op, korte adempauze, volgende groep */
       if (B.fase === 'vol'){ B.vt = (B.vt || 0) + s; if (B.vt > 1.5 && lev <= (this.maxNu() >= 6 ? 1 : 0)){ B.fase = 'rust'; B.t = 0.8 + Math.random()*0.7; } }   /* eerst de groep laten verschijnen (bij 72+ fps sprong hij te vroeg terug naar rust: niemand kwam) */
       else if ((B.t -= s) <= 0){ B.fase = 'vol'; B.vt = 0; { const K = this.kaartNu(); if (K){ const S = this.script(K); B.zone = S.volg[S.n++ % S.volg.length]; B.nIn = 0; } } let k = 0; for (const q of this.wq){ if (q.geenSoldaat) continue; if (k >= this.maxNu() - lev) break; q.t = this.wt + 0.05 + k*(0.16 + Math.random()*0.14); k++; } this.wq.sort((a, b) => a.t - b.t); } }
+    if (this.wq.some(e => e.na && (this._sN >= e.na || this.wt >= e.cap))){ this.wq.forEach(e => { if (e.na && (this._sN >= e.na || this.wt >= e.cap)){ e.t = this.wt; e.na = 0; } }); this.wq.sort((a, b) => a.t - b.t); }   /* v188: heli op zijn beurt */
     while (this.wq.length && this.wq[0].t <= this.wt && (this.wq[0].geenSoldaat || ((!arc || this.beat.fase === 'vol') && this.levend() + (arc ? 0 : Math.min(this.wq[0].n || 1, this.maxNu()) - 1) < this.maxNu()))) this.wq.shift().f();
     for (let i=0;i<this.wq.length;i++){ const q = this.wq[i]; if (q.t > this.wt) break; if (q.geenSoldaat){ this.wq.splice(i, 1); i--; q.f(); } }
     // MG weer bemannen als de schutter dood is
@@ -5578,7 +5582,7 @@ AFRAME.registerComponent('zombies', {
     const ik = this.el.camera.getWorldPosition(new this.T.Vector3()); let v = null;
     for (let i = 0; i < 16; i++){ v = f(); if (!st.kaartSeg(ik, v) && !st.kaartSeg(ik, v.clone().setY(v.y - 1.2))) return v; }
     return null; },
-  heliPlek(soort){ const st = this.el.components.stad, T = this.T, ik = this.el.camera.getWorldPosition(new T.Vector3()), R = Math.random;
+  heliPlek(soort, R0){ const st = this.el.components.stad, T = this.T, ik = new T.Vector3(0, 1.6 + ((st && st.extraY) || 0), 0), R = R0 || Math.random;   /* vaste ooghoogte op de stand: hoofd bewegen verandert niets */
     const zie = v => !st.kaartSeg(ik, v) && !st.kaartSeg(ik, v.clone().setY(v.y - 1.4)), V = (x, y, z) => new T.Vector3(x, y, z);
     for (let i = 0; i < 60; i++){
       if (soort === 'touw'){ const v = V((R() - 0.5)*10, 8.2, -8 - R()*8); if (!zie(v)) continue;
@@ -5594,7 +5598,8 @@ AFRAME.registerComponent('zombies', {
       if (g.position.y > 21 || Math.abs(g.position.x) > 27){ const k = Math.random();
         g.position.set(k < 0.5 ? (Math.random()-0.5)*16 : (Math.random() < 0.5 ? -1 : 1)*27, k < 0.5 ? 22 : 8 + Math.random()*4, -20 - Math.random()*8);
         h.vel.set(0, 0, 0); h.uitBeeld = false; h.wpT = 0; }
-    } else if (h.wpT <= 0){
+    } else if (h.route && h.wpT <= 0){ h.wpT = ap ? 2.6 : 3.6; if (h.route.length > 1){ h.ri = (h.ri + 1) % h.route.length; h.doel = h.route[h.ri].clone(); } }   /* v188: vaste route */
+    else if (h.wpT <= 0){
       h.wpT = (ap ? 1.1 : 1.8) + Math.random()*(ap ? 1.6 : 2.2);
       if (Math.random() < (ap ? 0.12 : 0.07) && h.t > 6){ h.uitBeeld = true; h.doel = Math.random() < 0.6 ? new T.Vector3(g.position.x + (Math.random()-0.5)*6, 26, g.position.z) : new T.Vector3((g.position.x > 0 ? 1 : -1)*32, g.position.y + 2, g.position.z); }
       else if (h.touw) h.doel = h.doel;   // touw-heli blijft netjes hangen
