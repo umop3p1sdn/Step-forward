@@ -36,6 +36,21 @@ const KAART_TEGEL = {weg:4.0, weg2:4.0, stoep:2.0, gevel_wit:2.6, gevel_beige:2.
   golf_roest:1.8, golf_roest2:1.8, golf_grijs:1.8, dambord:1.6, dambord2:1.4, lambris:1.4,
   asfalt:4.0, asfalt2:4.0, pleister1:2.4, pleister2:2.4, pleister3:2.4, pleister4:2.4, behang1:2.0, behang2:1.1, parket:1.6, tegels:2.0, stoep2:3.0, kinderkop:2.2, gevel_rood:2.6, gevel_blauw:2.6, gevel_schil:2.4, gevel_ruw:2.4, baksteen3:2.0, baksteen4:1.7, baksteen5:1.9, baksteen6:1.7, beton2:2.6, zak:0.5};
 // gevels: texture + kleurtint (zo krijgt hetzelfde pleister verschillende kleuren)
+const K_STIJL = {   /* v184: per wereld eigen gevels, ramen, luiken en daken (kRij) */
+  oud:{gevels:[['baksteen',[1,1,1]], ['baksteen2',[1,1,1]], ['baksteen3',[1,1,1]], ['baksteen5',[1,1,1]], ['baksteen6',[1,1,1]], ['gevel_schil',[1,1,1]], ['gevel_rood',[0.95,0.9,0.86]]],
+       ramen:['raam_b2','raam_b4','raam_b1','raam_b3'], luik:['raam_b2','raam_b4'], dak:['dak_rood','dak_oud'], dakKans:0.9},
+  stad:{gevels:[['gevel_wit',[1,0.97,0.9]], ['gevel_beige',[1,1,1]], ['gevel_geel',[1,1,1]], ['gevel_blauw',[1,1,1]], ['gevel_rood',[1,1,1]], ['pleister2',[0.95,0.92,0.86]]],
+        ramen:['raam_b7','raam_b9','raam_b8','raam_b3'], luik:['raam_b8','raam_b6'], dak:['dak_grijs','dak_rood'], dakKans:0.45},
+  kade:{gevels:[['baksteen4',[1,1,1]], ['baksteen2',[0.9,0.88,0.86]], ['gevel_grijs',[0.92,0.94,0.98]], ['beton2',[1,1,1]], ['golf_grijs',[0.75,0.8,0.86]], ['golf_roest',[1,1,1]]],
+        ramen:['raam_b3','raam_b7','raam_b1'], luik:['raam_b5','raam_b1'], dak:['dak_grijs'], dakKans:0.3},
+  woestijn:{gevels:[['pleister3',[1,0.9,0.72]], ['gevel_beige',[1,0.92,0.78]], ['gevel_ruw',[1,0.88,0.7]], ['gevel_geel',[1,0.95,0.84]], ['pleister4',[1,0.9,0.74]]],
+            ramen:['raam_b5','raam_b8','raam_b1'], luik:['raam_b5','raam_b6'], plat:true},
+  hotel:{gevels:[['gevel_wit',[1,0.98,0.94]], ['pleister3',[1,1,1]], ['gevel_beige',[1,0.96,0.9]], ['gevel_blauw',[0.9,0.95,1]]],
+         ramen:['raam_b8','raam_b9','raam_b7'], luik:['raam_b8'], dak:['dak_grijs'], dakKans:0.4},
+  winter:{gevels:[['plank',[0.55,0.42,0.34]], ['plank',[0.72,0.3,0.24]], ['plank',[0.4,0.46,0.52]], ['gevel_grijs',[0.9,0.94,1]], ['baksteen4',[0.92,0.95,1]]],
+          ramen:['raam_b8','raam_b9','raam_b7'], luik:['raam_b8','raam_b1'], dak:['pleister3'], dakTint:[1.05,1.08,1.16], dakKans:1, dakH:3.0},
+  fabriek:{gevels:[['baksteen4',[1,1,1]], ['beton2',[1,1,1]], ['golf_grijs',[0.8,0.82,0.86]], ['golf_roest',[1,1,1]]], ramen:['raam_b3','raam_b7'], luik:['raam_b1'], dak:['dak_grijs'], dakKans:0.2},
+  hq:{gevels:[['beton',[0.85,0.88,0.84]], ['beton2',[0.9,0.92,0.88]], ['golf_grijs',[0.7,0.76,0.7]]], ramen:['raam_b3'], luik:['raam_b1'], plat:true}};
 const KAART_GEVELS = [['gevel_wit',[1,1,1]], ['gevel_beige',[1,1,1]], ['gevel_afbl',[1,1,1]], ['gevel_geel',[1,1,1]], ['gevel_grijs',[1,1,1]], ['gevel_rood',[1,1,1]],
   ['gevel_blauw',[1,1,1]], ['gevel_schil',[1,1,1]], ['gevel_ruw',[1,1,1]], ['baksteen',[1,1,1]], ['baksteen2',[1,1,1]], ['baksteen3',[1,1,1]], ['baksteen4',[1,1,1]], ['baksteen5',[1,1,1]], ['baksteen6',[1,1,1]],
   ['gevel_wit',[1,0.95,0.86]], ['gevel_beige',[0.95,0.92,0.9]]];   // echte foto-textures (Poly Haven, CC0): geen zware tint meer nodig
@@ -242,11 +257,11 @@ KBouw.prototype = {
     this.box(Lb[0] - nx*0.1, y0, Lb[1] - nz*0.1, Rb[0], y0 + h, Rb[1]);
   },
   // zadeldak boven een gevel (A→B = gevellijn van links naar rechts, n = naar de straat)
-  zadel(n, A, B, nx, nz, yE, D, hR, gevel, tint){
+  zadel(n, A, B, nx, nz, yE, D, hR, gevel, tint, dt){
     const rx = nz, rz = -nx, [tw, th] = this.tegel(n), L = Math.hypot(B[0]-A[0], B[1]-A[1]), sl = Math.hypot(D/2 + 0.4, hR + 0.15);
     const p = (base, a, off, y) => [base[0] + rx*a + nx*off, y, base[1] + rz*a + nz*off];
     const E1 = p(A, -0.25, 0.4, yE - 0.15), E2 = p(A, L + 0.25, 0.4, yE - 0.15), R1 = p(A, -0.25, -D/2, yE + hR), R2 = p(A, L + 0.25, -D/2, yE + hR);
-    const C = P => P.map(q => this.kl(q[0], q[1], q[2], 0.95));
+    const C = P => P.map(q => this.kl(q[0], q[1], q[2], 0.95, dt));
     this.quad(n, [E1, E2, R2, R1], [[0, 0], [(L + 0.5)/tw, 0], [(L + 0.5)/tw, sl/th], [0, sl/th]], C([E1, E2, R2, R1]));
     const B1 = p(A, -0.25, -D - 0.3, yE - 0.15), B2 = p(A, L + 0.25, -D - 0.3, yE - 0.15);
     this.quad(n, [R1, R2, B2, B1], [[0, 0], [(L + 0.5)/tw, 0], [(L + 0.5)/tw, sl/th], [0, sl/th]], C([R1, R2, B2, B1]));
@@ -423,7 +438,7 @@ function kVuil(T, m, n){ const tex = kVuilTex(T), sterk = /plafond/.test(n) ? 0.
 function kRij(B, R, o){
   const nx = o.n[0], nz = o.n[1], rx = nz, rz = -nx, L = Math.hypot(o.x1 - o.x0, o.z1 - o.z0), D = o.D || 9;
   const P = (a, off) => [o.x0 + rx*a + nx*(off || 0), o.z0 + rz*a + nz*(off || 0)];
-  const uit = {deuren:[], ramen:[], huizen:[]}, open = [], pal = o.gevels || KAART_GEVELS;
+  const uit = {deuren:[], ramen:[], huizen:[]}, open = [], ks = K_STIJL[B._soort] || {}, pal = o.gevels || ks.gevels || KAART_GEVELS;
   let a = 0, vorig = -1;
   while (a < L - 0.3){
     let w = (o.bMin || 4.4) + R()*(o.bVar ?? 3.6); if (L - a - w < 3.4) w = L - a;
@@ -431,7 +446,7 @@ function kRij(B, R, o){
     const [mat, tint] = pal[st], fl = o.verd[0] + (R()*(o.verd[1] - o.verd[0] + 1)|0), H = 3.4 + 3.0*(fl - 1) + 0.5;
     const ns = Math.max(1, Math.round(w/2.5)), slot = k => a + (k + 0.5)*w/ns;
     const gaten = [], deurK = (w > 2.4 && !o.geenDeur) ? (R()*ns|0) : -1, deurK2 = (ns >= 3 && !o.geenDeur && R() < 0.6) ? (deurK + 1 + (R()*(ns - 1)|0)) % ns : -1;   // brede huizen: soms 2 deuren
-    const raamTex = kKies(R, KAART_RAAM_B), deurTex = kKies(R, KAART_DEUR_B), luik = kKies(R, KAART_LUIK);
+    const raamTex = kKies(R, ks.ramen || KAART_RAAM_B), deurTex = kKies(R, KAART_DEUR_B), luik = kKies(R, ks.luik || KAART_LUIK);
     const ra = B.maatVan(raamTex); let rw = Math.min(1.35, 1.45*ra), rh = rw/ra;
     for (let f=0; f<fl; f++){ const y = f === 0 ? 0 : 3.4 + 3.0*(f - 1);
       for (let k=0;k<ns;k++){ const c = slot(k), pc = P(c);
@@ -456,7 +471,7 @@ function kRij(B, R, o){
     { const q0 = P(a, 0.07), q1 = P(a + w, -0.05); B.doos('beton', q0[0], q0[1], q1[0], q1[1], 0, 0.5, {tint:[0.72, 0.7, 0.68], geenBots:true, f:0.9}); }
     { const q0 = P(a, 0.2), q1 = P(a + w, -0.05); B.doos('beton', q0[0], q0[1], q1[0], q1[1], H - 0.32, H - 0.08, {tint:[0.86, 0.84, 0.8], geenBots:true, geenAo:true}); }
     if (fl > 1 && R() < 0.6){ const q0 = P(a, 0.1), q1 = P(a + w, -0.05); B.doos('beton', q0[0], q0[1], q1[0], q1[1], 3.3, 3.45, {tint:[0.82, 0.8, 0.76], geenBots:true, geenAo:true}); }
-    if (!o.plat && R() < 0.68) B.zadel(kKies(R, KAART_DAK), P(a), P(a + w), nx, nz, H - 0.08, D, 2.0 + R()*1.6, mat, tint);
+    if (!o.plat && !ks.plat && R() < (ks.dakKans ?? 0.68)) B.zadel(kKies(R, ks.dak || KAART_DAK), P(a), P(a + w), nx, nz, H - 0.08, D, (ks.dakH || 2.0) + R()*1.6, mat, tint, ks.dakTint);
     const laatste = a + w >= L - 0.01;
     if (!(a === 0 && o.hoekA)){ const q = P(a), p2 = P(a, -D); B.vlakV(mat, q[0], q[1], p2[0], p2[1], 0, H, {tint, stap:3, f:0.92}); }
     if (!(laatste && o.hoekB)){ const q = P(a + w), p2 = P(a + w, -D); B.vlakV(mat, p2[0], p2[1], q[0], q[1], 0, H, {tint, stap:3, f:0.92}); }
@@ -1927,10 +1942,10 @@ KWERELD.winter = (T, R) => {
 
   // 3 · WACHTTORENS: twee torens met schutters hoog, kratten op het plein, een hek
   { const oz = -300; sneeuw(-13, oz - 14, 13, oz + 4);
-    const T1 = toren(-5.4, oz - 8.6), T2 = toren(5.2, oz - 10.6), H1 = hut(0, oz - 12.4, 4, 2.6, 3, {deuren:[2]});
+    const T1 = toren(-5.4, oz - 8.6), T2 = toren(5.2, oz - 10.6), H1 = hut(0, oz - 12.4, 4, 2.6, 3, {deuren:[2]}), H2 = hut(-9.6, oz - 11.6, 3.2, 3, 3, {deuren:[1.6]}), H3 = hut(9.4, oz - 12, 3.2, 2.8, 3, {deuren:[1.6]});   /* v184: meer deuren */
     omheining(-13, oz + 4, 13, oz - 15, 3.4);
     const props = [kProp(B, R, 'kratten', -1.6, oz - 5.4, {as:'x'}), kProp(B, R, 'zand', 2.6, oz - 6.6, {as:'x'}), kProp(B, R, 'container', 8.2, oz - 5.4, {as:'z'})].filter(Boolean);
-    ST.push({x:0, z:oz, naam:'WATCHTOWERS', lucht:true, geenWagens:true, geenMuur:true, breed:3, props, plek:kRaamPlekken(T1.ramen.concat(T2.ramen), () => true), spawns:dS(H1.deuren, 0, oz, [{p:[-12, oz - 12.5], via:[[-7.6, oz - 12]]}, {p:[12, oz - 7.5], via:[[8, oz - 8.4]]}])}); }
+    ST.push({x:0, z:oz, naam:'WATCHTOWERS', lucht:true, geenWagens:true, geenMuur:true, breed:3, props, plek:kRaamPlekken(T1.ramen.concat(T2.ramen), () => true), spawns:dS(H1.deuren.concat(H2.deuren, H3.deuren), 0, oz, [{p:[-12, oz - 12.5], via:[[-7.6, oz - 12]]}, {p:[12, oz - 7.5], via:[[8, oz - 8.4]]}])}); }
 
   // 4 · KANTINE: lange tafels, uitgifte-balie, keukendeuren
   { const oz = -400, H = 3.2, xa = -7, xb = 7, zE = oz - 11; const r = binnen(xa, oz + 3, xb, zE, H, 'tegels', [0.8, 0.82, 0.8]);
@@ -2180,7 +2195,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v183";
+const VERSIE = "v184";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2371,13 +2386,13 @@ AFRAME.registerComponent('stad', {
     for (let a = -36*Math.PI/180; a <= 36.01*Math.PI/180; a += st){ if (diep(a) > MAX){ if (!g) groepen.push(g = [a, a]); else g[1] = a; } else g = null; }
     const uit = []; let r = Math.abs(S.x*7.3 + S.z*3.1) % 1; const R = () => (r = (r*9301 + 0.49297) % 1);
     for (const [a0, a1] of groepen){ const ac = (a0 + a1)/2, hw = Math.min(9, D*Math.tan((a1 - a0)/2 + st) + 1.2), dx = Math.sin(ac), dz = -Math.cos(ac), cx = S.x + dx*D, cz = S.z + dz*D, rx = -dz, rz = dx, H = 11;
-      const binnen = S.binnen || W.soort === 'bunker', gk = binnen ? ['beton2', [0.8, 0.8, 0.78]] : kKies(R, KAART_GEVELS), gev = gk[0], tint = gk[1], tw = KAART_TEGEL[gev] || 2.6, grp = new T.Group();
+      const binnen = S.binnen || W.soort === 'bunker', gk = binnen ? ['beton2', [0.8, 0.8, 0.78]] : kKies(R, (K_STIJL[W.soort] || {}).gevels || KAART_GEVELS), gev = gk[0], tint = gk[1], tw = KAART_TEGEL[gev] || 2.6, grp = new T.Group();
       const vlak = (mat, a, b, y0, y1, u1, v1, off) => { const P = (t, y) => [cx + rx*t - dx*off, y, cz + rz*t - dz*off], q = [P(a, y0), P(b, y0), P(b, y1), P(a, y1)];
         const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.Float32BufferAttribute([...q[0], ...q[1], ...q[2], ...q[0], ...q[2], ...q[3]], 3));
         geo.setAttribute('uv', new T.Float32BufferAttribute([0, 0, u1, 0, u1, v1, 0, 0, u1, v1, 0, v1], 2)); const k = [0.82*tint[0], 0.82*tint[1], 0.82*tint[2]];
         geo.setAttribute('color', new T.Float32BufferAttribute([...k, ...k, ...k, ...k, ...k, ...k], 3)); geo.computeVertexNormals(); grp.add(new T.Mesh(geo, KAART.mat(T, mat))); };
       vlak(gev, -hw, hw, 0, H, 2*hw/tw, H/tw, 0);
-      const ramen = Math.max(1, Math.floor(2*hw/2.6)), rt = kKies(R, KAART_RAAM_B), rw = 1.15, rh = 1.45;
+      const ramen = Math.max(1, Math.floor(2*hw/2.6)), rt = kKies(R, (K_STIJL[W.soort] || {}).ramen || KAART_RAAM_B), rw = 1.15, rh = 1.45;
       if (!binnen) for (let f=0; f<3; f++) for (let k=0; k<ramen; k++){ const t = -hw + (k + 0.5)*2*hw/ramen; if (f === 0 && k === (ramen/2|0)){ vlak('d:' + kKies(R, KAART_DEUR_B), t - 0.6, t + 0.6, 0, 2.3, 1, 1, 0.02); continue; }
         vlak('d:' + rt, t - rw/2, t + rw/2, f*3 + 0.95, f*3 + 0.95 + rh, 1, 1, 0.02); }
       W.g.add(grp); const A = [cx - rx*hw, cz - rz*hw], E = [cx + rx*hw + dx*0.3, cz + rz*hw + dz*0.3];
