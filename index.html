@@ -2057,7 +2057,7 @@ function kSetBouwer(B, R, ST){
     if (o.decor) o.decor(oz, HW, D, H, zF, r, props);
     const deuren = E.deuren.concat(L.deuren, Rr.deuren), ramen = E.ramen.concat(L.ramen, Rr.ramen);
     ST.push(Object.assign({x:0, z:oz, naam:o.naam, binnen:!!o.binnen, lucht:!o.binnen, geenWagens:true, geenMuur:!!o.binnen || !!o.hoog, breed:o.breed || 2.6, props, plek:kRaamPlekken(ramen, () => true),
-      spawns:dS(deuren, 0, oz, (o.extra || []).map(q => ({p:[q.p[0], oz + q.p[1]], via:(q.via || []).map(v => [v[0], oz + v[1]])})))}, o.hoog ? {hoog:o.hoog} : {})); };
+      spawns:dS(deuren, 0, oz, (o.extra || []).map(q => ({p:[q.p[0], oz + q.p[1]], via:(q.via || []).map(v => [v[0], oz + v[1]])})))}, o.hoog ? {hoog:o.hoog} : {}, o.tank ? {tank:true} : {}, {geenBlok:true})); };   /* sets zijn dicht: geen eindgevels nodig */
 }
 function kSteiger(B, x, z, h){   /* steiger: houten vloer op stalen buizen, reling van buizen */
   B.doos('plank', x - 2.2, z - 2.0, x + 2.2, z + 2.6, h - 0.12, h, {tint:[0.62, 0.5, 0.38]});
@@ -2100,9 +2100,11 @@ KWERELD.fabriek = (T, R) => {
   set(8, {naam:'ASSEMBLY LINE', binnen:true, mat:'golf_grijs', tint:GOLF, hw:9, d:13, H:6.5, dE:[4, 14], dL:[-8], dR:[-5], rE:[[9, 3.4]], vt:[0.72, 0.72, 0.7],
     decor:(oz) => { B.doos('kleur', -8.6, oz - 7, 3.5, oz - 5.9, 0, 0.95, {tint:[0.18, 0.18, 0.2]}); for (let x = -8; x < 3; x += 1.4 + R()) B.doos('plank', x, oz - 6.9, x + 0.7, oz - 6.0, 0.95, 1.45, {tint:[0.75, 0.6, 0.42], geenBots:true});   /* lopende band */
       [[-5, -8.4], [0.5, -8.4]].forEach(([x, z]) => { B.cilinder('kleur', x, oz + z, 0.35, 0, 1.4, {tint:GEEL}); B.doos('kleur', x - 0.15, oz + z - 0.15, x + 0.15, oz + z + 1.7, 1.4, 1.65, {tint:GEEL, geenBots:true}); B.doos('kleur', x - 0.12, oz + z + 1.5, x + 0.12, oz + z + 1.8, 0.9, 1.65, {tint:GEEL, geenBots:true}); }); }});
-  set(9, {naam:'FACTORY YARD', mat:'baksteen', hw:10, d:15, H:7, dE:[5, 15], rE:[[3, 3.4], [10, 3.4], [17, 3.4]], dL:[-6, -11], dR:[-8], extra:[{p:[-8, -14], via:[[-4, -12]]}],
-    props:[['container', -5.6, -7.4, 'z'], ['zand', 2.6, -5, 'x'], ['vaten', 6.2, -9], ['muurtje', -1.4, -10.4, 'x']],
-    decor:(oz, HW, D, H, zF) => { B.cilinder('baksteen', -7, zF - 3, 1.2, 0, 22, {}); B.cilinder('baksteen', 6, zF - 4, 1.0, 0, 18, {}); }});
+  set(9, {naam:'FACTORY YARD', tank:true, mat:'baksteen', hw:10, d:15, H:7, dE:[5, 15], rE:[[3, 3.4], [17, 3.4]], gE:[{a0:7.4, a1:12.6, b0:0, b1:4.6}], dL:[-6, -11], dR:[-8], extra:[{p:[-8, -14], via:[[-4, -12]]}],
+    props:[['container', -5.6, -7.4, 'z'], ['zand', 2.6, -5, 'x'], ['vaten', 6.2, -9], ['muurtje', 4.2, -11.6, 'x']],
+    decor:(oz, HW, D, H, zF) => { B.cilinder('baksteen', -7, zF - 3, 1.2, 0, 22, {}); B.cilinder('baksteen', 6, zF - 4, 1.0, 0, 18, {});
+      B.vlakH('asfalt', -2.8, zF - 18, 2.8, zF - 3.9, 0.004, {stap:2.2}); [-2.9, 2.9].forEach(x => B.wand('baksteen', x, zF - 18, x, zF, 0, 5, {dik:0.3})); B.wand('golf_grijs', -2.9, zF - 18, 2.9, zF - 18, 0, 5, {dik:0.3, tint:[0.7, 0.72, 0.75]});   /* poort met inrit: hier komt de tank vandaan */
+      B.doos('kleur', -2.6, zF - 0.2, 2.6, zF + 0.1, 4.6, 4.75, {tint:[0.85, 0.7, 0.1], geenBots:true}); }});
   B.standen.push(...ST); return B.maak(); };
 
 KWERELD.hq = (T, R) => {
@@ -2226,7 +2228,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v185";
+const VERSIE = "v186";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2410,7 +2412,7 @@ AFRAME.registerComponent('stad', {
   kaartNu(){ const p = PLEKKEN[this.i]; return p && p.kaart && this.kaartS ? this.kaartS : null; },
   standBlok(W, S){ const T = this.T;               /* niet te diep: lange straten/gangen vooruit krijgen op ~16 m een eindgevel (alleen zichtbaar bij deze stand) */
     W._blok = W._blok || []; W._blok.forEach(b => { b.m.visible = b.S === S; b.box.uit = b.S !== S; });
-    if (S._blok || W.soort === 'basis') return S._blok || [];
+    if (S._blok || W.soort === 'basis' || S.geenBlok) return S._blok || [];
     const D = 16, MAX = 18.5, o = new T.Vector3(S.x, 1.6 + (S.hoog || 0), S.z), ray = new T.Ray(), tmp = new T.Vector3(), bx = W.boxen.filter(b => (!b.uit || b.deur) && !b.blok && b.max.y > 2.2);
     const diep1 = (a, dy) => { ray.origin.copy(o); ray.origin.y += dy; ray.direction.set(Math.sin(a), 0, -Math.cos(a)); let d = 99; for (const q of bx){ if (q.containsPoint(o)) continue; const h = ray.intersectBox(q, tmp); if (h){ const dd = h.distanceTo(o); if (dd < d) d = dd; } } return d; }, diep = a => Math.min(diep1(a, 0), diep1(a, -1.0));
     const st = 4*Math.PI/180, groepen = []; let g = null;
@@ -2674,7 +2676,9 @@ function maakLevels(){
     if (w === 'kruis' && n >= 4) L.extra[5] = {apache:1};
     if (w === 'kruis') L.extra[6] = {wagens:['jeep']};
     if (w === 'dorp') L.extra[5] = {wagens:[n >= 9 ? 'swat_truck' : 'truck']};
-    L.baas = (w === 'fabriek' || w === 'hq') ? {tekst:'FINAL STAND', lopers:9, max:8} : w === 'winter' ? {tekst:'TRUCK + HEAVY GUNNER', wagens:['truck'], zwaar:1, lopers:8, max:8}
+    if (w === 'kade'){ L.extra[8] = {touw:1}; L.extra[9] = {touw:1}; }            /* v186: SWAT abseilt uit een Huey */
+    if (w === 'winter'){ L.extra[6] = {huey:1}; L.extra[9] = {huey:1}; }          /* v186: Huey met deurschutter */
+    L.baas = w === 'fabriek' ? {tekst:'TANK', tank:1, lopers:8, max:7} : w === 'hq' ? {tekst:'FINAL STAND + CHOPPER', apache:1, lopers:9, max:8} : w === 'woestijn' ? {tekst:'GUN TRUCK + CHOPPER', vracht:{mg:true, rijdt:true}, apache:1, lopers:7, max:7} : w === 'winter' ? {tekst:'TRUCK + HEAVY GUNNER', wagens:['truck'], zwaar:1, lopers:8, max:8}
            : w === 'hotel' ? {tekst:'SWAT TRUCK + HEAVY GUNNER', wagens:['swat_truck'], zwaar:1, vest:1, lopers:9, max:8}
            : w === 'kade' ? {tekst:'HEAVY GUNNERS', zwaar:2, vest:1, lopers:9, max:8}
            : (w === 'dorp' || w === 'galerij' || w === 'stad' || w === 'oud' || w === 'woestijn') ? (n < 9 ? {tekst:'GUN TRUCK', vracht:{mg:true, rijdt:true}, lopers:7, max:7} : {tekst:'GUN TRUCK + JEEP', vracht:{mg:true, rijdt:true}, wagens:['jeep_snorkel'], lopers:9, max:8})
@@ -4296,7 +4300,7 @@ AFRAME.registerComponent('zombies', {
     const links = Math.random() < 0.5;
     const h = {soort:'heli', naam, g, romp, hp:apache ? 140 : 80, staat:'komt', t:0, apache, spiegel:false, rotors:[]};
     if (apache){ g.position.set((links ? -1 : 1)*(8 + Math.random()*10), 15, -46);
-      h.doel = new T.Vector3((Math.random()-0.5)*12, 7.5 + Math.random()*2.5, -24 - Math.random()*5); h.wapenT = 3.5; }
+      h.doel = this.heliZicht(() => new T.Vector3((Math.random()-0.5)*12, 7.5 + Math.random()*2.5, -24 + Math.random()*8)); h.wapenT = 3.5; }
     else if (opt.touw){ h.spiegel = links; h.touw = true; h.deur = P.i.deur; g.position.set((links ? -1 : 1)*26, 11, -14 - Math.random()*2.5);
       h.doel = new T.Vector3((links ? -1 : 1)*(1 + Math.random()*2), 8.2, g.position.z); }
     else { h.spiegel = links; g.position.set((links ? -1 : 1)*24, 9, -19 - Math.random()*3);
@@ -4319,6 +4323,7 @@ AFRAME.registerComponent('zombies', {
     g.userData.ding = h; this.propWortel.add(g); (this.helis = this.helis || []).push(h);
     if (apache) this.apacheVleugels(h);
     if (!apache && !opt.touw) setTimeout(() => { if (!h.kapot) h.schutter = this.soldaat(g.position.clone(), {soort:'deur', heli:h}); }, 600);
+    g.traverse(o => { if (o.isMesh && o.material && o.material.fog !== false){ o.material = o.material.clone(); o.material.fog = false; o.material.needsUpdate = true; } });   /* v186: heli altijd scherp, ook in mist en zandstorm */
     this.melding(apache ? 'APACHE INCOMING' : opt.touw ? 'SWAT FAST-ROPE!' : 'CHOPPER — DOOR GUNNER', '#ff5a3a');
     return h;
   },
@@ -5567,6 +5572,10 @@ AFRAME.registerComponent('zombies', {
     if (h.salvo-- > 0){ this.vijandSchot(h, SCHOT_SCHADE, 0.35, h.kanonLoop); h.kanonT = 0.12; }
     if (h.salvo <= 0){ h.salvo = 0; h.kanonT = 2.8 + Math.random()*2.5; }
   },
+  heliZicht(f){ const st = this.el.components.stad; if (!st || !st.kaartNu || !st.kaartNu()) return f();   /* v186: heli-plek die je ziet */
+    const ik = this.el.camera.getWorldPosition(new this.T.Vector3()); let v = null;
+    for (let i = 0; i < 16; i++){ v = f(); if (!st.kaartSeg(ik, v) && !st.kaartSeg(ik, v.clone().setY(v.y - 1.2))) return v; }
+    return v.setY(Math.max(v.y, 15)); },
   heliVlieg(h, s){                      // wendbaar: veel heen en weer en op en neer, soms even uit beeld
     const T = this.T, g = h.g; h.vel = h.vel || new T.Vector3();
     h.wpT = (h.wpT ?? 0) - s;
@@ -5579,7 +5588,7 @@ AFRAME.registerComponent('zombies', {
       h.wpT = (ap ? 1.1 : 1.8) + Math.random()*(ap ? 1.6 : 2.2);
       if (Math.random() < (ap ? 0.12 : 0.07) && h.t > 6){ h.uitBeeld = true; h.doel = Math.random() < 0.6 ? new T.Vector3(g.position.x + (Math.random()-0.5)*6, 26, g.position.z) : new T.Vector3((g.position.x > 0 ? 1 : -1)*32, g.position.y + 2, g.position.z); }
       else if (h.touw) h.doel = h.doel;   // touw-heli blijft netjes hangen
-      else h.doel = new T.Vector3((Math.random()-0.5)*(ap ? 26 : 18), (ap ? 5 : 4.5) + Math.random()*(ap ? 7.5 : 4), (ap ? -17 : -15) - Math.random()*(ap ? 13 : 9));
+      else h.doel = this.heliZicht(() => new T.Vector3((Math.random()-0.5)*(ap ? 26 : 18), (ap ? 5 : 4.5) + Math.random()*(ap ? 7.5 : 4), (ap ? -17 : -15) - Math.random()*(ap ? 13 : 9)));
     }
     const max = h.uitBeeld ? 16 : ap ? 13 : 9, d = h.doel.clone().sub(g.position), len = d.length();
     const wil = len > 0.01 ? d.multiplyScalar(Math.min(max, len*1.6)/len) : d.set(0, 0, 0);
@@ -7662,7 +7671,7 @@ AFRAME.registerComponent('zombies', {
   standWissel(){ const L = this.modus === 'lvl' && LEVELS[this.lvlNr - 1]; return !!L && this.standIdx(L, (this.waveNr || 1) + 1) !== this.standIdx(L); },
   opVoet(){ const p = this.plekNu(); return !!(p && (p.binnen || p.geenWagens)); },
   kiesSpawn(K, dicht){ const nu = this.nu || 0; let l = K.spawns.filter(s => dicht === undefined || !!s.dicht === dicht); if (!l.length) l = K.spawns;
-    const vrij = l.filter(s => !(s.bezetTot > nu)); if (vrij.length) l = vrij; const md = l.filter(s => s.deur); if (md.length && ((this.arcadeAan && this.arcadeAan() && md.length >= 2) || Math.random() < 0.75)) l = md;
+    const vrij = l.filter(s => !(s.bezetTot > nu)); if (vrij.length) l = vrij; const md = l.filter(s => s.deur); if (md.length >= 3 && ((this.arcadeAan && this.arcadeAan()) || Math.random() < 0.75)) l = md;
     const T = this.T, cam = this.el.camera, f = cam ? cam.getWorldDirection(new T.Vector3()).setY(0) : new T.Vector3(0, 0, -1), ik = cam ? cam.getWorldPosition(new T.Vector3()) : new T.Vector3();
     if (f.lengthSq() < 1e-4) f.set(0, 0, -1); f.normalize();
     const gew = l.map(q => { const e = q.via && q.via.length ? q.via[q.via.length - 1] : q.p, d = new T.Vector3(e[0] - ik.x, 0, e[1] - ik.z); if (d.lengthSq() < 1e-4) return 1;
