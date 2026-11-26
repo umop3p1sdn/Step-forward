@@ -2226,7 +2226,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v193";
+const VERSIE = "v194";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -7689,7 +7689,7 @@ AFRAME.registerComponent('zombies', {
       if (actief){ x.fillStyle = 'rgba(255,255,255,0.12)'; x.fillRect(12, y + 2, 488, 86); }
       x.globalAlpha = actief ? 1 : 0.55;
       x.font = `800 ${actief ? 38 : 32}px Trebuchet MS, sans-serif`; x.fillStyle = kl;
-      let naam = LVL_NAAM[w][l - 1]; x.fillText(naam, 24, y + 34);
+      let naam = this.wapenNaam(w); x.fillText(naam, 24, y + 34);
       const nb = this.maxLv(w), bw = Math.min(46, 330/nb);
       for (let b=0;b<nb;b++){                                                       // levelblokjes, het nieuwe knippert
         const knip = this.knipper > 0 && this.knipWapen === w && b === l - 1 && Math.floor(this.knipper*8) % 2 === 0;
@@ -8360,6 +8360,7 @@ AFRAME.registerComponent('zombies', {
     this.tril(id, 0.3, 40);
   },
   wapenNaam(w){
+    if (this.comboAan() && this.COMBO && this.COMBO[w]){ const t = this.tierVan(w); if (t >= 1 && this.COMBO[w].naam[t - 1]) return this.COMBO[w].naam[t - 1]; }
     if (LVL_NAAM[w]) return LVL_NAAM[w][this.lv(w) - 1];
     return WAPENS[w] ? WAPENS[w].naam : w;
   },
