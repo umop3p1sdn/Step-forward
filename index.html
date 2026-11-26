@@ -2226,7 +2226,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v192";
+const VERSIE = "v193";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2914,7 +2914,8 @@ AFRAME.registerComponent('zombies', {
       h.addEventListener('triggerdown', () => { if (!this.gestart){ this.menuKies(id); return; } if (this.pauzeM){ this.pauzeKies(id); return; } if (this.gepauzeerd) return; if (this.wachtKnop){ this.doorGaan(); return; } if (id !== this.gunHand){ this.granPak(id, 'boog'); return; } this.vuurt[id] = true; this.vuur(id); });   // vrije hand: trekker = granaat met boog
       h.addEventListener('triggerup',   () => { this.vuurt[id] = false; if (this.gestart) this.granLos(id, 'boog'); });   // loslaten = gooien langs de boog
       ['abuttondown','bbuttondown','xbuttondown','ybuttondown'].forEach(k => h.addEventListener(k, () => { if (!this.gestart) return;
-        if (!this.gepauzeerd && id !== this.gunHand && (k === 'ybuttondown' || k === 'bbuttondown')){ this.ultWissel(); return; }   /* bovenste knop vrije hand: slow motion */
+        if (!this.gepauzeerd && id !== this.gunHand && (k === 'abuttondown' || k === 'xbuttondown')){ this.ultWissel(); return; }   /* v193: onderste knop vrije hand (A/X): slow motion */
+        if (!this.gepauzeerd && id !== this.gunHand && (k === 'bbuttondown' || k === 'ybuttondown')){ this.laserZien = !this.laserZien; this.tik(); return; }   /* bovenste knop vrije hand (B/Y): laserlijnen aan/uit */
         if (this.gepauzeerd || id !== this.gunHand) return;                      // knoppen op je vrije hand: niets
         if (this.wapen[this.gunHand] === 'pistool') this.herladen(); else this.kies(this.gunHand, 'pistool'); }));   // pistool in de hand: knop = snel herladen
       h.addEventListener('gripdown', () => { if (this.gestart && !this.gepauzeerd && id !== this.gunHand) this.granPak(id, 'zwaai'); else if (this.gestart && !this.gepauzeerd && id === this.gunHand) this.onderVuur(id); });   // vrije hand: granaat pakken
@@ -2988,6 +2989,8 @@ AFRAME.registerComponent('zombies', {
       // laser-controls zet bij het verbinden zijn eigen (schuine) straal; die overschrijven we steeds weer
       h.setAttribute('raycaster', {direction:{x:0, y:dy, z:dz}, origin:{x:0, y:oy, z:oz}});
     });
+    { const zien = !this.gestart || this.gepauzeerd || !!this.pauzeM || !!this.overleden || !!this.laserZien;   /* v193: in het spel standaard geen laserlijn; menu's wel */
+      ['handL','handR'].forEach(id => { const h = document.getElementById(id), la = h && h.components.line; if (la && la.data.visible !== zien) h.setAttribute('line', 'visible', zien); }); }
   },
   handWapen(id, s, weg){                 /* 3D-wapen in de hand; geeft de hoogte van de vizierlijn boven de greep (m) */
     const H = this._hw = this._hw || {}, h = document.getElementById(id); if (!h || !h.object3D) return 0;
