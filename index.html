@@ -2226,7 +2226,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v191";
+const VERSIE = "v192";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2339,8 +2339,9 @@ AFRAME.registerComponent('stad', {
         X.addEventListener('visibilitychange', () => log('XR zicht: ' + X.visibilityState)); X.addEventListener('end', () => log('XR sessie beëindigd')); } });
       sc.addEventListener('exit-vr', () => { const z = Z(); if (!z) return; const R = sc.renderer;
         log('VR UIT ' + (z._vrBewust ? '(knop)' : '(onverwacht)') + ' · pagina ' + document.visibilityState + ' · geo ' + (R ? R.info.memory.geometries : '?') + ' tex ' + (R ? R.info.memory.textures : '?') + (performance.memory ? ' · heap ' + Math.round(performance.memory.usedJSHeapSize/1e6) + ' MB' : ''));
-        if (!z._vrBewust && z.gestart && !z.gepauzeerd && !z.overleden) try { z.pauzeWissel(); } catch(e){} z._vrBewust = false; });
-      const bind = () => { const c = sc.canvas; if (!c || c._log) return; c._log = true; c.addEventListener('webglcontextlost', e => { e.preventDefault(); log('WEBGL CONTEXT VERLOREN'); }); c.addEventListener('webglcontextrestored', () => log('webgl context terug')); };
+        if (!z._vrBewust && z.gestart && !z.gepauzeerd && !z.overleden) try { z.pauzeWissel(); log('spel op pauze'); } catch(e){} z._vrBewust = false; });
+      const bind = () => { const c = sc.canvas; if (!c || c._log) return; c._log = true; c.addEventListener('webglcontextlost', e => { e.preventDefault(); const z = Z(); log('WEBGL CONTEXT VERLOREN · geo ' + (sc.renderer ? sc.renderer.info.memory.geometries : '?') + (performance.memory ? ' · heap ' + Math.round(performance.memory.usedJSHeapSize/1e6) + ' MB' : '')); if (z && z.gestart && !z.gepauzeerd) try { z.pauzeWissel(); } catch(er){}
+        if (!document.getElementById('crashMelding')){ const d = document.createElement('div'); d.id = 'crashMelding'; d.textContent = 'GRAPHICS CRASHED — TAP TO RELOAD'; d.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.85);color:#fff;font:bold 28px sans-serif;z-index:99999;cursor:pointer'; d.onclick = () => location.reload(); document.body.appendChild(d); } }); c.addEventListener('webglcontextrestored', () => log('webgl context terug')); };
       sc.addEventListener('renderstart', bind); setTimeout(bind, 4000); document.addEventListener('visibilitychange', () => log('pagina ' + document.visibilityState)); }
 
     const volgende = () => { const zb = this.el.components.zombies; if (zb && zb.gestart && zb.modus === 'lvl') return;   // in de levels kiest het spel de plek
@@ -6945,7 +6946,7 @@ AFRAME.registerComponent('zombies', {
   },
   staatKort(){
     const L = (this.lijst || []).filter(z => !z.dood), d3 = L.filter(z => z.s3d).length;
-    return `${this.modus || '-'} L${this.lvlNr || 0} W${this.waveNr || 0} · levend ${L.length} (3D ${d3}) · lijken ${(this.lijst || []).length - L.length} · hp ${this.speler ? Math.round(this.speler.hp) : '-'} · ${this.overleden || 'speelt'} · wapen ${this.wapen && this.wapen[this.gunHand]} · heli ${(this.helis || []).length} wagen ${(this.wagens || []).length} tank ${(this.tanks || []).length} · vr ${this.el.is('vr-mode')}`;
+    return `${this.modus || '-'} L${this.lvlNr || 0} W${this.waveNr || 0} · levend ${L.length} (3D ${d3}) · lijken ${(this.lijst || []).length - L.length} · hp ${this.speler ? Math.round(this.speler.hp) : '-'} · ${this.gepauzeerd ? 'PAUZE' : (this.overleden || 'speelt')} · wapen ${this.wapen && this.wapen[this.gunHand]} · heli ${(this.helis || []).length} wagen ${(this.wagens || []).length} tank ${(this.tanks || []).length} · vr ${this.el.is('vr-mode')}`;
   },
   logTekst(){
     return [`STEP FORWARD LOG ${VERSIE} · ${new Date().toISOString()}`, `instellingen: 3D ${this.drieD} · god ${this.god} · ∞ ${this.oneindig} · auto ${!!this.auto} · hand ${this.gunHand}`,
@@ -10281,7 +10282,24 @@ AFRAME.registerComponent('zombies', {
     } catch(_){}
   },
   /* ---------- elke beurt ---------- */
-  tick(t, dt){ const t0 = performance.now(); try { const dt0 = dt; if (this.actie) dt = this.actieTick(dt); else if (this.ult && this.ult.aan) dt = this.ultTick(dt); this.tijdF = dt0 > 0 ? dt/dt0 : 1; this.tickEcht(t, dt);
+  gpuTick(){ const sc = this.el.sceneEl, R = sc.renderer; if (!R) return; const nu = performance.now()/1000;
+    if (!this._gpuG){ this._gpuG = new Map(); this._gpuT = new Map(); const G = this._gpuG, TX = this._gpuT, o = R.renderBufferDirect.bind(R);
+      const K = ['map','alphaMap','normalMap','emissiveMap','bumpMap','roughnessMap','metalnessMap','aoMap','lightMap','displacementMap','specularMap'];
+      R.renderBufferDirect = (cam, scn, geo, mat, obj, grp) => { const n = this._gpuNu; G.set(geo, n); if (mat) for (let i = 0; i < K.length; i++){ const tx = mat[K[i]]; if (tx) TX.set(tx, n); } return o(cam, scn, geo, mat, obj, grp); };
+      this._gpuS = nu; }
+    this._gpuNu = nu; if (nu - this._gpuS < 8) return; this._gpuS = nu;
+    try { const inG = new Set(), att = new Set(), inT = new Set();
+      if (!this._gpuHoud && this.s3dBron){ this._gpuHoud = new Set(); Object.values(this.s3dBron).forEach(v => { if (v && v.isObject3D) v.traverse(q => { if (q.geometry) this._gpuHoud.add(q.geometry); }); }); }
+      sc.object3D.traverse(q => { const g = q.geometry; if (g){ inG.add(g); for (const k in g.attributes){ const a = g.attributes[k]; att.add(a.data || a); } if (g.index) att.add(g.index); }
+        const ms = q.material ? (Array.isArray(q.material) ? q.material : [q.material]) : []; for (const m of ms) for (const k in m){ const v = m[k]; if (v && v.isTexture) inT.add(v); } });
+      let nG = 0, nT = 0;
+      for (const [g, t] of this._gpuG){ if (nu - t < 20 || inG.has(g)) continue; this._gpuG.delete(g); if ((this._gpuHoud && this._gpuHoud.has(g)) || g._weg) continue;
+        let gedeeld = !!(g.index && att.has(g.index)); for (const k in g.attributes){ const a = g.attributes[k]; if (att.has(a.data || a)){ gedeeld = true; break; } } if (gedeeld) continue;
+        g._weg = true; g.dispose(); nG++; }
+      for (const [tx, t] of this._gpuT){ if (nu - t < 45 || inT.has(tx)) continue; this._gpuT.delete(tx); tx.dispose(); nT++; }
+      this._gpuVrij = (this._gpuVrij || 0) + nG; this._gpuVrijT = (this._gpuVrijT || 0) + nT;
+    } catch(e){ console.warn('gpu', e); } },
+  tick(t, dt){ const t0 = performance.now(); try { this.gpuTick(); const dt0 = dt; if (this.actie) dt = this.actieTick(dt); else if (this.ult && this.ult.aan) dt = this.ultTick(dt); this.tijdF = dt0 > 0 ? dt/dt0 : 1; this.tickEcht(t, dt);
       if (this.actie){ for (const q of this._zweef || []) q.sp.visible = false; if (this.mbord) this.mbord.visible = false; }
       this.meerTick(); }   /* action shot: geen tekst voor de lens */ catch(e){ this.fout(e); } if (this.gestart) this.perfTick(dt, performance.now() - t0); },   // vangnet: een fout laat de game nooit vastlopen
   fout(e){
