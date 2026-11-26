@@ -2061,9 +2061,7 @@ function kSetBouwer(B, R, ST){
 }
 function kSteiger(B, x, z, h){   /* steiger: houten vloer op stalen buizen, reling van buizen */
   B.doos('plank', x - 2.2, z - 2.0, x + 2.2, z + 2.6, h - 0.12, h, {tint:[0.62, 0.5, 0.38]});
-  [[-2.15, -1.95], [2.1, -1.95], [-2.15, 2.5], [2.1, 2.5], [0, -1.95]].forEach(([a, b]) => B.doos('kleur', x + a - 0.04, z + b - 0.04, x + a + 0.04, z + b + 0.04, 0, h + 1.07, {tint:[0.55, 0.56, 0.58], geenBots:true}));
-  [0.55, 1.02].forEach(y => B.doos('kleur', x - 2.2, z - 2.0, x + 2.2, z - 1.95, h + y, h + y + 0.05, {tint:[0.55, 0.56, 0.58], geenBots:true}));
-  [-2.2, 2.15].forEach(a => B.doos('kleur', x + a, z - 2.0, x + a + 0.05, z + 2.6, h + 1.02, h + 1.07, {tint:[0.55, 0.56, 0.58], geenBots:true}));
+  [[-2.15, -1.95], [2.1, -1.95], [-2.15, 2.5], [2.1, 2.5], [0, -1.95]].forEach(([a, b]) => B.doos('kleur', x + a - 0.04, z + b - 0.04, x + a + 0.04, z + b + 0.04, 0, h - 0.12, {tint:[0.55, 0.56, 0.58], geenBots:true}));   /* v191: geen reling, alleen de staanders eronder */
   for (const [a, b] of [[-2.15, -1.95], [2.1, -1.95]]) for (let y = 0.6; y < h; y += 1.2) B.doos('kleur', x + Math.min(a, 0) , z + b - 0.02, x + Math.max(a, 0), z + b + 0.02, y, y + 0.04, {tint:[0.5, 0.5, 0.52], geenBots:true}); }
 const kLoopbrug = (B, oz, h, w, diep) => { B.doos('golf_grijs', -w, oz - diep, w, oz + 3, h - 0.12, h, {tint:[0.5, 0.52, 0.55]});   /* jij staat hoog op een loopbrug */
   [1.02, 0.55].forEach(y => B.doos('kleur', -w, oz - diep, w, oz - diep + 0.05, h + y, h + y + 0.05, {tint:[0.85, 0.7, 0.1], geenBots:true})); for (let x = -w; x <= w + 0.01; x += 0.9) B.doos('kleur', x - 0.025, oz - diep, x + 0.025, oz - diep + 0.05, h, h + 1.07, {tint:[0.85, 0.7, 0.1], geenBots:true});   /* reling: buizen, geen dichte plaat */
@@ -2228,7 +2226,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v190";
+const VERSIE = "v191";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2336,6 +2334,14 @@ AFRAME.registerComponent('stad', {
     this.i = -1; this.doel = BASIS_PLEK[basisVolgende()][0]; /* menu: het legerkamp, elke keer een andere variant */ this.fase = 'zwart'; this.dek = 1; this.naamT = 0;
     this.oogMeet = 0;
     this.el.addEventListener('enter-vr', () => { this.oogMeet = 1.0; });
+    { const sc = this.el, Z = () => sc.components.zombies, log = t => { const z = Z(); if (z && z.logboek) z.logboek(t); };   /* v191: diagnose VR-uitval */
+      sc.addEventListener('enter-vr', () => { const X = sc.renderer && sc.renderer.xr && sc.renderer.xr.getSession && sc.renderer.xr.getSession(); if (X && !X._log){ X._log = true;
+        X.addEventListener('visibilitychange', () => log('XR zicht: ' + X.visibilityState)); X.addEventListener('end', () => log('XR sessie beëindigd')); } });
+      sc.addEventListener('exit-vr', () => { const z = Z(); if (!z) return; const R = sc.renderer;
+        log('VR UIT ' + (z._vrBewust ? '(knop)' : '(onverwacht)') + ' · pagina ' + document.visibilityState + ' · geo ' + (R ? R.info.memory.geometries : '?') + ' tex ' + (R ? R.info.memory.textures : '?') + (performance.memory ? ' · heap ' + Math.round(performance.memory.usedJSHeapSize/1e6) + ' MB' : ''));
+        if (!z._vrBewust && z.gestart && !z.gepauzeerd && !z.overleden) try { z.pauzeWissel(); } catch(e){} z._vrBewust = false; });
+      const bind = () => { const c = sc.canvas; if (!c || c._log) return; c._log = true; c.addEventListener('webglcontextlost', e => { e.preventDefault(); log('WEBGL CONTEXT VERLOREN'); }); c.addEventListener('webglcontextrestored', () => log('webgl context terug')); };
+      sc.addEventListener('renderstart', bind); setTimeout(bind, 4000); document.addEventListener('visibilitychange', () => log('pagina ' + document.visibilityState)); }
 
     const volgende = () => { const zb = this.el.components.zombies; if (zb && zb.gestart && zb.modus === 'lvl') return;   // in de levels kiest het spel de plek
       if (this.fase === 'open') { this.doel = (this.i+1) % PLEKKEN.length; this.laad(this.doel); this.fase = 'dicht'; } };
@@ -3686,7 +3692,9 @@ AFRAME.registerComponent('zombies', {
         if (!h || h.kapot){ this.omver(z, new T.Vector3(0, 0, -1), {wapen:'explosie', dicht:0.2}); break; }
         const a = this.touwAnker(h, ai.touw); g.position.set(a.x, 0, a.z);
         ai.y0 = Math.max(0, ai.y0 - 2.6*s);
-        if (ai.y0 <= 0){ ai.y0 = 0; ai.soort = 'dekking'; this.geefRol(z); }
+        if (z.s3d && !ai.touwHand){ ai.touwHand = [new T.Object3D(), new T.Object3D()]; ai.touwHand[0].position.set(0.03, 2.02, 0.1); ai.touwHand[1].position.set(-0.02, 1.72, 0.1); ai.touwHand.forEach(o => g.add(o));   /* v191: 3D-soldaat houdt het touw vast */
+          z.s3d.grijp = {b:ai.touwHand[0], lok:new T.Vector3(), t:99, duur:99, hand:'l', snel:4}; z.s3d.grijp2 = {b:ai.touwHand[1], lok:new T.Vector3(), t:99, duur:99, hand:'r', snel:4}; }
+        if (ai.y0 <= 0){ ai.y0 = 0; ai.soort = 'dekking'; if (z.s3d && ai.touwHand){ z.s3d.grijp = z.s3d.grijp2 = null; ai.touwHand.forEach(o => o.removeFromParent()); } this.geefRol(z); }
         break; }
       case 'vrij':                                                      // staat in de open straat en schiet (staand, knielend of gehurkt)
         ai.stil = true; ai.mik = true; ai.zakDoel = 0;
@@ -4632,7 +4640,15 @@ AFRAME.registerComponent('zombies', {
   valWegTick(s){ const L = this.valWeg; if (!L || !L.length) return;
     for (const q of L){ q.v.y -= 9.8*s; q.o.position.addScaledVector(q.v, s); q.o.rotation.x += q.w.x*s; q.o.rotation.y += q.w.y*s; q.o.rotation.z += q.w.z*s; if (q.o.position.y < -0.8){ q.o.removeFromParent(); q.weg = true; } }
     this.valWeg = L.filter(q => !q.weg); },
-  lijkCap(s){ if ((this._lcT = (this._lcT || 0) + s) < 1) return; this._lcT = 0;   /* max 6 lijken: de oudste (die al stil ligt) verdwijnt */
+  grpSweep(){ const sc = this.el.sceneEl.object3D, R = this._grpReg; if (!R || !R.size) return;   /* v191: geometrie van weggehaalde soldaten vrijgeven */
+    const inSc = g => { let p = g; while (p.parent) p = p.parent; return p === sc; }, weg = [...R].filter(g => !inSc(g)); if (!weg.length) return;
+    if (!this._bronAtt && this.s3dBron){ this._bronAtt = new Set(); Object.values(this.s3dBron).forEach(v => { if (v && v.isObject3D) v.traverse(o => { if (o.geometry) Object.values(o.geometry.attributes).forEach(a => this._bronAtt.add(a.data || a)); }); }); }
+    const bezet = new Set(this._bronAtt || []); sc.traverse(o => { const g = o.geometry; if (!g) return; Object.values(g.attributes).forEach(a => bezet.add(a.data || a)); if (g.index) bezet.add(g.index); });
+    let n = 0; weg.forEach(grp => { R.delete(grp); grp.traverse(o => { const g = o.geometry; if (!g || g._weg) return; const at = Object.values(g.attributes).map(a => a.data || a).concat(g.index ? [g.index] : []);
+      if (at.some(a => bezet.has(a))) return; g._weg = true; g.dispose(); n++; }); });
+    this._vrijN = (this._vrijN || 0) + n; },
+  lijkCap(s){ if ((this._lcT = (this._lcT || 0) + s) < 1) return; this._lcT = 0;
+    { const R = this._grpReg = this._grpReg || new Set(); this.lijst.forEach(q => { if (q.grp) R.add(q.grp); }); if ((this._swN = (this._swN || 0) + 1) % 5 === 0) try { this.grpSweep(); } catch(e){ console.warn('sweep', e); } }   /* max 6 lijken: de oudste (die al stil ligt) verdwijnt */
     const dood = this.lijst.filter(q => q.dood && q.grp && q.grp.parent && !q.wagen); if (dood.length <= 6) return;
     for (const q of dood.slice(0, dood.length - 6)){ if (q.s3d && q.s3d.rag && !q.s3d.rag.slaap && q.s3d.rag.t < 6) continue; q.grp.removeFromParent(); this.darmWeg && this.darmWeg(q); q.opgeruimd = true; }
     this.lijst = this.lijst.filter(q => !q.opgeruimd); },
@@ -5969,7 +5985,7 @@ AFRAME.registerComponent('zombies', {
     kl.traverse(o => { if (o.isSkinnedMesh){ const s = a[b.indexOf(o)]; const sk = s.skeleton.clone(); sk.bones = s.skeleton.bones.map(x => map.get(x)); o.bind(sk, s.bindMatrix); } });
     return kl;
   },
-  s3dMag(opt){ return this.drieD && this.s3dBron && !['touw','deur','mg'].includes(opt.soort); },   /* boordschutters op de trucks: ook 3D */
+  s3dMag(opt){ return this.drieD && this.s3dBron && !['mg'].includes(opt.soort); },   /* boordschutters op de trucks: ook 3D */
   s3dMaak(z){
     const T = this.T, B = this.s3dBron, m = this.s3dKloon(B.scene), S0 = {};
     z.grp.traverse(o => { if (o.isMesh){ o.visible = false; o.userData.D = null; } });     // 2D-plaatjes weg (skelet blijft voor de AI)
@@ -6114,6 +6130,11 @@ AFRAME.registerComponent('zombies', {
     if (S.houding && !z.rol && !z.dood) this.s3dHouding(z);
     ai.leunW = (ai.leunW || 0) + (((ai.staat === 'arcade' && !ai.strafe) ? (ai.leunDoel || 0) : 0) - (ai.leunW || 0))*Math.min(1, s*11);
     if (ai.leunW > 0.01 && !z.rol && !z.dood) this.s3dLeun(z);
+    S.nekW = (S.nekW || 0) + (((z.nekT > 0 && !z.dood) ? 1 : 0) - (S.nekW || 0))*Math.min(1, s*(z.nekT > 0 ? 6 : 3));
+    if (S.nekW > 0.01 && !z.rol){ const mq = S.m.getWorldQuaternion(new T.Quaternion()), f = new T.Vector3(0, 0, 1).applyQuaternion(mq), r = new T.Vector3(1, 0, 0).applyQuaternion(mq), sg = z.nekKant === 'L' ? 1 : -1;
+      const draai = (b, as, a) => { if (!b || !b.parent) return; const Pq = b.parent.getWorldQuaternion(new T.Quaternion()); b.quaternion.premultiply(Pq.clone().invert().multiply(new T.Quaternion().setFromAxisAngle(as, a)).multiply(Pq)); };
+      const w = S.nekW, wiebel = Math.sin(z.t*3.1)*0.06*w;   /* v191: hoofd scheef en iets voorover, licht na-wiebelend */
+      draai(S.bot.neck_01, f, sg*(0.32*w + wiebel)); draai(S.bot.neck_01, r, 0.14*w); draai(S.bot.Head, f, sg*0.2*w); draai(S.bot.Head, r, 0.1*w); }
     if (!z.rol && ai.staat === 'rennen' && S.vStaat !== 'rennen' && S.snel > 0 && Math.random() < 0.3 && !z.mank && !this.arcadeAan()) S.rolT = 0.35;      // tussen dekkingen: duikrol
     if (S.rolT > 0 && (S.rolT -= s) <= 0 && S.snel > 1.5 && !z.rol) z.rol = {t:0, dur:0.7};
     S.vStaat = ai.staat;
@@ -6919,7 +6940,7 @@ AFRAME.registerComponent('zombies', {
     if ((dt > 60 || jsMs > 25) && this.nu - (P.laatst || -9) > 1){ P.laatst = this.nu;
       this.logboek(`HAPERING frame ${dt.toFixed(0)} ms (js ${jsMs.toFixed(0)} ms) · ${this.staatKort()}`); }
     if (P.t > 10000){ const L = this.lijst || [];
-      this.logboek(`perf 10s · fps ${(1000*P.n/P.som).toFixed(0)} · traagste frame ${P.max.toFixed(0)} ms · js gem ${(P.js/P.n).toFixed(1)} max ${P.jsMax.toFixed(0)} ms · ${this.staatKort()} · scene ${this.sc ? this.sc.children.length : '?'} · los ${(this.los || []).length} · wrak ${(this.wrakken || []).length}`);
+      this.logboek(`perf 10s · fps ${(1000*P.n/P.som).toFixed(0)} · traagste frame ${P.max.toFixed(0)} ms · js gem ${(P.js/P.n).toFixed(1)} max ${P.jsMax.toFixed(0)} ms · ${this.staatKort()} · scene ${this.sc ? this.sc.children.length : '?'} · geo ${this.el.sceneEl.renderer ? this.el.sceneEl.renderer.info.memory.geometries : '?'} tex ${this.el.sceneEl.renderer ? this.el.sceneEl.renderer.info.memory.textures : '?'} · los ${(this.los || []).length} · wrak ${(this.wrakken || []).length}`);
       this.perf = {n:0, som:0, max:0, js:0, jsMax:0, t:0}; }
   },
   staatKort(){
@@ -8073,7 +8094,7 @@ AFRAME.registerComponent('zombies', {
      tekst:'Ride together with friends: see everyone live on the map, share your route and get spoken turn-by-turn directions and speed camera warnings. No account needed, just share a code. Runs on your phone — add it to your home screen.'}]; },
   meerUrl(){ return 'https://umop3p1sdn.github.io/Step-forward/'; },
   meerImg(src){ const I = this._meerImg = this._meerImg || {}; if (!I[src]){ const im = new Image(); im.onload = () => { if (this.menu && this.menuPaneel && !this.gestart) this.kiesHand(this.menuHand || 'handR'); }; im.src = src; I[src] = im; } return I[src]; },
-  meerOpen(url){ const s = this.el.sceneEl; try { if (s.is('vr-mode')){ s.exitVR(); setTimeout(() => { location.href = url; }, 400); return; } } catch(_){} window.open(url, '_blank') || (location.href = url); },
+  meerOpen(url){ const s = this.el.sceneEl; try { if (s.is('vr-mode')){ this._vrBewust = true; s.exitVR(); setTimeout(() => { location.href = url; }, 400); return; } } catch(_){} window.open(url, '_blank') || (location.href = url); },
   meerDeel(){ const url = this.meerUrl(), d = {title:'Step Forward', text:'Step Forward — arcade VR shooter for the Meta Quest. Play it in your browser:', url};
     if (navigator.share){ navigator.share(d).catch(() => {}); return; }
     const klaar = () => this.meerToast('LINK COPIED'); try { navigator.clipboard.writeText(url).then(klaar, () => prompt('Copy this link:', url)); } catch(_){ prompt('Copy this link:', url); } },
@@ -8159,7 +8180,7 @@ AFRAME.registerComponent('zombies', {
   truckLading(){ return Math.min(15, 6 + Math.round(((this.lvlNr || 1) - 1)*8/19) + (Math.random() < 0.5 ? 1 : 0)); },   // level 1: 6-7 man, level 20: 14-15
   zichtRedding(s){ const K = this.kaartNu(); if (!K || !this.arcadeAan || !this.arcadeAan()) return; if ((this.zrT = (this.zrT || 0) - s) > 0) return; this.zrT = 1;
     const T = this.T, oog = this.el.camera.getWorldPosition(new T.Vector3()), hkD = e => Math.atan2(Math.abs(e[0]), -e[1]), deuren = (K.spawns || []).filter(q => q.deur && q.via && q.via.length && hkD(q.p) < 0.95 && hkD(q.via[0]) < 0.95 && !(q.slecht >= 2) && !this.zichtDicht(oog, new T.Vector3(q.via[0][0], 1.45, q.via[0][1]), 0.15));
-    for (const z of this.lijst){ if (z.dood || !z.ai || !z.s3d || z.sprong || z.para || z.schild || ['bak', 'rijder', 'touw', 'mg', 'mgVuur', 'zwaar', 'sniper', 'onwetend'].includes(z.ai.staat) || z.ai.raamSniper) continue;
+    for (const z of this.lijst){ if (z.dood || !z.ai || !z.s3d || z.sprong || z.para || z.schild || ['bak', 'rijder', 'touw', 'deur', 'mg', 'mgVuur', 'zwaar', 'sniper', 'onwetend'].includes(z.ai.staat) || z.ai.raamSniper) continue;
       const p = z.grp.position, opzij = Math.atan2(Math.abs(p.x), -p.z) > 1.05, P1 = z.ai.post, lk = P1 && P1.leun && P1.fase !== 'schuil' ? p.clone().addScaledVector(P1.leun.L, 0.32) : null;   /* leunt om de hoek: kijk naar zijn hoofd, niet naar zijn heupen */
       const dicht = opzij || !this.zichtEcht(z, true);   /* echte zichtlijn: hoofd of borst, door alle muren en kozijnen gemeten */   /* ook op een verdieping: vanaf zijn eigen vloer */
       z.zichtT = dicht ? (z.zichtT || 0) + 1 : 0;
@@ -8386,9 +8407,9 @@ AFRAME.registerComponent('zombies', {
       { const k = WS.rec*0.00015, w = Math.random(); if (w < 0.55){ this.klim = (this.klim || 0) + k; this.klimX = (this.klimX || 0) + (Math.random() - 0.5)*k*0.6; } else if (w < 0.8){ this.klim = (this.klim || 0) + k*0.3; this.klimX = (this.klimX || 0) + (Math.random() < 0.5 ? -1 : 1)*k*0.7; } else this.bloei += k*0.6; }   /* recoil: meestal iets omhoog, soms opzij, soms alleen spreiding */
       this.klimHerstel = 3 + (100 - WS.rec)*0.06; }   /* recoil: loop klimt per schot (meer bij zwaar kaliber), herstelt sneller bij lichte wapens */
     const o = this.rc.ray.origin.clone(), d = this.rc.ray.direction.clone();
-    { const kb = this.kistRaak(); if (kb){ const t0 = this.treffers(true)[0]; if (!t0 || kb.d < t0.d){ this.knal(0.6); this.kistPak(kb.k, w); return; } } }   /* ammo-box: erop schieten = pakken */
+    { const kb = this.kistRaak(); if (kb){ const t0 = this.treffers().find(t => !(t.z && t.z.dood)); if (!t0 || kb.d < t0.d){ this.knal(0.6); this.kistPak(kb.k, w); return; } } }   /* ammo-box: erop schieten = pakken */
     {                                                              // munitie-/granaatkist: met elk wapen
-      const b = this.blokRaak(); const t0 = this.treffers(true)[0];
+      const b = this.blokRaak(); const t0 = this.treffers().find(t => !(t.z && t.z.dood));
       if (b && (!t0 || b.d < t0.d) && w !== 'laser'){ (w === 'auto' ? this.knal(0.75) : this.knal(this.upg.kanon ? 1.6 : 1)); this.pakBlok(b.blok); return; }
       if (b && w === 'laser') this.pakBlok(b.blok);
     }
