@@ -29,23 +29,36 @@
    bij een standwissel schuift de wereld onder je door. Alles van een stand (dekking, spawns, muren)
    staat in wereldcoördinaten en wordt bij het wisselen omgerekend. */
 const KAART_MAP = 'art/map/';
-const KAART_MAAT = {"weg":[512,512],"weg2":[512,512],"stoep":[512,512],"gevel_wit":[512,512],"gevel_beige":[512,512],"gevel_afbl":[512,512],"gevel_geel":[512,512],"gevel_grijs":[512,512],"grind":[512,512],"beton":[512,512],"muur_afbl":[512,512],"muur_afbl2":[512,512],"muur_afbl3":[512,512],"muur_vlek":[512,512],"plafond":[512,512],"plank":[512,512],"baksteen":[512,512],"baksteen2":[512,512],"dak_rood":[512,512],"dak_grijs":[512,512],"dak_oud":[512,512],"golf_roest":[512,512],"golf_roest2":[512,512],"golf_grijs":[512,512],"dambord":[512,512],"dambord2":[512,512],"lambris":[512,512],"deur_b1":[307,512],"deur_b2":[311,512],"deur_b3":[373,512],"deur_b4":[332,512],"deur_b5":[307,512],"raam_b1":[365,512],"raam_b2":[388,512],"raam_b3":[404,512],"raam_b4":[392,512],"raam_b5":[352,512],"raam_b6":[352,512],"raam_b7":[512,388],"raam_b8":[379,512],"raam_b9":[512,482],"deur_i1":[267,512],"deur_i2":[353,512],"deur_i3":[257,512],"deur_i4":[302,512],"deur_i5":[360,512],"raam_i1":[511,512],"raam_i2":[512,494],"raam_i3":[512,512],"asfalt":[512,512],"asfalt2":[512,512],"pleister1":[512,512],"pleister2":[512,512],"pleister3":[512,512],"pleister4":[512,512],"behang1":[512,512],"behang2":[1024,1024],"parket":[512,512],"tegels":[512,512],"stoep2":[512,512],"gevel_rood":[512,512],"gevel_blauw":[512,512],"gevel_schil":[512,512],"gevel_ruw":[512,512],"baksteen3":[512,512],"baksteen4":[512,512],"baksteen5":[512,512],"baksteen6":[512,512],"beton2":[512,512],"kinderkop":[512,512],"zak":[256,256],"cont_voor_rood":[512,484],"cont_voor_blauw":[512,484],"cont_voor_groen":[512,484],"cont_voor_oranje":[512,484],"cont_zij_rood":[384,512],"cont_zij_blauw":[384,512],"cont_zij_groen":[384,512],"cont_zij_oranje":[384,512],"vat_blauw":[256,258],"vat_rood":[256,258],"krat_foto":[512,384],"pallet_foto":[512,400],"putdeksel":[256,256],"deur_hout":[300,512],"deur_staal":[300,512],"deur_kapot":[300,512]};
+const KAART_MAAT = {"weg":[512,512],"weg2":[512,512],"stoep":[512,512],"gevel_wit":[512,512],"gevel_beige":[512,512],"gevel_afbl":[512,512],"gevel_geel":[512,512],"gevel_grijs":[512,512],"grind":[512,512],"beton":[512,512],"muur_afbl":[512,512],"muur_afbl2":[512,512],"muur_afbl3":[512,512],"muur_vlek":[512,512],"plafond":[512,512],"plank":[512,512],"baksteen":[512,512],"baksteen2":[512,512],"dak_rood":[512,512],"dak_grijs":[512,512],"dak_oud":[512,512],"golf_roest":[512,512],"golf_roest2":[512,512],"golf_grijs":[512,512],"dambord":[512,512],"dambord2":[512,512],"lambris":[512,512],"deur_b1":[307,512],"deur_b2":[311,512],"deur_b3":[373,512],"deur_b4":[332,512],"deur_b5":[307,512],"raam_b1":[365,512],"raam_b2":[388,512],"raam_b3":[404,512],"raam_b4":[392,512],"raam_b5":[352,512],"raam_b6":[352,512],"raam_b7":[512,388],"raam_b8":[379,512],"raam_b9":[512,482],"deur_i1":[267,512],"deur_i2":[353,512],"deur_i3":[257,512],"deur_i4":[302,512],"deur_i5":[360,512],"raam_i1":[511,512],"raam_i2":[512,494],"raam_i3":[512,512],"asfalt":[512,512],"asfalt2":[512,512],"pleister1":[512,512],"pleister2":[512,512],"pleister3":[512,512],"pleister4":[512,512],"behang1":[512,512],"behang2":[1024,1024],"parket":[512,512],"tegels":[512,512],"stoep2":[512,512],"gevel_rood":[512,512],"gevel_blauw":[512,512],"gevel_schil":[512,512],"gevel_ruw":[512,512],"baksteen3":[512,512],"baksteen4":[512,512],"baksteen5":[512,512],"baksteen6":[512,512],"beton2":[512,512],"kinderkop":[512,512],"zak":[256,256],"cont_voor_rood":[512,484],"cont_voor_blauw":[512,484],"cont_voor_groen":[512,484],"cont_voor_oranje":[512,484],"cont_zij_rood":[384,512],"cont_zij_blauw":[384,512],"cont_zij_groen":[384,512],"cont_zij_oranje":[384,512],"vat_blauw":[256,258],"vat_rood":[256,258],"krat_foto":[512,384],"pallet_foto":[512,400],"putdeksel":[256,256],"deur_hout":[300,512],"deur_staal":[300,512],"deur_kapot":[300,512],"klinker_vis":[512,268],"asfalt_foto":[512,268],"stoeptegels":[512,268],"golf_blauw":[384,512],"rolluik_foto":[300,360],"trapgevel":[512,304]};
+const KAART_PNG = {trapgevel:1};   /* v198: met doorzichtige lucht */
 // hoe breed (m) één tegel van de texture in de wereld is
 const KAART_TEGEL = {weg:4.0, weg2:4.0, stoep:2.0, gevel_wit:2.6, gevel_beige:2.6, gevel_afbl:2.8, gevel_geel:2.6, gevel_grijs:2.6, grind:3.0, beton:2.6,
   muur_afbl:2.2, muur_afbl2:2.2, muur_afbl3:2.2, muur_vlek:2.4, plafond:2.4, plank:1.6, baksteen:1.9, baksteen2:1.7, dak_rood:2.0, dak_grijs:2.0, dak_oud:2.0,
   golf_roest:1.8, golf_roest2:1.8, golf_grijs:1.8, dambord:1.6, dambord2:1.4, lambris:1.4,
-  asfalt:4.0, asfalt2:4.0, pleister1:2.4, pleister2:2.4, pleister3:2.4, pleister4:2.4, behang1:2.0, behang2:1.1, parket:1.6, tegels:2.0, stoep2:3.0, kinderkop:2.2, gevel_rood:2.6, gevel_blauw:2.6, gevel_schil:2.4, gevel_ruw:2.4, baksteen3:2.0, baksteen4:1.7, baksteen5:1.9, baksteen6:1.7, beton2:2.6, zak:0.5, cont_zij_rood:1.95, cont_zij_blauw:1.95, cont_zij_groen:1.95, cont_zij_oranje:1.95, vat_blauw:0.95, vat_rood:0.95, krat_foto:1.1, pallet_foto:1.25};
+  asfalt:4.0, asfalt2:4.0, pleister1:2.4, pleister2:2.4, pleister3:2.4, pleister4:2.4, behang1:2.0, behang2:1.1, parket:1.6, tegels:2.0, stoep2:3.0, kinderkop:2.2, gevel_rood:2.6, gevel_blauw:2.6, gevel_schil:2.4, gevel_ruw:2.4, baksteen3:2.0, baksteen4:1.7, baksteen5:1.9, baksteen6:1.7, beton2:2.6, zak:0.5, cont_zij_rood:1.95, cont_zij_blauw:1.95, cont_zij_groen:1.95, cont_zij_oranje:1.95, vat_blauw:0.95, vat_rood:0.95, krat_foto:1.1, pallet_foto:1.25, klinker_vis:2.2, asfalt_foto:2.6, stoeptegels:2.6, golf_blauw:1.95};
 // gevels: texture + kleurtint (zo krijgt hetzelfde pleister verschillende kleuren)
+const K_LUCHTFOTO = {kade:{n:'lucht_haven', hor:0.78}, stad:{n:'lucht_grijs', hor:0.96}, winter:{n:'lucht_grijs', hor:0.96, tint:'#e6eefa'}, woestijn:{n:'lucht_blauw', hor:0.96, tint:'#fffaf0'},
+  oud:{n:'lucht_blauw', hor:0.96, tint:'#fff0dc'}, hq:{n:'lucht_grijs', hor:0.96, tint:'#8a4438'}};
+function kLuchtFoto(x, img, LF){ const W = 2048, H = 1024, tw = 512, th = Math.round(tw*img.height/img.width), top = Math.round(H/2 - LF.hor*th);
+  const s = document.createElement('canvas'); s.width = tw; s.height = th; const sx = s.getContext('2d'); sx.drawImage(img, 0, 0, tw, th);
+  const gem = (y0, y1) => { const d = sx.getImageData(0, y0, tw, y1 - y0).data; let r = 0, g = 0, b = 0, n = d.length/4; for (let i=0;i<d.length;i+=4){ r += d[i]; g += d[i+1]; b += d[i+2]; } return [r/n, g/n, b/n]; };
+  const kb = gem(0, 8), ko = gem(th - 8, th), rgb = (k, f) => `rgb(${k[0]*f|0},${k[1]*f|0},${k[2]*f|0})`;
+  const gr = x.createLinearGradient(0, 0, 0, top + 40); gr.addColorStop(0, rgb(kb, 0.86)); gr.addColorStop(1, rgb(kb, 1)); x.fillStyle = gr; x.fillRect(0, 0, W, top + 40);
+  x.fillStyle = rgb(ko, 0.9); x.fillRect(0, top + th - 4, W, H - top - th + 4);
+  const f = document.createElement('canvas'); f.width = tw; f.height = th; const fx = f.getContext('2d'); fx.drawImage(s, 0, 0);
+  fx.globalCompositeOperation = 'destination-in'; const m = fx.createLinearGradient(0, 0, 0, 70); m.addColorStop(0, 'rgba(0,0,0,0)'); m.addColorStop(1, 'rgba(0,0,0,1)'); fx.fillStyle = m; fx.fillRect(0, 0, tw, th);
+  for (let i=0;i<4;i++){ x.save(); if (i % 2){ x.translate((i + 1)*tw, 0); x.scale(-1, 1); x.drawImage(f, 0, top); } else x.drawImage(f, i*tw, top); x.restore(); }   // gespiegeld: naadloos rond
+  if (LF.tint){ x.globalCompositeOperation = 'multiply'; x.fillStyle = LF.tint; x.fillRect(0, 0, W, H); x.globalCompositeOperation = 'source-over'; } }
 const K_CONT_TOP = {rood:[0.6, 0.2, 0.15], blauw:[0.2, 0.32, 0.55], groen:[0.24, 0.42, 0.26], oranje:[0.78, 0.46, 0.18]};   /* v197 */
 const K_DEURI = {oud:['deur_hout', 'deur_hout', 'deur_kapot', 'deur_i1'], stad:['deur_staal', 'deur_i2', 'deur_hout', 'deur_i3'], kade:['deur_staal', 'deur_staal', 'deur_kapot'], haven:['deur_staal', 'deur_staal', 'deur_kapot'],
   woestijn:['deur_hout', 'deur_kapot', 'deur_i5'], winter:['deur_hout', 'deur_staal'], fabriek:['deur_staal', 'deur_staal', 'deur_kapot'], hq:['deur_staal', 'deur_staal', 'deur_kapot']};
 function kDeurI(B, R){ return kKies(R, K_DEURI[B._soort] || KAART_DEUR_I); }
 const K_STIJL = {   /* v184: per wereld eigen gevels, ramen, luiken en daken (kRij) */
   oud:{gevels:[['baksteen',[1,1,1]], ['baksteen2',[1,1,1]], ['baksteen3',[1,1,1]], ['baksteen5',[1,1,1]], ['baksteen6',[1,1,1]], ['gevel_schil',[1,1,1]], ['gevel_rood',[0.95,0.9,0.86]]],
-       ramen:['raam_b2','raam_b4','raam_b1','raam_b3'], luik:['raam_b2','raam_b4'], dak:['dak_rood','dak_oud'], dakKans:0.9},
+       ramen:['raam_b2','raam_b4','raam_b1','raam_b3'], luik:['raam_b2','raam_b4'], dak:['dak_rood','dak_oud'], dakKans:0.9, trap:0.45},
   stad:{gevels:[['gevel_wit',[1,0.97,0.9]], ['gevel_beige',[1,1,1]], ['gevel_geel',[1,1,1]], ['gevel_blauw',[1,1,1]], ['gevel_rood',[1,1,1]], ['pleister2',[0.95,0.92,0.86]]],
         ramen:['raam_b7','raam_b9','raam_b8','raam_b3'], luik:['raam_b8','raam_b6'], dak:['dak_grijs','dak_rood'], dakKans:0.45},
-  kade:{gevels:[['baksteen4',[1,1,1]], ['baksteen2',[0.9,0.88,0.86]], ['gevel_grijs',[0.92,0.94,0.98]], ['beton2',[1,1,1]], ['golf_grijs',[0.75,0.8,0.86]], ['golf_roest',[1,1,1]]],
+  kade:{gevels:[['baksteen4',[1,1,1]], ['baksteen2',[0.9,0.88,0.86]], ['gevel_grijs',[0.92,0.94,0.98]], ['beton2',[1,1,1]], ['golf_grijs',[0.75,0.8,0.86]], ['golf_roest',[1,1,1]], ['golf_blauw',[1,1,1]]], deurB:['rolluik_foto', 'deur_b2', 'rolluik_foto', 'deur_b4'],
         ramen:['raam_b3','raam_b7','raam_b1'], luik:['raam_b5','raam_b1'], dak:['dak_grijs'], dakKans:0.3},
   woestijn:{gevels:[['pleister3',[1,0.9,0.72]], ['gevel_beige',[1,0.92,0.78]], ['gevel_ruw',[1,0.88,0.7]], ['gevel_geel',[1,0.95,0.84]], ['pleister4',[1,0.9,0.74]]],
             ramen:['raam_b5','raam_b8','raam_b1'], luik:['raam_b5','raam_b6'], plat:true},
@@ -53,7 +66,7 @@ const K_STIJL = {   /* v184: per wereld eigen gevels, ramen, luiken en daken (kR
          ramen:['raam_b8','raam_b9','raam_b7'], luik:['raam_b8'], dak:['dak_grijs'], dakKans:0.4},
   winter:{gevels:[['plank',[0.55,0.42,0.34]], ['plank',[0.72,0.3,0.24]], ['plank',[0.4,0.46,0.52]], ['gevel_grijs',[0.9,0.94,1]], ['baksteen4',[0.92,0.95,1]]],
           ramen:['raam_b8','raam_b9','raam_b7'], luik:['raam_b8','raam_b1'], dak:['pleister3'], dakTint:[1.05,1.08,1.16], dakKans:1, dakH:3.0},
-  fabriek:{gevels:[['baksteen4',[1,1,1]], ['beton2',[1,1,1]], ['golf_grijs',[0.8,0.82,0.86]], ['golf_roest',[1,1,1]]], ramen:['raam_b3','raam_b7'], luik:['raam_b1'], dak:['dak_grijs'], dakKans:0.2},
+  fabriek:{gevels:[['baksteen4',[1,1,1]], ['beton2',[1,1,1]], ['golf_grijs',[0.8,0.82,0.86]], ['golf_roest',[1,1,1]], ['golf_blauw',[0.85,0.88,0.95]]], deurB:['rolluik_foto', 'rolluik_foto', 'deur_b3'], ramen:['raam_b3','raam_b7'], luik:['raam_b1'], dak:['dak_grijs'], dakKans:0.2},
   hq:{gevels:[['beton',[0.85,0.88,0.84]], ['beton2',[0.9,0.92,0.88]], ['golf_grijs',[0.7,0.76,0.7]]], ramen:['raam_b3'], luik:['raam_b1'], plat:true}};
 const KAART_GEVELS = [['gevel_wit',[1,1,1]], ['gevel_beige',[1,1,1]], ['gevel_afbl',[1,1,1]], ['gevel_geel',[1,1,1]], ['gevel_grijs',[1,1,1]], ['gevel_rood',[1,1,1]],
   ['gevel_blauw',[1,1,1]], ['gevel_schil',[1,1,1]], ['gevel_ruw',[1,1,1]], ['baksteen',[1,1,1]], ['baksteen2',[1,1,1]], ['baksteen3',[1,1,1]], ['baksteen4',[1,1,1]], ['baksteen5',[1,1,1]], ['baksteen6',[1,1,1]],
@@ -90,7 +103,7 @@ const KAART = {
   tex(T, n, o){ o = o || {}; const key = n + (o.band ? '|b' : '') + (o.clamp ? '|c' : '');
     if (this.cache[key]) return this.cache[key];
     this.wacht++; let klaar = false; const af = () => { if (!klaar){ klaar = true; this.wacht--; } };
-    const t = new T.TextureLoader().load(KAART_MAP + n + '.jpg', af, undefined, af);
+    const t = new T.TextureLoader().load(KAART_MAP + n + (KAART_PNG[n] ? '.png' : '.jpg'), af, undefined, af);
     t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4;
     t.wrapS = o.clamp ? T.ClampToEdgeWrapping : T.RepeatWrapping; t.wrapT = (o.clamp || o.band) ? T.ClampToEdgeWrapping : T.RepeatWrapping;
     return this.cache[key] = t; },
@@ -100,7 +113,7 @@ const KAART = {
     else if (n === 'zwart') m = new T.MeshBasicMaterial({color:0x050607});
     else if (n === 'kleur') m = new T.MeshLambertMaterial({vertexColors:true, side:T.DoubleSide});
     else { const d = n.startsWith('d:'), naam = d ? n.slice(2) : n;
-      m = new T.MeshLambertMaterial({map:this.tex(T, naam, {clamp:d, band:naam === 'lambris'}), vertexColors:true, side:T.DoubleSide});
+      m = new T.MeshLambertMaterial({map:this.tex(T, naam, {clamp:d, band:naam === 'lambris'}), vertexColors:true, side:T.DoubleSide}); if (KAART_PNG[naam]) m.alphaTest = 0.5;
       if (d){ m.polygonOffset = true; m.polygonOffsetFactor = -2; m.polygonOffsetUnits = -2; } }
     if (n === 'kleur' || (m.map && !n.startsWith('d:'))) kVuil(T, m, n);
     return this.mats[n] = m; },
@@ -294,10 +307,14 @@ KBouw.prototype = {
     const gr = x.createLinearGradient(0, 0, 0, 256); (stops || [['0', '#5f86b8'], ['0.42', '#a9c2dc'], ['0.5', '#d9dfe2'], ['1', '#c8c4bb']]).forEach(([o, kl]) => gr.addColorStop(+o, kl));
     x.fillStyle = gr; x.fillRect(0, 0, 256, 256);
     if (sterren) for (let i=0;i<260;i++){ x.fillStyle = `rgba(255,255,255,${0.3 + Math.random()*0.7})`; x.fillRect(Math.random()*256, Math.random()*118, Math.random() < 0.15 ? 1.5 : 1, 1); }
-    for (let i=0;i<70;i++){ const yy = 30 + Math.random()*90, rr = 8 + Math.random()*22, w = wolk ?? 0.1; x.fillStyle = `rgba(255,255,255,${w*0.5 + Math.random()*w})`; const xx = Math.random()*256; [-256, 0, 256].forEach(o => { x.beginPath(); x.ellipse(xx + o, yy, rr*2, rr*0.5, 0, 0, 6.3); x.fill(); }); }   // naadloos rond
-    const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace;
-    const m = new T.Mesh(new T.SphereGeometry(320, 24, 12), new T.MeshBasicMaterial({map:t, side:T.BackSide, fog:false, depthWrite:false}));
-    m.renderOrder = -5; this.extra.push(m); },
+    for (let i=0;i<70;i++){ const yy = 62 + Math.random()*60, rr = 8 + Math.random()*22, w = wolk ?? 0.1; x.fillStyle = `rgba(255,255,255,${w*0.5 + Math.random()*w})`; const xx = Math.random()*256; [-256, 0, 256].forEach(o => { x.beginPath(); x.ellipse(xx + o, yy, rr*2, rr*0.5, 0, 0, 6.3); x.fill(); }); }   // naadloos rond
+    const LF = !sterren && K_LUCHTFOTO[this._soort]; let t;   /* v198: echte lucht-foto rondom, rustig verloop naar het zenit (geen draaikolk) */
+    if (LF){ const c2 = document.createElement('canvas'); c2.width = 2048; c2.height = 1024; const x2 = c2.getContext('2d'); x2.drawImage(c, 0, 0, 2048, 1024);
+      t = new T.CanvasTexture(c2); t.colorSpace = T.SRGBColorSpace; const img = new Image();
+      img.onload = () => { try { kLuchtFoto(x2, img, LF); t.needsUpdate = true; } catch(e){ console.warn('lucht', e); } }; img.src = KAART_MAP + LF.n + '.jpg'; }
+    else { t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; }
+    const m = new T.Mesh(new T.SphereGeometry(320, 32, 16), new T.MeshBasicMaterial({map:t, side:T.BackSide, fog:false, depthWrite:false}));
+    m.renderOrder = -5; m.userData.lucht = true; this.extra.push(m); },
   maak(){
     { const STER = {oud:'FOUNTAIN SQUARE', stad:'MARKET', kade:'CRANE YARD', woestijn:'ROOFTOPS', winter:'WATCHTOWERS'}, nm = this._soort && STER[this._soort], S = nm && this.standen.find(s => s.naam === nm);
       if (S && !S.hoog){ S.hoog = 3.2; S.geenMuur = true; kSteiger(this, S.x, S.z, 3.2); } }   /* v183: sterplek */
@@ -489,7 +506,7 @@ function kRij(B, R, o){
     const [mat, tint] = pal[st], fl = o.verd[0] + (R()*(o.verd[1] - o.verd[0] + 1)|0), H = 3.4 + 3.0*(fl - 1) + 0.5;
     const ns = Math.max(1, Math.round(w/2.5)), slot = k => a + (k + 0.5)*w/ns;
     const gaten = [], deurK = (w > 2.4 && !o.geenDeur) ? (R()*ns|0) : -1, deurK2 = (ns >= 3 && !o.geenDeur && R() < 0.6) ? (deurK + 1 + (R()*(ns - 1)|0)) % ns : -1;   // brede huizen: soms 2 deuren
-    const raamTex = kKies(R, ks.ramen || KAART_RAAM_B), deurTex = kKies(R, KAART_DEUR_B), luik = kKies(R, ks.luik || KAART_LUIK);
+    const raamTex = kKies(R, ks.ramen || KAART_RAAM_B), deurTex = kKies(R, ks.deurB || KAART_DEUR_B), luik = kKies(R, ks.luik || KAART_LUIK);
     const ra = B.maatVan(raamTex); let rw = Math.min(1.35, 1.45*ra), rh = rw/ra;
     for (let f=0; f<fl; f++){ const y = f === 0 ? 0 : 3.4 + 3.0*(f - 1);
       for (let k=0;k<ns;k++){ const c = slot(k), pc = P(c);
@@ -499,7 +516,7 @@ function kRij(B, R, o){
             const d = B.deur(kDeurI(B, R), pc[0], pc[1], nx, nz, 1.1, 2.26);
             const ib = P(c, -0.3); B.kamer(ib[0], ib[1], nx, nz, Math.min(2.6, w/ns - 0.06), 3.2, 0, 2.9, {f:0.38});   // nooit breder dan het eigen vak: geen kamers door elkaar
             uit.deuren.push({d, buiten:P(c, 1.0), drempel:P(c, 0.15), binnen:P(c, -1.6)}); open.push(c);
-          } else { const dh = 2.3, dw = Math.min(1.5, dh*B.maatVan(deurTex)); gaten.push({a0:c - dw/2, a1:c + dw/2, b0:0, b1:dh}); B.nis(deurTex, pc[0], pc[1], nx, nz, 0, dw, dh, {geenAo:false}); }   // dichte deur: echt in de muur
+          } else { const rl = deurTex === 'rolluik_foto', dh = rl ? 2.8 : 2.3, dw = rl ? Math.min(2.6, w/ns - 0.35) : Math.min(1.5, dh*B.maatVan(deurTex)); gaten.push({a0:c - dw/2, a1:c + dw/2, b0:0, b1:dh}); B.nis(deurTex, pc[0], pc[1], nx, nz, 0, dw, dh, {geenAo:false}); }   // dichte deur: echt in de muur
           continue; }
         if (o.raamOpen && o.raamOpen(pc, f, R)){
           gaten.push({a0:c - 0.62, a1:c + 0.62, b0:y + 0.95, b1:y + 2.25});
@@ -514,7 +531,9 @@ function kRij(B, R, o){
     { const q0 = P(a, 0.07), q1 = P(a + w, -0.05); B.doos('beton', q0[0], q0[1], q1[0], q1[1], 0, 0.5, {tint:[0.72, 0.7, 0.68], geenBots:true, f:0.9}); }
     { const q0 = P(a, 0.2), q1 = P(a + w, -0.05); B.doos('beton', q0[0], q0[1], q1[0], q1[1], H - 0.32, H - 0.08, {tint:[0.86, 0.84, 0.8], geenBots:true, geenAo:true}); }
     if (fl > 1 && R() < 0.6){ const q0 = P(a, 0.1), q1 = P(a + w, -0.05); B.doos('beton', q0[0], q0[1], q1[0], q1[1], 3.3, 3.45, {tint:[0.82, 0.8, 0.76], geenBots:true, geenAo:true}); }
-    if (!o.plat && !ks.plat && R() < (ks.dakKans ?? 0.68)) B.zadel(kKies(R, ks.dak || KAART_DAK), P(a), P(a + w), nx, nz, H - 0.08, D, (ks.dakH || 2.0) + R()*1.6, mat, tint, ks.dakTint);
+    if (!o.plat && !ks.plat && R() < (ks.dakKans ?? 0.68)){ const dt = kKies(R, ks.dak || KAART_DAK), dH = (ks.dakH || 2.0) + R()*1.6; B.zadel(dt, P(a), P(a + w), nx, nz, H - 0.08, D, dH, mat, tint, ks.dakTint);
+      const hs = ((Math.sin(a*12.9898 + w*78.233 + L)*43758.5453) % 1 + 1) % 1;
+      if (ks.trap && hs < ks.trap && w > 3.2){ const wg = Math.min(w - 0.2, 6.2), q = P(a + w/2, 0.03); B.decal('trapgevel', q[0], q[1], nx, nz, H - 0.3, wg, wg*304/512, {geenAo:true, tint:tint.map(v => v*0.95)}); } }   /* v198: trapgevel */
     const laatste = a + w >= L - 0.01;
     if (!(a === 0 && o.hoekA)){ const q = P(a), p2 = P(a, -D); B.vlakV(mat, q[0], q[1], p2[0], p2[1], 0, H, {tint, stap:3, f:0.92}); }
     if (!(laatste && o.hoekB)){ const q = P(a + w), p2 = P(a + w, -D); B.vlakV(mat, p2[0], p2[1], q[0], q[1], 0, H, {tint, stap:3, f:0.92}); }
@@ -1300,7 +1319,7 @@ function kKraam(B, R, x, z, w){ const kl = kKies(R, [[0.8, 0.2, 0.18], [0.2, 0.4
 function kPilaar(B, x, z, H, n){ B.doos(n || 'beton', x - 0.32, z - 0.32, x + 0.32, z + 0.32, 0, H, {}); }
 
 KWERELD.stad = (T, R) => {
-  const B = new KBouw(T); B.lucht(); B.weg = 'asfalt'; B.stoep = 'stoep';
+  const B = new KBouw(T); B.lucht(); B.weg = 'asfalt_foto'; B.stoep = 'stoeptegels';
   const ST = [], dS = (deuren, x, z, extra) => kDeurSpawns(deuren, {x, z}, p => p[1] < z - 2.5).concat(extra || []);
   const binnen = (xa, za, xb, zb, H, vloer, muur, tint) => { const r = B.ruimte(xa, zb, xb, za, H, 0.3); B.vlakH(vloer, xa, zb, xb, za, 0.005, {stap:1.4}); B.vlakH('plafond', xa, zb, xb, za, H, {plafond:true, stap:1.5}); return r; };
   const zw = (n, x0, z0, x1, z1, H, o) => B.wand(n, x0, z0, x1, z1, 0, H, Object.assign({dik:0.3}, o || {}));
@@ -1426,7 +1445,7 @@ KWERELD.stad = (T, R) => {
 /* === OUDE STAD (level 1): 10 schiettenten in een oud dorp — stadspoort, kerkhof, bakkerij, waslijnsteeg, schuur, fonteinplein,
    kroeg, gracht, klaslokaal, markthal. Zelfde opzet als DOWNTOWN: elke wave een eigen set, alles binnen ~12 m. === */
 KWERELD.oud = (T, R) => {
-  const B = new KBouw(T); B.lucht(); B.weg = 'kinderkop'; B.stoep = 'stoep2';
+  const B = new KBouw(T); B.lucht(); B.weg = 'klinker_vis'; B.stoep = 'stoep2';
   const ST = [], dS = (deuren, x, z, extra) => kDeurSpawns(deuren, {x, z}, p => p[1] < z - 2.5).concat(extra || []);
   const binnen = (xa, za, xb, zb, H, vloer, plaf) => { const r = B.ruimte(xa, zb, xb, za, H, 0.3); B.vlakH(vloer, xa, zb, xb, za, 0.005, {stap:1.4}); B.vlakH(plaf || 'plafond', xa, zb, xb, za, H, {plafond:true, stap:1.5}); return r; };
   const zw = (n, x0, z0, x1, z1, H, o) => B.wand(n, x0, z0, x1, z1, 0, H, Object.assign({dik:0.3}, o || {}));
@@ -1813,7 +1832,7 @@ KWERELD.woestijn = (T, R) => {
 /* === HOTEL (level 5, SWAT): penthouse, dan 3x de LIFT naar beneden (pling — deuren open — schieten), lobby, restaurant, keuken, balzaal,
    wasserij en de oprit (baas: SWAT-truck). === */
 KWERELD.hotel = (T, R) => {
-  const B = new KBouw(T); B.lucht(); B.weg = 'asfalt'; B.stoep = 'stoep';
+  const B = new KBouw(T); B.lucht(); B.weg = 'asfalt_foto'; B.stoep = 'stoeptegels';
   const ST = [], liften = [], dS = (deuren, x, z, extra) => kDeurSpawns(deuren, {x, z}, p => p[1] < z - 2.5).concat(extra || []);
   const binnen = (xa, za, xb, zb, H, vloer, vt, plaf) => { const r = B.ruimte(xa, zb, xb, za, H, 0.3); B.vlakH(vloer, xa, zb, xb, za, 0.005, {stap:1.4, tint:vt}); B.vlakH(plaf || 'plafond', xa, zb, xb, za, H, {plafond:true, stap:1.5}); return r; };
   const zw = (n, x0, z0, x1, z1, H, o) => B.wand(n, x0, z0, x1, z1, 0, H, Object.assign({dik:0.3}, o || {}));
@@ -2238,7 +2257,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v197";
+const VERSIE = "v198";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2369,6 +2388,7 @@ AFRAME.registerComponent('stad', {
     this.kaartG = W.g; this.kaartW = W; W.g.position.set(-S.x, 0, -S.z); this.extraY = S.hoog || 0;   // uitkijkplatform: jij staat hoger
     W.g.children.forEach(c => { if (c._kc === undefined){ const b = new T.Box3().setFromObject(c); if (b.isEmpty()){ c._kc = null; return; } const m = b.getCenter(new T.Vector3()).sub(W.g.position), sz = b.getSize(new T.Vector3()); c._kc = Math.max(sz.x, sz.z) > 120 ? null : m; }   /* v190: elke plek ligt 100 m uit elkaar: wat ver weg is hoeft niet getekend */
       if (!c._kc) return; const ver = Math.hypot(c._kc.x - S.x, c._kc.z - S.z) > 60; if (ver && c.visible){ c.visible = false; c._kVer = true; } else if (!ver && c._kVer){ c.visible = true; c._kVer = false; } });
+    { const lu = W.g.children.filter(c => c.userData && c.userData.lucht); lu.forEach((c, i) => { c.visible = i === 0; if (i === 0) c.position.set(S.x, 0, S.z); }); }   /* v198: één hemel, altijd rond de stand (geen randen van andere koepels) */
     [this.wand, this.vloer, this.vloerVer, this.voet, this.achter, this.muren].forEach(m => { if (m) m.visible = false; });
     const o = [S.x, S.z], v = q => [q[0] - o[0], q[1] - o[1]], plekken = [];
     const blok = this.standBlok ? this.standBlok(W, S) : [];   // eindgevels tegen te diepe straten/gangen
@@ -4607,7 +4627,7 @@ AFRAME.registerComponent('zombies', {
     const W = K.W, sw = (W && W.soort) || '', vloerNaam = p => { let n = null; ((W && W.vloer) || []).forEach(r => { if (p.x + K.o[0] > r[0] && p.x + K.o[0] < r[2] && p.z + K.o[1] > r[1] && p.z + K.o[1] < r[3]) n = r[4]; }); return n; };
     const si = ((st && st.i) || 0), AA = [0.55, 0.33, 0.11, -0.11, -0.33, -0.55], RR = [7, 8.5, 10, 6, 11.5], aa = AA.slice(si % 6).concat(AA.slice(0, si % 6)), rr = RR.slice(si % 5).concat(RR.slice(0, si % 5));   /* per plek een andere plek in de straat */
     if (['oud', 'stad', 'kade', 'fabriek', 'hq'].includes(sw)) put: for (const r of rr) for (const a of aa){ const p = V(Math.sin(a)*r, 0, -Math.cos(a)*r);   /* putdeksel: alleen in een echte straat of betonnen terrein */
-      if (!/asfalt|kinderkop|stoep|beton/.test(vloerNaam(p) || '')) continue;
+      if (!/asfalt|kinderkop|klinker|stoep|beton/.test(vloerNaam(p) || '')) continue;
       if (!this.kaartVrij(p, 0.95) || !zie(p) || !ver(p) || this.kaartSegZ(oog, p.clone().setY(0.45)) || uit.some(s => s.p.distanceTo(p) < 3)) continue;
       uit.push({soort:'put', p, a:hoek([p.x, p.z])}); this.putMaak(p); break put; }
     return uit; },
