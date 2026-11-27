@@ -290,7 +290,7 @@ KBouw.prototype = {
     { const STER = {oud:'FOUNTAIN SQUARE', stad:'MARKET', kade:'CRANE YARD', woestijn:'ROOFTOPS', winter:'WATCHTOWERS'}, nm = this._soort && STER[this._soort], S = nm && this.standen.find(s => s.naam === nm);
       if (S && !S.hoog){ S.hoog = 3.2; S.geenMuur = true; kSteiger(this, S.x, S.z, 3.2); } }   /* v183: sterplek */
     if (this._atmos && this._soort && !this._aangekleed) try { kAankleden(this, this._soort); } catch(e){ console.warn('aankleden', e); }
-    const T = this.T; this._vloer = this.vl.filter(a => !(a[6] && a[6].plafond) && Math.abs(a[5]) < 0.25).map(a => [Math.min(a[1], a[3]), Math.min(a[2], a[4]), Math.max(a[1], a[3]), Math.max(a[2], a[4])]); this.vl.forEach(a => this._vlakH(...a)); this.vl = [];
+    const T = this.T; this._vloer = this.vl.filter(a => !(a[6] && a[6].plafond) && Math.abs(a[5]) < 0.25).map(a => [Math.min(a[1], a[3]), Math.min(a[2], a[4]), Math.max(a[1], a[3]), Math.max(a[2], a[4]), a[0]]); this.vl.forEach(a => this._vlakH(...a)); this.vl = [];
     const g = new T.Group(); let tris = 0;
     Object.entries(this.e).forEach(([n, e]) => { if (!e.i.length) return;
       const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.Float32BufferAttribute(e.p, 3)); geo.setAttribute('uv', new T.Float32BufferAttribute(e.u, 2));
@@ -2226,7 +2226,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v195";
+const VERSIE = "v196";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -3691,6 +3691,21 @@ AFRAME.registerComponent('zombies', {
         if (!z.handGranaat){ ai.staat = ai.plek ? 'dekking' : 'vrij'; ai.t = 1.5; break; }
         if (ai.t <= 0){ this.werpLos(z); ai.staat = ai.plek ? 'dekking' : 'vrij'; ai.t = 2 + Math.random(); }
         break;
+      case 'abseil': {                                                  // v196: van een dak/gevel naar beneden
+        ai.stil = true; ai.mik = false; ai.zakDoel = 0; if (ai.absP) g.position.set(ai.absP.x, 0, ai.absP.z);
+        const rest = ai.y0; ai.y0 = Math.max(0, ai.y0 - (rest > 1.2 ? 3.4 : 1.6)*s);
+        if (z.s3d && !ai.touwHand){ ai.touwHand = [new T.Object3D(), new T.Object3D()]; ai.touwHand[0].position.set(0.03, 2.02, 0.1); ai.touwHand[1].position.set(-0.02, 1.72, 0.1); ai.touwHand.forEach(o => g.add(o));
+          z.s3d.grijp = {b:ai.touwHand[0], lok:new T.Vector3(), t:99, duur:99, hand:'l', snel:4}; z.s3d.grijp2 = {b:ai.touwHand[1], lok:new T.Vector3(), t:99, duur:99, hand:'r', snel:4}; }
+        if (ai.y0 <= 0){ ai.y0 = 0; if (z.s3d && ai.touwHand){ z.s3d.grijp = z.s3d.grijp2 = null; ai.touwHand.forEach(o => o.removeFromParent()); ai.touwHand = null; }
+          const tw = ai.absTouw; if (tw) setTimeout(() => { tw.removeFromParent(); if (tw.geometry) tw.geometry.dispose(); }, 6000); ai.absTouw = null;
+          ai.staat = 'vrij'; ai.houding = 'staan'; ai.t = 0.5; }
+        break; }
+      case 'put': {                                                     // v196: klimt uit het riool omhoog
+        ai.stil = true; ai.mik = false; ai.zakDoel = 0; const P = ai.putG;
+        if (P && P.userData.dek){ const d = P.userData.dek, k = Math.min(1, (ai.y0 + 1.75)/0.6); d.position.set(k*0.78, 0.02 + k*0.04, 0); d.rotation.z = -k*0.12; }   /* deksel schuift opzij */
+        ai.y0 = Math.min(0, ai.y0 + 1.9*s); g.visible = ai.y0 > -1.45;
+        if (ai.y0 >= 0){ ai.y0 = 0; ai.staat = 'vrij'; ai.houding = Math.random() < 0.5 ? 'kniel' : 'staan'; ai.t = 0.4; }
+        break; }
       case 'touw': {                                                    // abseilen uit de heli
         const h = ai.heli; ai.stil = true; ai.mik = false; ai.zakDoel = 0;
         if (!h || h.kapot){ this.omver(z, new T.Vector3(0, 0, -1), {wapen:'explosie', dicht:0.2}); break; }
@@ -4542,12 +4557,13 @@ AFRAME.registerComponent('zombies', {
   script(K){ if (K._script) return K._script; const T = this.T, slots = [], hoek = v => Math.atan2(v[0], -v[1]);   /* vaste posten per plek, verdeeld over zones */
     (K.spawns || []).filter(q => q.deur && q.via && q.via.length).forEach(q => slots.push({soort:'deur', q, a:hoek(q.via[0])}));
     this.hoeken(K).forEach(h => slots.push({soort:'hoek', h, a:hoek([h.p.x, h.p.z])}));
+    if (K.lucht) try { this.extraSlots(K, hoek).forEach(sl => slots.push(sl)); } catch(e){ console.warn('extraSlots', e); }   /* v196 */
     const ramen = []; (K.plekken || []).forEach(g => g.lijst.forEach(q => { if (q.raam) ramen.push(q); })); for (let i = 0; i < Math.min(3, Math.ceil(ramen.length/3)); i++) slots.push({soort:'raam', a:0, raam:true});   /* veel ramen = vaker iemand in een raam */
     (K.plekken || []).forEach(g => { if (!(g.h >= 0.8 && g.h <= 1.35)) return; const q = g.lijst.filter(q => !q.raam)[(g.lijst.length/2)|0]; if (!q) return; const p = new T.Vector3(q.p[0], 0, q.p[1]);   /* achter een lage dekking: gehurkt verstopt, komt omhoog */
       if (p.length() > 3.5 && this.kaartVrij(p, 0.3)) slots.push({soort:'dek', q, p, h:g.h, a:hoek([p.x, p.z])}); });
     for (let i = slots.length - 1; i >= 0; i--) if (!slots[i].raam && Math.abs(slots[i].a) > 0.85) slots.splice(i, 1);
     const oogS = this.el.camera.getWorldPosition(new T.Vector3());
-    for (let i = slots.length - 1; i >= 0; i--){ const sl = slots[i]; const pt = sl.soort === 'dek' ? sl.p.clone().setY(1.45) : sl.soort === 'hoek' ? sl.h.uit.clone().setY((sl.h.uit.y || 0) + 1.45) : sl.soort === 'deur' ? new T.Vector3(sl.q.via[0][0], 1.45, sl.q.via[0][1]) : null; if (pt && (!this.puntZicht(pt, 0.5) || (this.zichtDicht(oogS, pt, 0.15) && this.zichtDicht(oogS, pt.clone().setY(1.1), 0.15)))) slots.splice(i, 1); }   /* post moet je echt zien */   /* ruim binnen de 120° (ook als hij uitleunt) */
+    for (let i = slots.length - 1; i >= 0; i--){ const sl = slots[i]; const pt = (sl.soort === 'dek' || sl.soort === 'abseil' || sl.soort === 'put') ? sl.p.clone().setY(1.45) : sl.soort === 'hoek' ? sl.h.uit.clone().setY((sl.h.uit.y || 0) + 1.45) : sl.soort === 'deur' ? new T.Vector3(sl.q.via[0][0], 1.45, sl.q.via[0][1]) : null; if (pt && (!this.puntZicht(pt, 0.5) || (this.zichtDicht(oogS, pt, 0.15) && this.zichtDicht(oogS, pt.clone().setY(1.1), 0.15)))) slots.splice(i, 1); }   /* post moet je echt zien */   /* ruim binnen de 120° (ook als hij uitleunt) */
     slots.forEach(sl => sl.zone = sl.raam ? 'H' : sl.a < -0.33 ? 'L' : sl.a > 0.33 ? 'R' : 'M');
     const basis = ['M', 'L', 'H', 'R', 'M', 'R', 'H', 'L'], st = this.el.components.stad, sh = ((st && st.i) || 0) % 4;
     const volg = basis.slice(sh).concat(basis.slice(0, sh)).filter(zn => slots.some(sl => sl.zone === zn));
@@ -4568,7 +4584,32 @@ AFRAME.registerComponent('zombies', {
       const hoe = s.soort === 'dek' ? 'dek' : s.soort === 'loop' ? 'loop' : s.soort === 'raam' ? 'raam' : s.soort === 'deur' ? (gehad.has(s) ? 'uit' : 'trap') : ['leun', 'leun', 'rol', 'stap', 'rol', 'leun'][r()*6|0]; gehad.add(s);
       E.push({sl:s, hoe, k:r()*997|0, wacht:WACHT[i % WACHT.length]*(0.85 + r()*0.3), t0:0.25 + r()*0.6, dodelijk:r() < 0.22, seed:(r()*4294967296) >>> 0}); }
     return K._db = {k:sleutel, E, i:0}; },
-  slotPos(s){ return s.soort === 'dek' ? [s.p.x, s.p.z] : s.soort === 'hoek' ? [s.h.uit.x, s.h.uit.z] : s.soort === 'deur' ? s.q.via[0] : s.soort === 'loop' ? (s.q.via && s.q.via.length ? s.q.via[s.q.via.length - 1] : s.q.p) : null; },
+  extraSlots(K, hoek){ const T = this.T, st = this.el.components.stad, V = (x, y, z) => new T.Vector3(x, y, z), oog = V(0, 1.6 + ((st && st.extraY) || 0), 0), uit = [];
+    const zie = p => [1.45, 1.0].every(y => !this.kaartSegZ(oog, p.clone().setY(y)) && !this.zichtDicht(oog, p.clone().setY(y), 0.15));
+    const ver = p => (K.spawns || []).every(q => { const e = q.via && q.via.length ? q.via[0] : q.p; return Math.hypot(e[0] - p.x, e[1] - p.z) > 2.2; });   /* niet vlak voor een deur */
+    abs: for (const r of [8, 9.5, 11, 12.5, 7]) for (let a = -0.66; a <= 0.67; a += 0.11){ const p = V(Math.sin(a)*r, 0, -Math.cos(a)*r), dir = V(p.x, 0, p.z).normalize();   /* abseilen: hoge gevel vlak achter een vrij stuk grond */
+      const w = this.kaartSegZ(p.clone().setY(3.2), p.clone().setY(3.2).addScaledVector(dir, 2.4)); if (!w || w.b.max.y < 5.2 || w.b.max.y > 15) continue;
+      const top = w.b.max.y, pL = p.clone().addScaledVector(dir, Math.max(0, w.d - 0.55)); if (!this.kaartVrij(pL, 0.4) || !zie(pL) || !ver(pL)) continue;
+      if (this.kaartSegZ(pL.clone().setY(0.4), pL.clone().setY(top - 0.25)) || this.kaartSegZ(oog, pL.clone().setY(top - 0.6))) continue;
+      uit.push({soort:'abseil', p:pL, top, a:hoek([pL.x, pL.z])}); break abs; }
+    const W = K.W, sw = (W && W.soort) || '', vloerNaam = p => { let n = null; ((W && W.vloer) || []).forEach(r => { if (p.x + K.o[0] > r[0] && p.x + K.o[0] < r[2] && p.z + K.o[1] > r[1] && p.z + K.o[1] < r[3]) n = r[4]; }); return n; };
+    const si = ((st && st.i) || 0), AA = [0.55, 0.33, 0.11, -0.11, -0.33, -0.55], RR = [7, 8.5, 10, 6, 11.5], aa = AA.slice(si % 6).concat(AA.slice(0, si % 6)), rr = RR.slice(si % 5).concat(RR.slice(0, si % 5));   /* per plek een andere plek in de straat */
+    if (['oud', 'stad', 'kade', 'fabriek', 'hq'].includes(sw)) put: for (const r of rr) for (const a of aa){ const p = V(Math.sin(a)*r, 0, -Math.cos(a)*r);   /* putdeksel: alleen in een echte straat of betonnen terrein */
+      if (!/asfalt|kinderkop|stoep|beton/.test(vloerNaam(p) || '')) continue;
+      if (!this.kaartVrij(p, 0.95) || !zie(p) || !ver(p) || this.kaartSegZ(oog, p.clone().setY(0.45)) || uit.some(s => s.p.distanceTo(p) < 3)) continue;
+      uit.push({soort:'put', p, a:hoek([p.x, p.z])}); this.putMaak(p); break put; }
+    return uit; },
+  putMaak(p){ const st = this.el.components.stad, G = st && st.kaartG, T = this.T; if (!G) return null;   /* gietijzeren putdeksel in de straat */
+    if (!this._putMat){ const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); x.fillStyle = '#2b2b2a'; x.beginPath(); x.arc(64, 64, 63, 0, 7); x.fill();
+      x.strokeStyle = '#4a4946'; x.lineWidth = 5; for (let r = 18; r < 60; r += 13){ x.beginPath(); x.arc(64, 64, r, 0, 7); x.stroke(); } x.lineWidth = 4; for (let i = 0; i < 8; i++){ const a = i*Math.PI/4; x.beginPath(); x.moveTo(64, 64); x.lineTo(64 + Math.cos(a)*60, 64 + Math.sin(a)*60); x.stroke(); }
+      x.fillStyle = '#1a1a19'; x.font = 'bold 15px sans-serif'; x.textAlign = 'center'; x.fillText('RIOOL', 64, 69);
+      const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; this._putMat = new T.MeshStandardMaterial({map:t, roughness:0.55, metalness:0.6}); this._putRand = new T.MeshStandardMaterial({color:0x3b3a37, roughness:0.7, metalness:0.4}); this._putGat = new T.MeshBasicMaterial({color:0x050505}); }
+    const g = new T.Group(); g.position.set(p.x - G.position.x, 0, p.z - G.position.z);
+    const rand = new T.Mesh(new T.RingGeometry(0.4, 0.5, 24), this._putRand); rand.rotation.x = -Math.PI/2; rand.position.y = 0.012; g.add(rand);
+    const gat = new T.Mesh(new T.CircleGeometry(0.4, 24), this._putGat); gat.rotation.x = -Math.PI/2; gat.position.y = 0.008; g.add(gat);
+    const dek = new T.Mesh(new T.CylinderGeometry(0.4, 0.4, 0.035, 24), [this._putRand, this._putMat, this._putRand]); dek.position.y = 0.02; g.add(dek); g.userData.dek = dek;
+    G.add(g); p.put = g; return g; },
+  slotPos(s){ return (s.soort === 'dek' || s.soort === 'abseil' || s.soort === 'put') ? [s.p.x, s.p.z] : s.soort === 'hoek' ? [s.h.uit.x, s.h.uit.z] : s.soort === 'deur' ? s.q.via[0] : s.soort === 'loop' ? (s.q.via && s.q.via.length ? s.q.via[s.q.via.length - 1] : s.q.p) : null; },
   scriptLoper(K){ const D = this.draaiboek(K); if (!D) return null; const e = D.E[D.i % D.E.length], sl = e.sl, T = this.T;
     if (sl.slecht >= 2 && D.E.some(x => !(x.sl.slecht >= 2))){ D.i++; return null; }   /* v190: deze post werkt niet: volgende */
     { const q = this.slotPos(sl); if (q && this.lijst.some(z => !z.dood && z.ai && z.grp && z.grp.parent && Math.hypot(z.grp.position.x - q[0], z.grp.position.z - q[1]) < 1.7)) return null; }   /* daar staat al iemand: wachten tot hij weg/dood is */
@@ -4579,6 +4620,10 @@ AFRAME.registerComponent('zombies', {
     else if (sl.soort === 'loop'){ z = this.spawnOp(sl.q, opt); }
     else if (sl.soort === 'dek'){ z = this.soldaat(sl.p.clone(), opt); if (z && z.ai){ z.ai.arcade = true; z.ai.zak = z.ai.zakDoel = 1; const diep = Math.max(0, 1.3 - (sl.h || 1)); z.ai.zak = 1 + diep; z.ai.houding = 'hurk'; z.grp.visible = false; z.ai.post = {schuil:sl.p.clone(), uit:sl.p.clone(), laag:true, diep, verstop:0.8, fase:'schuil', gehad:true}; z.ai.staat = 'arcade'; } }   /* verschijnt al gehurkt achter de kist (hoofd eronder), komt daarna omhoog */
     else if (sl.soort === 'deur'){ z = this.spawnOp(sl.q, opt); if (z && z.ai){ z.ai.arcade = true; this.arcadeDeur(z, sl.q, e); } }
+    else if (sl.soort === 'abseil'){ z = this.soldaat(sl.p.clone(), opt); if (z && z.ai){ z.ai.staat = 'abseil'; z.ai.y0 = sl.top - 0.3; z.ai.absTop = sl.top; z.ai.absP = sl.p.clone();   /* v196: aan een touw de gevel af */
+        const tw = new T.Mesh(new T.CylinderGeometry(0.016, 0.016, sl.top, 5), this._touwMat || (this._touwMat = new T.MeshStandardMaterial({color:0x2a2620, roughness:0.9})));
+        tw.position.set(sl.p.x, sl.top/2, sl.p.z); (z.grp.parent || this.sc).add(tw); z.ai.absTouw = tw; this.geluid && this.geluid('touw'); } }
+    else if (sl.soort === 'put'){ z = this.soldaat(sl.p.clone(), opt); if (z && z.ai){ z.ai.staat = 'put'; z.ai.y0 = -1.75; z.ai.putG = sl.p.put; z.grp.visible = false; } }
     else { const h = sl.h, rich = h.uit.clone().sub(h.p).setY(0).normalize(); let post = null;
       if (e.hoe === 'rol'){ const eind = h.uit.clone().addScaledVector(rich, 1.0);   /* rolt de hoek om en blijft geknield schieten */
         if (this.kaartVrij(eind, 0.34) && !this.kaartSegZ(h.uit.clone().setY(0.9), eind.clone().setY(0.9)) && Math.atan2(Math.abs(eind.x), -eind.z) < 0.98 && this.bladVrij(K, h.p, eind, 0.3)) post = {schuil:eind, uit:eind, laag:true, fase:'schuil', hoek:h, gehad:false, rolIn:true}; }
@@ -8197,7 +8242,7 @@ AFRAME.registerComponent('zombies', {
   truckLading(){ return Math.min(15, 6 + Math.round(((this.lvlNr || 1) - 1)*8/19) + (Math.random() < 0.5 ? 1 : 0)); },   // level 1: 6-7 man, level 20: 14-15
   zichtRedding(s){ const K = this.kaartNu(); if (!K || !this.arcadeAan || !this.arcadeAan()) return; if ((this.zrT = (this.zrT || 0) - s) > 0) return; this.zrT = 1;
     const T = this.T, oog = this.el.camera.getWorldPosition(new T.Vector3()), hkD = e => Math.atan2(Math.abs(e[0]), -e[1]), deuren = (K.spawns || []).filter(q => q.deur && q.via && q.via.length && hkD(q.p) < 0.95 && hkD(q.via[0]) < 0.95 && !(q.slecht >= 2) && !this.zichtDicht(oog, new T.Vector3(q.via[0][0], 1.45, q.via[0][1]), 0.15));
-    for (const z of this.lijst){ if (z.dood || !z.ai || !z.s3d || z.sprong || z.para || z.schild || ['bak', 'rijder', 'touw', 'deur', 'mg', 'mgVuur', 'zwaar', 'sniper', 'onwetend'].includes(z.ai.staat) || z.ai.raamSniper) continue;
+    for (const z of this.lijst){ if (z.dood || !z.ai || !z.s3d || z.sprong || z.para || z.schild || ['bak', 'rijder', 'touw', 'deur', 'abseil', 'put', 'mg', 'mgVuur', 'zwaar', 'sniper', 'onwetend'].includes(z.ai.staat) || z.ai.raamSniper) continue;
       const p = z.grp.position, opzij = Math.atan2(Math.abs(p.x), -p.z) > 1.05, P1 = z.ai.post, lk = P1 && P1.leun && P1.fase !== 'schuil' ? p.clone().addScaledVector(P1.leun.L, 0.32) : null;   /* leunt om de hoek: kijk naar zijn hoofd, niet naar zijn heupen */
       const dicht = opzij || !this.zichtEcht(z, true);   /* echte zichtlijn: hoofd of borst, door alle muren en kozijnen gemeten */   /* ook op een verdieping: vanaf zijn eigen vloer */
       z.zichtT = dicht ? (z.zichtT || 0) + 1 : 0;
