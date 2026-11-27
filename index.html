@@ -38,12 +38,12 @@ const KAART_TEGEL = {weg:4.0, weg2:4.0, stoep:2.0, gevel_wit:2.6, gevel_beige:2.
   asfalt:4.0, asfalt2:4.0, pleister1:2.4, pleister2:2.4, pleister3:2.4, pleister4:2.4, behang1:2.0, behang2:1.1, parket:1.6, tegels:2.0, stoep2:3.0, kinderkop:2.2, gevel_rood:2.6, gevel_blauw:2.6, gevel_schil:2.4, gevel_ruw:2.4, baksteen3:2.0, baksteen4:1.7, baksteen5:1.9, baksteen6:1.7, beton2:2.6, zak:0.5, cont_zij_rood:1.95, cont_zij_blauw:1.95, cont_zij_groen:1.95, cont_zij_oranje:1.95, vat_blauw:0.95, vat_rood:0.95, krat_foto:1.1, pallet_foto:1.25, klinker_vis:2.2, asfalt_foto:2.6, stoeptegels:2.6, golf_blauw:1.95, plafond_paneel:1.2, plafond_staal:3.2};
 // gevels: texture + kleurtint (zo krijgt hetzelfde pleister verschillende kleuren)
 const K_LUCHTFOTO = {kade:{n:'lucht_haven', hor:0.78}, stad:{n:'lucht_stad', hor:0.576, tw:1024, op:120}, winter:{n:'lucht_grijs', hor:0.96, tint:'#e6eefa'}, woestijn:{n:'lucht_woestijn', hor:0.402, tw:1024, op:70},
-  oud:{n:'lucht_blauw', hor:0.96, tint:'#fff0dc'}, hq:{n:'lucht_grijs', hor:0.96, tint:'#8a4438'}, hotel:{n:'lucht_nacht', hor:0.56, tw:1024, op:40, nacht:true}, fabriek:{n:'lucht_nacht', hor:0.56, tw:1024, op:40, nacht:true, tint:'#c8ccd8'}, loods:{n:'lucht_nacht', hor:0.56, tw:1024, op:40, nacht:true, tint:'#c8ccd8'}};
+  oud:{n:'lucht_blauw', hor:0.96, tint:'#fff0dc'}, hq:{n:'lucht_grijs', hor:0.96, tint:'#8a4438'}, basis:{n:'lucht_haven', hor:0.78, op:30}, hotel:{n:'lucht_nacht', hor:0.56, tw:1024, op:40, nacht:true}, fabriek:{n:'lucht_nacht', hor:0.56, tw:1024, op:40, nacht:true, tint:'#c8ccd8'}, loods:{n:'lucht_nacht', hor:0.56, tw:1024, op:40, nacht:true, tint:'#c8ccd8'}};
 function kLuchtFoto(x, img, LF){ const W = 2048, H = 1024, tw = LF.tw || 512, th = Math.round(tw*img.height/img.width), top = Math.round(H/2 - LF.hor*th - (LF.op || 0));   /* v199: horizon iets omhoog: skyline/bergen boven de daken */
   const s = document.createElement('canvas'); s.width = tw; s.height = th; const sx = s.getContext('2d'); sx.drawImage(img, 0, 0, tw, th);
   const gem = (y0, y1) => { const d = sx.getImageData(0, y0, tw, y1 - y0).data; let r = 0, g = 0, b = 0, n = d.length/4; for (let i=0;i<d.length;i+=4){ r += d[i]; g += d[i+1]; b += d[i+2]; } return [r/n, g/n, b/n]; };
   const kb = gem(0, 8), ko = gem(th - 8, th), rgb = (k, f) => `rgb(${k[0]*f|0},${k[1]*f|0},${k[2]*f|0})`;
-  const gr = x.createLinearGradient(0, 0, 0, top + 40); gr.addColorStop(0, rgb(kb, 0.86)); gr.addColorStop(1, rgb(kb, 1)); x.fillStyle = gr; x.fillRect(0, 0, W, top + 40);
+  const gr = x.createLinearGradient(0, 0, 0, top + 40); gr.addColorStop(0, rgb(kb, 0.86)); gr.addColorStop(1, rgb(kb, 1)); x.fillStyle = gr; x.fillRect(0, 0, W, top + 90);   /* v201: tot onder de overvloei: geen oude lucht als boog erdoorheen */
   x.fillStyle = rgb(ko, 0.9); x.fillRect(0, top + th - 4, W, H - top - th + 4);
   const f = document.createElement('canvas'); f.width = tw; f.height = th; const fx = f.getContext('2d'); fx.drawImage(s, 0, 0);
   fx.globalCompositeOperation = 'destination-in'; const m = fx.createLinearGradient(0, 0, 0, 70); m.addColorStop(0, 'rgba(0,0,0,0)'); m.addColorStop(1, 'rgba(0,0,0,1)'); fx.fillStyle = m; fx.fillRect(0, 0, tw, th);
@@ -323,7 +323,7 @@ KBouw.prototype = {
       img.onload = () => { try { kLuchtFoto(x2, img, LF); t.needsUpdate = true; } catch(e){ console.warn('lucht', e); } }; img.src = KAART_MAP + LF.n + '.jpg'; }
     else { t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; }
     const m = new T.Mesh(new T.SphereGeometry(320, 32, 16), new T.MeshBasicMaterial({map:t, side:T.BackSide, fog:false, depthWrite:false}));
-    m.renderOrder = -5; m.userData.lucht = true; this.extra.push(m); },
+    m.renderOrder = -5; m.userData.lucht = true; { const tmp = new T.Vector3(); m.onBeforeRender = (r, sc, cam) => { if (!m.parent) return; cam.getWorldPosition(tmp); m.parent.worldToLocal(tmp); m.position.copy(tmp); m.updateMatrixWorld(true); }; }   /* v201: hemel draait altijd rond de camera (ook in het menu): nooit een rand */ this.extra.push(m); },
   maak(){
     { const STER = {oud:'FOUNTAIN SQUARE', stad:'MARKET', kade:'CRANE YARD', woestijn:'ROOFTOPS', winter:'WATCHTOWERS'}, nm = this._soort && STER[this._soort], S = nm && this.standen.find(s => s.naam === nm);
       if (S && !S.hoog){ S.hoog = 3.2; S.geenMuur = true; kSteiger(this, S.x, S.z, 3.2); } }   /* v183: sterplek */
