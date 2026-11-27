@@ -52,8 +52,30 @@ function kLuchtFoto(x, img, LF){ const W = 2048, H = 1024, tw = LF.tw || 512, th
   for (let i=0;i<W/tw;i++){ x.save(); if (i % 2){ x.translate((i + 1)*tw, 0); x.scale(-1, 1); x.drawImage(f, 0, top); } else x.drawImage(f, i*tw, top); x.restore(); }   // gespiegeld: naadloos rond
   if (LF.tint){ x.globalCompositeOperation = 'multiply'; x.fillStyle = LF.tint; x.fillRect(0, 0, W, H); x.globalCompositeOperation = 'source-over'; } }
 const K_DECO = {oud:{winkel:0.5, poster:0.3, graf:0.08}, stad:{winkel:0.35, poster:0.4, graf:0.45}, kade:{poster:0.15, graf:0.5}, fabriek:{poster:0.1, graf:0.35}, woestijn:{winkel:0.15, poster:0.25}, hotel:{winkel:0.3, poster:0.2}};   /* v202: kans per huis */
+function kKegel(B, x, z, r, y0, y1, t, tTop){ const N = 12, kl = (p, tt, f) => B.kl(p[0], p[1], p[2], f, tt), top = [x, y1, z];   /* v205: kegel (dennen) */
+  for (let i = 0; i < N; i++){ const a0 = i/N*6.2832, a1 = (i + 1)/N*6.2832, A = [x + Math.cos(a0)*r, y0, z + Math.sin(a0)*r], Bq = [x + Math.cos(a1)*r, y0, z + Math.sin(a1)*r];
+    B.tri('kleur', [A, top, Bq], [[0, 0], [0.5, 1], [1, 0]], [kl(A, t, 0.75), kl(top, tTop || t, 1.05), kl(Bq, t, 0.75)]);
+    B.tri('kleur', [A, Bq, [x, y0, z]], [[0, 0], [1, 0], [0.5, 0.5]], [kl(A, t, 0.5), kl(Bq, t, 0.5), kl([x, y0, z], t, 0.4)]); } }
+function kPalmKroon(B, x, z, h){ const hs = k => ((Math.sin(x*12.9898 + z*78.233 + k*37.719)*43758.5453) % 1 + 1) % 1, kl = (p, f, t) => B.kl(p[0], p[1], p[2], f, t);   /* v205: hangende palmbladeren */
+  for (let i = 0; i < 9; i++){ const a = i/9*6.2832 + hs(i)*0.4, L = 1.9 + hs(i + 9)*0.8, dx = Math.cos(a), dz = Math.sin(a), px = -dz, pz = dx, w = 0.34;
+    const P0 = [x, h, z], M = [x + dx*L*0.45, h + 0.45 + hs(i + 3)*0.25, z + dz*L*0.45], Tp = [x + dx*L, h - 0.7 - hs(i + 5)*0.5, z + dz*L];
+    const Ml = [M[0] + px*w, M[1] - 0.12, M[2] + pz*w], Mr = [M[0] - px*w, M[1] - 0.12, M[2] - pz*w], t = hs(i + 7) < 0.5 ? [0.24, 0.44, 0.16] : [0.3, 0.5, 0.18], tc = [0.36, 0.33, 0.18];
+    [[P0, M, Ml], [P0, Mr, M], [M, Tp, Ml], [M, Mr, Tp], [P0, Ml, M], [P0, M, Mr], [M, Ml, Tp], [M, Tp, Mr]].forEach(T => B.tri('kleur', T, [[0, 0], [1, 0], [1, 1]], T.map(q => kl(q, q === P0 ? 0.7 : 1, q === P0 ? tc : t)))); }
+  B.cilinder('kleur', x, z, 0.28, h - 0.35, h + 0.05, {tint:[0.42, 0.33, 0.2], geenBots:true}); }
+function kPlant(B, x, z){   /* v205: terracotta pot, aarde, 14 gebogen bladeren (vast patroon per plek, geen R()) */
+  const hs = k => ((Math.sin(x*12.9898 + z*78.233 + k*37.719)*43758.5453) % 1 + 1) % 1, kl = (p, f, t) => B.kl(p[0], p[1], p[2], f, t);
+  B.cilinder('kleur', x, z, 0.2, 0, 0.4, {tint:[0.62, 0.32, 0.2], geenBots:true}); B.cilinder('kleur', x, z, 0.23, 0.36, 0.44, {tint:[0.58, 0.3, 0.19], geenBots:true});
+  B.cilinder('kleur', x, z, 0.19, 0.4, 0.42, {tint:[0.2, 0.14, 0.1], geenBots:true});
+  const N = 18, y0 = 0.42;
+  for (let i = 0; i < N; i++){ const a = i/N*6.2832 + hs(i)*0.5, hoog = i % 3 === 0, L = (hoog ? 0.3 : 0.62) + hs(i + 20)*0.2, h = (hoog ? 0.8 : 0.38) + hs(i + 40)*0.25, w = 0.07 + hs(i + 60)*0.04;
+    const dx = Math.cos(a), dz = Math.sin(a), px = -dz, pz = dx, Bp = [x + dx*0.03, y0, z + dz*0.03];
+    const M = [x + dx*L*0.55, y0 + h, z + dz*L*0.55], Tp = [x + dx*L, y0 + h*(hoog ? 0.9 : 0.2), z + dz*L];
+    const Ml = [M[0] + px*w, M[1], M[2] + pz*w], Mr = [M[0] - px*w, M[1], M[2] - pz*w];
+    const t = hs(i + 80) < 0.5 ? [0.2, 0.45, 0.17] : [0.27, 0.55, 0.2], tc = t.map(v => v*0.8);
+    [[Bp, Ml, Tp], [Bp, Tp, Mr], [Bp, Tp, Ml], [Bp, Mr, Tp]].forEach(T => B.tri('kleur', T, [[0, 0], [1, 0], [1, 1]], T.map((q, k) => kl(q, k === 0 ? 0.65 : 1, k === 0 ? tc : t)))); } }
 function kDeco(B, P, nx, nz, a0, a1, gaten, deuren, sd, binnen, voor){ const dc = K_DECO[B._soort]; if (!dc || a1 - a0 < 1.6) return;   /* v202: winkelbord boven een deur, poster en graffiti op een vrij stuk muur (geen R(): de wereld blijft hetzelfde) */
   const hs = k => ((Math.sin(sd*12.9898 + k*78.233)*43758.5453) % 1 + 1) % 1, bezet = [];
+  { const q = P((a0 + a1)/2, voor + 0.35); if ((B.binnen || []).some(r => q[0] > r.x0 && q[0] < r.x1 && q[1] > r.z0 && q[1] < r.z1)) binnen = true; }   /* v205: muur in een kamer: geen graffiti of winkelbord */
   const vrij = (x0, x1, y0, y1) => x0 > a0 + 0.15 && x1 < a1 - 0.15 && gaten.concat(bezet).every(g => g.a1 < x0 || g.a0 > x1 || g.b1 < y0 || g.b0 > y1);
   const zet = (n, c, y0, bw) => { const sz = K_DECAL[n], bh = bw*sz[1]/sz[0], q = P(c, voor + 0.025); B.decal(n, q[0], q[1], nx, nz, y0, bw, bh, {geenAo:true}); bezet.push({a0:c - bw/2 - 0.1, a1:c + bw/2 + 0.1, b0:y0, b1:y0 + bh}); };
   if (!binnen && dc.winkel && deuren.length && hs(1) < dc.winkel){ const c = deuren[hs(7)*deuren.length|0], n = 'winkel' + (1 + (hs(2)*6|0)), sz = K_DECAL[n], bw = sz[0] > sz[1] ? 1.3 : 0.72; if (vrij(c - bw/2, c + bw/2, 2.36, 2.4 + bw*sz[1]/sz[0])) zet(n, c, 2.4, bw); }
@@ -736,7 +758,7 @@ function kAankleden(B, soort){
           [0.3, 0.7].forEach(f => kleur(wd*f - 0.2, wd*f + 0.2, v0 + 0.22, v0 + 0.34, 0.45, 0.75, STOF.map(x => x*1.25))); }
         else if (soortM === 'kratten'){ plank(0, 0.7, v0, v0 + 0.7, 0, 0.6, HOUTL); plank(0.75, 1.2, v0, v0 + 0.5, 0, 0.45, HOUT); if (R() < 0.7) plank(0.08, 0.6, v0 + 0.05, v0 + 0.6, 0.6, 1.1, HOUT); }
         else if (soortM === 'vaten'){ const t = kKies(R, [[0.25, 0.4, 0.3], [0.55, 0.18, 0.12], [0.2, 0.28, 0.45], [0.5, 0.45, 0.2]]); [0.32, 0.98].forEach(f => B.cilinder('kleur', ...P(u + f, 0.34), 0.3, 0, 0.9, {tint:t, geenBots:true})); }
-        else if (soortM === 'plant'){ B.cilinder('kleur', ...P(u + 0.3, 0.3), 0.2, 0, 0.42, {tint:[0.55, 0.3, 0.2], geenBots:true}); kleur(0.08, 0.52, v0 + 0.06, v0 + 0.5, 0.42, 0.9, [0.2, 0.42, 0.18]); kleur(0.16, 0.44, v0 + 0.14, v0 + 0.42, 0.9, 1.3, [0.25, 0.5, 0.2]); }
+        else if (soortM === 'plant'){ const c = P(u + 0.3, 0.3); kPlant(B, c[0], c[1]); }
         else if (soortM === 'haard'){ kleur(0, wd, v0, v1, 0, hh, [0.55, 0.5, 0.46]); kleur(0.3, wd - 0.3, v1, v1 + 0.01, 0.1, 0.7, [0.05, 0.04, 0.04]); kleur(-0.05, wd + 0.05, v0, v1 + 0.06, hh, hh + 0.08, HOUT); }
         else if (soortM === 'rek' || soortM === 'werkbank'){ const rk = soortM === 'rek';
           [0, wd - 0.05].forEach(x => { kleur(x, x + 0.05, v0, v0 + 0.05, 0, hh, META); kleur(x, x + 0.05, v1 - 0.05, v1, 0, hh, META); });
@@ -1738,7 +1760,7 @@ KWERELD.woestijn = (T, R) => {
   const vloer = (x0, z0, x1, z1) => B.vlakH('stoep2', x0, z0, x1, z1, 0, {stap:2, tint:ZAND});
   const doek = (x0, x1, z, y, kl) => B.doos('kleur', x0, z - 0.9, x1, z + 0.9, y, y + 0.04, {tint:kl, geenBots:true, geenAo:true});
   const palm = (x, z, h) => { B.cilinder('kleur', x, z, 0.2, 0, h, {tint:[0.45, 0.34, 0.22]}); B.box(x - 0.22, 0, z - 0.22, x + 0.22, h, z + 0.22);
-    for (let a = 0; a < 6; a++){ const r = a/6*6.283, dx = Math.cos(r)*1.1, dz = Math.sin(r)*1.1; B.doos('kleur', x + dx - 0.55, z + dz - 0.18, x + dx + 0.55, z + dz + 0.18, h - 0.25 - (a % 2)*0.2, h - 0.15 - (a % 2)*0.2, {tint:[0.22, 0.42, 0.16], geenBots:true, geenAo:true}); } };
+    kPalmKroon(B, x, z, h); };
   const kantelen = (x0, x1, z, y) => { for (let x = x0; x < x1 - 0.4; x += 1.2) B.doos('pleister2', x, z - 0.2, x + 0.6, z + 0.2, y, y + 0.6, {tint:LEEM2, geenBots:true}); };
 
   // 0 · KASBAH-POORT: straatje tussen lemen huizen naar een dikke muur met een boog en een torentje
@@ -1995,7 +2017,7 @@ KWERELD.winter = (T, R) => {
     const g = kGevel(B, R, {x0:x - 1.3, z0:z + 1.3, x1:x + 1.3, z1:z + 1.3, n:[0, 1], H:7, mat:'plank', tint:[0.55, 0.45, 0.36], ramen:[[1.3, 3.9]], gaten:[{a0:0, a1:2.6, b0:0, b1:3.9}]});
     B.vlakH('plank', x - 1.3, z - 1.3, x + 1.3, z + 1.3, 3.95, {tint:[0.5, 0.42, 0.34]}); kap(x - 1.3, z - 1.3, x + 1.3, z + 1.3, 7); return g; };
   const den = (x, z, h) => { B.cilinder('kleur', x, z, 0.22, 0, h*0.35, {tint:[0.35, 0.25, 0.18]}); B.box(x - 0.3, 0, z - 0.3, x + 0.3, h, z + 0.3);
-    for (let i = 0; i < 4; i++){ const r = 1.5 - i*0.32, y = h*0.3 + i*h*0.17; B.doos('kleur', x - r, z - r, x + r, z + r, y, y + h*0.2, {tint:i % 2 ? [0.9, 0.95, 1] : [0.16, 0.3, 0.2], geenBots:true}); } };
+    for (let i = 0; i < 4; i++){ const r = 1.7 - i*0.36, y = h*0.28 + i*h*0.16; kKegel(B, x, z, r, y, y + h*0.3, [0.15, 0.28, 0.19], [0.88, 0.92, 0.98]); } };   /* v205: kegels met sneeuw op de punt */
   const omheining = (x0, z0, x1, z1, H) => { zw('golf_grijs', x0, z0, x1, z0, H, {tint:STAAL}); zw('golf_grijs', x0, z1, x1, z1, H, {tint:STAAL}); zw('golf_grijs', x0, z0, x0, z1, H, {tint:STAAL}); zw('golf_grijs', x1, z1, x1, z0, H, {tint:STAAL}); };
 
   // 0 · CONTROLEPOST: slagboom, wachthuisjes, zandzakken, een wachttoren
@@ -2267,7 +2289,7 @@ KWERELD.basis = (T, R, seed) => {
   // ---- bos rondom (variant 2): eenvoudige dennen buiten de muur
   if (V.bos) for (let i = 0; i < 70; i++){ const zij = i % 4, t = R(), x = zij === 0 ? X0 - 6 - R()*30 : zij === 1 ? X1 + 6 + R()*30 : X0 - 30 + t*(X1 - X0 + 60), z = zij < 2 ? Z0 - 20 + t*(Z1 - Z0 + 30) : zij === 2 ? Z0 - 6 - R()*30 : Z1 + 8 + R()*20;
     const h = 7 + R()*7; B.cilinder('kleur', x, z, 0.25, 0, h*0.35, {tint:[0.35, 0.25, 0.18], geenBots:true});
-    [[0.35, 2.6], [0.55, 2.0], [0.75, 1.3]].forEach(([f, r], k) => B.cilinder('kleur', x, z, r*(h/10), h*f, h*(f + 0.3), {tint:[0.16 + k*0.03, 0.3 + k*0.04, 0.17], geenBots:true})); }
+    [[0.3, 2.6], [0.5, 2.0], [0.7, 1.4]].forEach(([f, r], k) => kKegel(B, x, z, r*(h/10), h*f, h*(f + 0.34), [0.14 + k*0.03, 0.28 + k*0.04, 0.17], [0.2 + k*0.03, 0.36 + k*0.04, 0.2])); }
   // ---- standen: 0 = uitkijkplatform (menu), 1 = schietbaan (TEST)
   B.standen.push({x:0, z:0, naam:V.naam, hoog:PH, geenWagens:true, geenMuur:true, breed:2, licht:V.licht, mist:V.mist, props:[], plek:[], spawns:[],
                   basis:{var:Math.abs(seed|0) % 3, X0, X1, Z0, Z1, poort:[X1, -10.5], poortL:[X0, -10.5], heli:[-36, -76], vlag:[0, -54], baan:[RX, RZ]}});
@@ -2278,7 +2300,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v204";
+const VERSIE = "v205";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
