@@ -37,9 +37,9 @@ const KAART_TEGEL = {weg:4.0, weg2:4.0, stoep:2.0, gevel_wit:2.6, gevel_beige:2.
   golf_roest:1.8, golf_roest2:1.8, golf_grijs:1.8, dambord:1.6, dambord2:1.4, lambris:1.4,
   asfalt:4.0, asfalt2:4.0, pleister1:2.4, pleister2:2.4, pleister3:2.4, pleister4:2.4, behang1:2.0, behang2:1.1, parket:1.6, tegels:2.0, stoep2:3.0, kinderkop:2.2, gevel_rood:2.6, gevel_blauw:2.6, gevel_schil:2.4, gevel_ruw:2.4, baksteen3:2.0, baksteen4:1.7, baksteen5:1.9, baksteen6:1.7, beton2:2.6, zak:0.5, cont_zij_rood:1.95, cont_zij_blauw:1.95, cont_zij_groen:1.95, cont_zij_oranje:1.95, vat_blauw:0.95, vat_rood:0.95, krat_foto:1.1, pallet_foto:1.25, klinker_vis:2.2, asfalt_foto:2.6, stoeptegels:2.6, golf_blauw:1.95};
 // gevels: texture + kleurtint (zo krijgt hetzelfde pleister verschillende kleuren)
-const K_LUCHTFOTO = {kade:{n:'lucht_haven', hor:0.78}, stad:{n:'lucht_grijs', hor:0.96}, winter:{n:'lucht_grijs', hor:0.96, tint:'#e6eefa'}, woestijn:{n:'lucht_blauw', hor:0.96, tint:'#fffaf0'},
-  oud:{n:'lucht_blauw', hor:0.96, tint:'#fff0dc'}, hq:{n:'lucht_grijs', hor:0.96, tint:'#8a4438'}};
-function kLuchtFoto(x, img, LF){ const W = 2048, H = 1024, tw = 512, th = Math.round(tw*img.height/img.width), top = Math.round(H/2 - LF.hor*th);
+const K_LUCHTFOTO = {kade:{n:'lucht_haven', hor:0.78}, stad:{n:'lucht_stad', hor:0.576, tw:1024, op:120}, winter:{n:'lucht_grijs', hor:0.96, tint:'#e6eefa'}, woestijn:{n:'lucht_woestijn', hor:0.402, tw:1024, op:70},
+  oud:{n:'lucht_blauw', hor:0.96, tint:'#fff0dc'}, hq:{n:'lucht_grijs', hor:0.96, tint:'#8a4438'}, hotel:{n:'lucht_nacht', hor:0.56, tw:1024, op:40, nacht:true}, fabriek:{n:'lucht_nacht', hor:0.56, tw:1024, op:40, nacht:true, tint:'#c8ccd8'}, loods:{n:'lucht_nacht', hor:0.56, tw:1024, op:40, nacht:true, tint:'#c8ccd8'}};
+function kLuchtFoto(x, img, LF){ const W = 2048, H = 1024, tw = LF.tw || 512, th = Math.round(tw*img.height/img.width), top = Math.round(H/2 - LF.hor*th - (LF.op || 0));   /* v199: horizon iets omhoog: skyline/bergen boven de daken */
   const s = document.createElement('canvas'); s.width = tw; s.height = th; const sx = s.getContext('2d'); sx.drawImage(img, 0, 0, tw, th);
   const gem = (y0, y1) => { const d = sx.getImageData(0, y0, tw, y1 - y0).data; let r = 0, g = 0, b = 0, n = d.length/4; for (let i=0;i<d.length;i+=4){ r += d[i]; g += d[i+1]; b += d[i+2]; } return [r/n, g/n, b/n]; };
   const kb = gem(0, 8), ko = gem(th - 8, th), rgb = (k, f) => `rgb(${k[0]*f|0},${k[1]*f|0},${k[2]*f|0})`;
@@ -47,7 +47,8 @@ function kLuchtFoto(x, img, LF){ const W = 2048, H = 1024, tw = 512, th = Math.r
   x.fillStyle = rgb(ko, 0.9); x.fillRect(0, top + th - 4, W, H - top - th + 4);
   const f = document.createElement('canvas'); f.width = tw; f.height = th; const fx = f.getContext('2d'); fx.drawImage(s, 0, 0);
   fx.globalCompositeOperation = 'destination-in'; const m = fx.createLinearGradient(0, 0, 0, 70); m.addColorStop(0, 'rgba(0,0,0,0)'); m.addColorStop(1, 'rgba(0,0,0,1)'); fx.fillStyle = m; fx.fillRect(0, 0, tw, th);
-  for (let i=0;i<4;i++){ x.save(); if (i % 2){ x.translate((i + 1)*tw, 0); x.scale(-1, 1); x.drawImage(f, 0, top); } else x.drawImage(f, i*tw, top); x.restore(); }   // gespiegeld: naadloos rond
+  if (LF.nacht) for (let i=0;i<900;i++){ x.fillStyle = `rgba(255,255,255,${0.25 + Math.random()*0.6})`; x.fillRect(Math.random()*W, Math.random()*(top + 30), Math.random() < 0.12 ? 2 : 1, Math.random() < 0.12 ? 2 : 1); }   // sterren boven de foto door
+  for (let i=0;i<W/tw;i++){ x.save(); if (i % 2){ x.translate((i + 1)*tw, 0); x.scale(-1, 1); x.drawImage(f, 0, top); } else x.drawImage(f, i*tw, top); x.restore(); }   // gespiegeld: naadloos rond
   if (LF.tint){ x.globalCompositeOperation = 'multiply'; x.fillStyle = LF.tint; x.fillRect(0, 0, W, H); x.globalCompositeOperation = 'source-over'; } }
 const K_CONT_TOP = {rood:[0.6, 0.2, 0.15], blauw:[0.2, 0.32, 0.55], groen:[0.24, 0.42, 0.26], oranje:[0.78, 0.46, 0.18]};   /* v197 */
 const K_DEURI = {oud:['deur_hout', 'deur_hout', 'deur_kapot', 'deur_i1'], stad:['deur_staal', 'deur_i2', 'deur_hout', 'deur_i3'], kade:['deur_staal', 'deur_staal', 'deur_kapot'], haven:['deur_staal', 'deur_staal', 'deur_kapot'],
@@ -308,7 +309,7 @@ KBouw.prototype = {
     x.fillStyle = gr; x.fillRect(0, 0, 256, 256);
     if (sterren) for (let i=0;i<260;i++){ x.fillStyle = `rgba(255,255,255,${0.3 + Math.random()*0.7})`; x.fillRect(Math.random()*256, Math.random()*118, Math.random() < 0.15 ? 1.5 : 1, 1); }
     for (let i=0;i<70;i++){ const yy = 62 + Math.random()*60, rr = 8 + Math.random()*22, w = wolk ?? 0.1; x.fillStyle = `rgba(255,255,255,${w*0.5 + Math.random()*w})`; const xx = Math.random()*256; [-256, 0, 256].forEach(o => { x.beginPath(); x.ellipse(xx + o, yy, rr*2, rr*0.5, 0, 0, 6.3); x.fill(); }); }   // naadloos rond
-    const LF = !sterren && K_LUCHTFOTO[this._soort]; let t;   /* v198: echte lucht-foto rondom, rustig verloop naar het zenit (geen draaikolk) */
+    const LF = K_LUCHTFOTO[this._soort] && (!sterren || K_LUCHTFOTO[this._soort].nacht) && K_LUCHTFOTO[this._soort]; let t;   /* v198: echte lucht-foto rondom, rustig verloop naar het zenit (geen draaikolk) */
     if (LF){ const c2 = document.createElement('canvas'); c2.width = 2048; c2.height = 1024; const x2 = c2.getContext('2d'); x2.drawImage(c, 0, 0, 2048, 1024);
       t = new T.CanvasTexture(c2); t.colorSpace = T.SRGBColorSpace; const img = new Image();
       img.onload = () => { try { kLuchtFoto(x2, img, LF); t.needsUpdate = true; } catch(e){ console.warn('lucht', e); } }; img.src = KAART_MAP + LF.n + '.jpg'; }
@@ -2257,7 +2258,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v198";
+const VERSIE = "v199";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -2950,8 +2951,8 @@ AFRAME.registerComponent('zombies', {
         if (!this.gepauzeerd && id !== this.gunHand && (k === 'bbuttondown' || k === 'ybuttondown')){ this.laserZien = !this.laserZien; this.tik(); return; }   /* bovenste knop vrije hand (B/Y): laserlijnen aan/uit */
         if (this.gepauzeerd || id !== this.gunHand) return;                      // knoppen op je vrije hand: niets
         if (this.wapen[this.gunHand] === 'pistool') this.herladen(); else this.kies(this.gunHand, 'pistool'); }));   // pistool in de hand: knop = snel herladen
-      h.addEventListener('gripdown', () => { if (this.gestart && !this.gepauzeerd && id !== this.gunHand) this.granPak(id, 'zwaai'); else if (this.gestart && !this.gepauzeerd && id === this.gunHand) this.onderVuur(id); });   // vrije hand: granaat pakken
-      h.addEventListener('gripup', () => { if (this.gestart) this.granLos(id, 'zwaai'); });                               // zwaaien en loslaten = gooien
+      h.addEventListener('gripdown', () => { if (this.gestart && !this.gepauzeerd && id !== this.gunHand && this.steunDicht(id)){ this.steun = id; this.tril && this.tril(id, 0.25, 30); } else if (this.gestart && !this.gepauzeerd && id !== this.gunHand) this.granPak(id, 'zwaai'); else if (this.gestart && !this.gepauzeerd && id === this.gunHand) this.onderVuur(id); });   // vrije hand: granaat pakken
+      h.addEventListener('gripup', () => { if (this.steun === id){ this.steun = null; return; } if (this.gestart) this.granLos(id, 'zwaai'); });                               // zwaaien en loslaten = gooien
       h.addEventListener('thumbstickmoved', e => {
         if (!this.gestart) return;
         if (id !== this.gunHand) return;                                   // vrije hand: joystick doet niets (granaat gaat per level)               // wapens wisselen met de joystick van je gun-hand
@@ -3009,6 +3010,19 @@ AFRAME.registerComponent('zombies', {
     const n = this.nevels[this.nI]; this.nI = (this.nI+1) % this.nevels.length;
     n.position.copy(p); n.userData.t = 0.4; n.userData.maat = maat; n.visible = true;
   },
+  /* v199: steunhand. Grip van je vrije hand dicht bij het wapen = vasthouden:
+     1) stabiel: de richting wordt gefilterd (geen trillen) en de terugslag is veel kleiner;
+     2) geweergreep: zit je steunhand vóór je schiethand, dan wijst het wapen van schiethand naar steunhand. */
+  steunDicht(id){ const T = this.T, a = document.getElementById(id), b = document.getElementById(this.gunHand); if (!a || !b) return false;
+    return a.object3D.getWorldPosition(new T.Vector3()).distanceTo(b.object3D.getWorldPosition(new T.Vector3())) < 0.6; },
+  steunQ(h, s, dy, dz){ const T = this.T, vrij = this.steun; if (!vrij || this.gepauzeerd || this.pauzeM || this.overleden){ this._steunD = null; this.steunGeweer = false; return null; }
+    const hv = document.getElementById(vrij); if (!hv) return null;
+    const Pg = h.object3D.getWorldPosition(new T.Vector3()), Qg = h.object3D.getWorldQuaternion(new T.Quaternion()), v = hv.object3D.getWorldPosition(new T.Vector3()).sub(Pg), L = v.length();
+    const base = new T.Vector3(0, dy, dz).normalize(), D0 = base.clone().applyQuaternion(Qg); let Dt = D0;
+    this.steunGeweer = L > 0.16 && L < 0.95 && v.dot(D0) > 0.4*L; if (this.steunGeweer) Dt = v.normalize();
+    if (!this._steunD) this._steunD = D0.clone();
+    this._steunD.lerp(Dt, Math.min(1, s*13)).normalize();
+    return new T.Quaternion().setFromUnitVectors(base, this._steunD.clone().applyQuaternion(Qg.invert())); },
   wapenTick(s){   // richtstraal vast op RICHT_OMLAAG graden onder de controller; de straal loopt precies over het vizier van het wapen in je hand
     const h0 = RICHT_OMLAAG*Math.PI/180, dy = -Math.sin(h0), dz = -Math.cos(h0);
     ['handL','handR'].forEach(id => {
@@ -3016,10 +3030,13 @@ AFRAME.registerComponent('zombies', {
       if (!rc) return;
       const gun = this.gestart && id === this.gunHand && !this.pauzeM ? this.handWapen(id, s) : (this.handWapen(id, s, true), 0);
       const oy = gun*Math.cos(h0), oz = -gun*Math.sin(h0);
+      const Q = (id === this.gunHand && gun) ? this.steunQ(h, s, dy, dz) : null, dv = new this.T.Vector3(0, dy, dz), ov = new this.T.Vector3(0, oy, oz);   /* v199: tweede hand op de grip */
+      { const M = this._hw && this._hw[id]; if (M && M.g){ M.g.rotation.y = 0; M.g.rotation.z = 0; if (Q) M.g.quaternion.premultiply(Q); } }
+      if (Q){ dv.applyQuaternion(Q); ov.applyQuaternion(Q); }
       const d = rc.data.direction, o = rc.data.origin;
-      if (Math.abs(d.x) < 1e-4 && Math.abs(d.y-dy) < 1e-4 && Math.abs(d.z-dz) < 1e-4 && o.x === 0 && Math.abs(o.y - oy) < 1e-5 && Math.abs(o.z - oz) < 1e-5) return;
+      if (Math.abs(d.x - dv.x) < 1e-4 && Math.abs(d.y - dv.y) < 1e-4 && Math.abs(d.z - dv.z) < 1e-4 && Math.abs(o.x - ov.x) < 1e-5 && Math.abs(o.y - ov.y) < 1e-5 && Math.abs(o.z - ov.z) < 1e-5) return;
       // laser-controls zet bij het verbinden zijn eigen (schuine) straal; die overschrijven we steeds weer
-      h.setAttribute('raycaster', {direction:{x:0, y:dy, z:dz}, origin:{x:0, y:oy, z:oz}});
+      h.setAttribute('raycaster', {direction:{x:dv.x, y:dv.y, z:dv.z}, origin:{x:ov.x, y:ov.y, z:ov.z}});
     });
     { const zien = !this.gestart || this.gepauzeerd || !!this.pauzeM || !!this.overleden || !!this.laserZien;   /* v193: in het spel standaard geen laserlijn; menu's wel */
       ['handL','handR'].forEach(id => { const h = document.getElementById(id), la = h && h.components.line; if (la && la.data.visible !== zien) h.setAttribute('line', 'visible', zien); }); }
@@ -8485,7 +8502,11 @@ AFRAME.registerComponent('zombies', {
     }
     return uit;
   },
-  vuur(bron, e){
+  vuur(bron, e){ const b0 = this.bloei || 0, k0 = this.klim || 0, x0 = this.klimX || 0, r = this.vuur0(bron, e);   /* v199: steunhand = minder terugslag */
+    if (this.steun && bron === this.gunHand){ const f = this.steunGeweer ? 0.35 : 0.5; this.bloei = b0 + ((this.bloei || 0) - b0)*f; this.klim = k0 + ((this.klim || 0) - k0)*f; this.klimX = x0 + ((this.klimX || 0) - x0)*f;
+      const M = this._hw && this._hw[bron]; if (M) M.kick *= 0.55; if (this._schotT === this.nu) this.tril && this.tril(this.steun, 0.3, 25); }
+    return r; },
+  vuur0(bron, e){
     if (this.onwLijst && this.onwLijst.length) this.alarm();
     const w = this.wapen[bron === 'muis' ? (this.gunHand || 'handR') : bron] || 'pistool';
     this.laatsteHand = bron === 'muis' ? null : bron;
