@@ -2322,7 +2322,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v208";
+const VERSIE = "v209";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -8426,7 +8426,7 @@ AFRAME.registerComponent('zombies', {
   tonTick(s){ const K = this.kaartNu(); if (!K || this.modus !== 'lvl' || !this.arcadeAan || !this.arcadeAan()){ if (this.tonnen && this.tonnen.length && !K){ this.tonnen.forEach(t => t.g.removeFromParent()); this.tonnen = []; } return; }
     if (this.tonK !== K){ (this.tonnen || []).forEach(t => t.g.removeFromParent()); this.tonnen = []; this.tonK = K; this.tonT = 2; }
     if ((this.tonT -= s) > 0) return; this.tonT = 4;
-    if (this.tonnen.filter(t => !t.weg).length >= 2) return;
+    if (this.tonnen.length >= 2) return;   /* v209: 1x ontploffen en weg: geen nieuwe ton erna */
     const T = this.T, oog = this.el.camera.getWorldPosition(new T.Vector3()), H = this.hoeken(K).filter(h => !this.tonnen.some(t => t.h === h)), h = H[Math.random()*H.length|0]; if (!h) return;
     const naar = oog.clone().sub(h.uit).setY(0).normalize(), p = h.uit.clone().addScaledVector(naar, 0.75).add(h.uit.clone().sub(h.p).setY(0).normalize().multiplyScalar(0.25));
     if (this.kaartSegZ(oog, p.clone().setY(0.5)) || p.distanceTo(oog.clone().setY(0)) < 4) return;
