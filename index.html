@@ -2322,7 +2322,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v209";
+const VERSIE = "v210";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -4859,6 +4859,9 @@ AFRAME.registerComponent('zombies', {
     for (const q of dood.slice(0, dood.length - 6)){ if (q.s3d && q.s3d.rag && !q.s3d.rag.slaap && q.s3d.rag.t < 6) continue; q.grp.removeFromParent(); this.darmWeg && this.darmWeg(q); q.opgeruimd = true; }
     this.lijst = this.lijst.filter(q => !q.opgeruimd); },
   opruimen(){   // wrakken en lijken van twee waves terug weg, dekking blijft
+    this.lijst.filter(z => z.dood).forEach(z => { z.grp.removeFromParent(); this.darmWeg(z); }); this.lijst = this.lijst.filter(z => !z.dood);   /* v210: lijken weg */
+    (this.los || []).forEach(l => l.o.removeFromParent()); this.los = []; (this.vliegt || []).forEach(p => p.g.removeFromParent()); this.vliegt = []; this.spuiters = [];
+    if (this.plas) this.plas.count = 0; if (this.schroei) this.schroei.count = 0;
     (this.wagens || []).forEach(w => { if (w.kapot && w.brand < -20){ w.g.removeFromParent(); w.weg = true; } });
     this.wagens = (this.wagens || []).filter(w => !w.weg);
   },
