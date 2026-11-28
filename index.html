@@ -29,9 +29,10 @@
    bij een standwissel schuift de wereld onder je door. Alles van een stand (dekking, spawns, muren)
    staat in wereldcoördinaten en wordt bij het wisselen omgerekend. */
 const KAART_MAP = 'art/map/';
-const KAART_MAAT = {"weg":[512,512],"weg2":[512,512],"stoep":[512,512],"gevel_wit":[512,512],"gevel_beige":[512,512],"gevel_afbl":[512,512],"gevel_geel":[512,512],"gevel_grijs":[512,512],"grind":[512,512],"beton":[512,512],"muur_afbl":[512,512],"muur_afbl2":[512,512],"muur_afbl3":[512,512],"muur_vlek":[512,512],"plafond":[512,512],"plank":[512,512],"baksteen":[512,512],"baksteen2":[512,512],"dak_rood":[512,512],"dak_grijs":[512,512],"dak_oud":[512,512],"golf_roest":[512,512],"golf_roest2":[512,512],"golf_grijs":[512,512],"dambord":[512,512],"dambord2":[512,512],"lambris":[512,512],"deur_b1":[307,512],"deur_b2":[311,512],"deur_b3":[373,512],"deur_b4":[332,512],"deur_b5":[307,512],"raam_b1":[365,512],"raam_b2":[388,512],"raam_b3":[404,512],"raam_b4":[392,512],"raam_b5":[352,512],"raam_b6":[352,512],"raam_b7":[512,388],"raam_b8":[379,512],"raam_b9":[512,482],"deur_i1":[267,512],"deur_i2":[353,512],"deur_i3":[257,512],"deur_i4":[302,512],"deur_i5":[360,512],"raam_i1":[511,512],"raam_i2":[512,494],"raam_i3":[512,512],"asfalt":[512,512],"asfalt2":[512,512],"pleister1":[512,512],"pleister2":[512,512],"pleister3":[512,512],"pleister4":[512,512],"behang1":[512,512],"behang2":[1024,1024],"parket":[512,512],"tegels":[512,512],"stoep2":[512,512],"gevel_rood":[512,512],"gevel_blauw":[512,512],"gevel_schil":[512,512],"gevel_ruw":[512,512],"baksteen3":[512,512],"baksteen4":[512,512],"baksteen5":[512,512],"baksteen6":[512,512],"beton2":[512,512],"kinderkop":[512,512],"zak":[256,256],"cont_voor_rood":[512,484],"cont_voor_blauw":[512,484],"cont_voor_groen":[512,484],"cont_voor_oranje":[512,484],"cont_zij_rood":[384,512],"cont_zij_blauw":[384,512],"cont_zij_groen":[384,512],"cont_zij_oranje":[384,512],"vat_blauw":[256,258],"vat_rood":[256,258],"krat_foto":[512,384],"pallet_foto":[512,400],"putdeksel":[256,256],"deur_hout":[300,512],"deur_staal":[300,512],"deur_kapot":[300,512],"klinker_vis":[512,268],"asfalt_foto":[512,268],"stoeptegels":[512,268],"golf_blauw":[384,512],"rolluik_foto":[300,360],"trapgevel":[512,304],"plafond_paneel":[256,632],"plafond_staal":[512,164],"plaf_rooster":[160,208],"plaf_rooster2":[160,214],"plaf_rond":[128,128],"tapijt":[512,512],"beton_platen":[768,768],"sneeuw_foto":[768,768],"zand_foto":[768,768],"raam_nl":[512,481],"raam_luiken":[364,512],"raam_kantoor":[512,471],"dak_pannen":[1024,949],"dak_lei":[1024,1094],"behang":[768,768],"tegel_zw":[768,768],"baksteen_geel":[1024,1024],"pleister_wit":[1024,1024],"leem":[1024,1024],"planken":[1024,1024],"kerktoren":[616,920],"poster1":[310,384],"poster2":[323,384],"poster3":[315,384],"poster4":[323,384],"graf1":[384,261],"graf2":[384,244],"graf3":[384,204],"graf4":[384,224],"graf5":[384,238],"graf6":[384,211],"winkel1":[282,384],"winkel2":[299,384],"winkel3":[279,384],"winkel4":[291,384],"winkel5":[384,220],"winkel6":[384,307]};
+const KAART_MAAT = {"weg":[512,512],"weg2":[512,512],"stoep":[512,512],"gevel_wit":[512,512],"gevel_beige":[512,512],"gevel_afbl":[512,512],"gevel_geel":[512,512],"gevel_grijs":[512,512],"grind":[512,512],"beton":[512,512],"muur_afbl":[512,512],"muur_afbl2":[512,512],"muur_afbl3":[512,512],"muur_vlek":[512,512],"plafond":[512,512],"plank":[512,512],"baksteen":[512,512],"baksteen2":[512,512],"dak_rood":[512,512],"dak_grijs":[512,512],"dak_oud":[512,512],"golf_roest":[512,512],"golf_roest2":[512,512],"golf_grijs":[512,512],"dambord":[512,512],"dambord2":[512,512],"lambris":[512,512],"deur_b1":[307,512],"deur_b2":[311,512],"deur_b3":[373,512],"deur_b4":[332,512],"deur_b5":[307,512],"raam_b1":[365,512],"raam_b2":[388,512],"raam_b3":[404,512],"raam_b4":[392,512],"raam_b5":[352,512],"raam_b6":[352,512],"raam_b7":[512,388],"raam_b8":[379,512],"raam_b9":[512,482],"deur_i1":[267,512],"deur_i2":[353,512],"deur_i3":[257,512],"deur_i4":[302,512],"deur_i5":[360,512],"raam_i1":[511,512],"raam_i2":[512,494],"raam_i3":[512,512],"asfalt":[512,512],"asfalt2":[512,512],"pleister1":[512,512],"pleister2":[512,512],"pleister3":[512,512],"pleister4":[512,512],"behang1":[512,512],"behang2":[1024,1024],"parket":[512,512],"tegels":[512,512],"stoep2":[512,512],"gevel_rood":[512,512],"gevel_blauw":[512,512],"gevel_schil":[512,512],"gevel_ruw":[512,512],"baksteen3":[512,512],"baksteen4":[512,512],"baksteen5":[512,512],"baksteen6":[512,512],"beton2":[512,512],"kinderkop":[512,512],"zak":[256,256],"cont_voor_rood":[512,484],"cont_voor_blauw":[512,484],"cont_voor_groen":[512,484],"cont_voor_oranje":[512,484],"cont_zij_rood":[384,512],"cont_zij_blauw":[384,512],"cont_zij_groen":[384,512],"cont_zij_oranje":[384,512],"vat_blauw":[256,258],"vat_rood":[256,258],"krat_foto":[512,384],"pallet_foto":[512,400],"putdeksel":[256,256],"deur_hout":[300,512],"deur_staal":[300,512],"deur_kapot":[300,512],"klinker_vis":[512,268],"asfalt_foto":[512,268],"stoeptegels":[512,268],"golf_blauw":[384,512],"rolluik_foto":[300,360],"trapgevel":[512,304],"plafond_paneel":[256,632],"plafond_staal":[512,164],"plaf_rooster":[160,208],"plaf_rooster2":[160,214],"plaf_rond":[128,128],"tapijt":[512,512],"zand_rand":[768,256],"zand_vlek":[512,512],"beton_platen":[768,768],"sneeuw_foto":[768,768],"zand_foto":[768,768],"raam_nl":[512,481],"raam_luiken":[364,512],"raam_kantoor":[512,471],"dak_pannen":[1024,949],"dak_lei":[1024,1094],"behang":[768,768],"tegel_zw":[768,768],"baksteen_geel":[1024,1024],"pleister_wit":[1024,1024],"leem":[1024,1024],"planken":[1024,1024],"kerktoren":[616,920],"poster1":[310,384],"poster2":[323,384],"poster3":[315,384],"poster4":[323,384],"graf1":[384,261],"graf2":[384,244],"graf3":[384,204],"graf4":[384,224],"graf5":[384,238],"graf6":[384,211],"winkel1":[282,384],"winkel2":[299,384],"winkel3":[279,384],"winkel4":[291,384],"winkel5":[384,220],"winkel6":[384,307]};
 const K_DECAL = {"poster1":[310,384],"poster2":[323,384],"poster3":[315,384],"poster4":[323,384],"graf1":[384,261],"graf2":[384,244],"graf3":[384,204],"graf4":[384,224],"graf5":[384,238],"graf6":[384,211],"winkel1":[282,384],"winkel2":[299,384],"winkel3":[279,384],"winkel4":[291,384],"winkel5":[384,220],"winkel6":[384,307]};
-const KAART_PNG = {trapgevel:1, kerktoren:1, poster1:1,poster2:1,poster3:1,poster4:1,graf1:1,graf2:1,graf3:1,graf4:1,graf5:1,graf6:1,winkel1:1,winkel2:1,winkel3:1,winkel4:1,winkel5:1,winkel6:1};   /* v198: met doorzichtige lucht */
+const KAART_ZACHT = {zand_rand:1, zand_vlek:1};   /* v208: zachte rand (doorzichtig mengen) */
+const KAART_PNG = {zand_rand:1, zand_vlek:1, trapgevel:1, kerktoren:1, poster1:1,poster2:1,poster3:1,poster4:1,graf1:1,graf2:1,graf3:1,graf4:1,graf5:1,graf6:1,winkel1:1,winkel2:1,winkel3:1,winkel4:1,winkel5:1,winkel6:1};   /* v198: met doorzichtige lucht */
 // hoe breed (m) één tegel van de texture in de wereld is
 const KAART_TEGEL = {weg:4.0, weg2:4.0, stoep:2.0, gevel_wit:2.6, gevel_beige:2.6, gevel_afbl:2.8, gevel_geel:2.6, gevel_grijs:2.6, grind:3.0, beton:2.6,
   muur_afbl:2.2, muur_afbl2:2.2, muur_afbl3:2.2, muur_vlek:2.4, plafond:2.4, plank:1.6, baksteen:1.9, baksteen2:1.7, dak_rood:2.0, dak_grijs:2.0, dak_oud:2.0,
@@ -62,6 +63,25 @@ function kPalmKroon(B, x, z, h){ const hs = k => ((Math.sin(x*12.9898 + z*78.233
     const Ml = [M[0] + px*w, M[1] - 0.12, M[2] + pz*w], Mr = [M[0] - px*w, M[1] - 0.12, M[2] - pz*w], t = hs(i + 7) < 0.5 ? [0.24, 0.44, 0.16] : [0.3, 0.5, 0.18], tc = [0.36, 0.33, 0.18];
     [[P0, M, Ml], [P0, Mr, M], [M, Tp, Ml], [M, Mr, Tp], [P0, Ml, M], [P0, M, Mr], [M, Ml, Tp], [M, Tp, Mr]].forEach(T => B.tri('kleur', T, [[0, 0], [1, 0], [1, 1]], T.map(q => kl(q, q === P0 ? 0.7 : 1, q === P0 ? tc : t)))); }
   B.cilinder('kleur', x, z, 0.28, h - 0.35, h + 0.05, {tint:[0.42, 0.33, 0.2], geenBots:true}); }
+/* v208: muren en vloeren onthouden, daarna zand ertegenaan blazen (vast patroon, geen R()) */
+function kZandOpnemen(B){ B._zm = []; B._zv = []; const w0 = B.wand.bind(B), v0 = B.vlakH.bind(B);
+  B.wand = (n, x0, z0, x1, z1, y0, y1, o) => { if (!y0 && Math.hypot(x1 - x0, z1 - z0) > 0.9) B._zm.push([x0, z0, x1, z1]); return w0(n, x0, z0, x1, z1, y0, y1, o); };
+  B.vlakH = (n, x0, z0, x1, z1, y, o) => { if (n === 'stoep2' && Math.abs(y || 0) < 0.02 && !(o && o.plafond)) B._zv.push([x0, z0, x1, z1]); return v0(n, x0, z0, x1, z1, y, o); }; }
+function kZandLeggen(B){ const hs = (a, b, k) => ((Math.sin(a*12.9898 + b*78.233 + k*37.719)*43758.5453) % 1 + 1) % 1, binnen = (x, z) => B.binnen.some(r => x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1);
+  const kl = (x, z, f) => B.kl(x, 0.02, z, f, [1, 1, 1]);
+  for (const [x0, z0, x1, z1] of B._zm){ const L = Math.hypot(x1 - x0, z1 - z0), dx = (x1 - x0)/L, dz = (z1 - z0)/L;
+    for (const s of [1, -1]){ const nx = -dz*s, nz = dx*s, mx = (x0 + x1)/2 + nx*0.6, mz = (z0 + z1)/2 + nz*0.6; if (binnen(mx, mz)) continue;
+      if (!B._zv.some(v => mx > Math.min(v[0], v[2]) && mx < Math.max(v[0], v[2]) && mz > Math.min(v[1], v[3]) && mz < Math.max(v[1], v[3])) && !(Math.abs(mx) < 40)) continue;
+      const b = 0.9 + hs(x0, z0, s)*0.9, o = 0.14, u0 = hs(z1, x1, s)*3, y = 0.012 + hs(x0 + s, z1, 3)*0.004;
+      const P = [[x0 + nx*o, y, z0 + nz*o], [x1 + nx*o, y, z1 + nz*o], [x1 + nx*(o + b), y, z1 + nz*(o + b)], [x0 + nx*(o + b), y, z0 + nz*(o + b)]];
+      if (s < 0) P.reverse();
+      const U = [[u0, 0], [u0 + L/2.2, 0], [u0 + L/2.2, 1], [u0, 1]]; if (s < 0) U.reverse();
+      B.quad('zand_rand', P, U, P.map(p => kl(p[0], p[2], 1))); } }
+  for (const [ax, az, bx, bz] of B._zv){ const x0 = Math.min(ax, bx), x1 = Math.max(ax, bx), z0 = Math.min(az, bz), z1 = Math.max(az, bz), n = Math.round((x1 - x0)*(z1 - z0)/22);
+    for (let i = 0; i < n; i++){ const cx = x0 + 1 + hs(x0, z0, i)*(x1 - x0 - 2), cz = z0 + 1 + hs(z1, x1, i + 50)*(z1 - z0 - 2); if (binnen(cx, cz)) continue;
+      const r = 1.4 + hs(cx, cz, 7)*2.2, a = hs(cz, cx, 9)*6.283, c = Math.cos(a)*r, d = Math.sin(a)*r, y = 0.006 + (i % 5)*0.0015;
+      const P = [[cx - c + d, y, cz - d - c], [cx + c + d, y, cz + d - c], [cx + c - d, y, cz + d + c], [cx - c - d, y, cz - d + c]];
+      B.quad('zand_vlek', P, [[0, 0], [1, 0], [1, 1], [0, 1]], P.map(p => kl(p[0], p[2], 1))); } } }
 function kPlant(B, x, z){   /* v205: terracotta pot, aarde, 14 gebogen bladeren (vast patroon per plek, geen R()) */
   const hs = k => ((Math.sin(x*12.9898 + z*78.233 + k*37.719)*43758.5453) % 1 + 1) % 1, kl = (p, f, t) => B.kl(p[0], p[1], p[2], f, t);
   B.cilinder('kleur', x, z, 0.2, 0, 0.4, {tint:[0.62, 0.32, 0.2], geenBots:true}); B.cilinder('kleur', x, z, 0.23, 0.36, 0.44, {tint:[0.58, 0.3, 0.19], geenBots:true});
@@ -146,9 +166,10 @@ const KAART = {
     else if (n === 'zwart') m = new T.MeshBasicMaterial({color:0x050607});
     else if (n === 'kleur') m = new T.MeshLambertMaterial({vertexColors:true, side:T.DoubleSide});
     else { const d = n.startsWith('d:'), naam = d ? n.slice(2) : n;
-      m = new T.MeshLambertMaterial({map:this.tex(T, naam, {clamp:d, band:naam === 'lambris'}), vertexColors:true, side:T.DoubleSide}); if (KAART_PNG[naam]) m.alphaTest = 0.5;
+      m = new T.MeshLambertMaterial({map:this.tex(T, naam, {clamp:d, band:naam === 'lambris' || naam === 'zand_rand'}), vertexColors:true, side:T.DoubleSide}); if (KAART_PNG[naam]) m.alphaTest = 0.5;
+      if (KAART_ZACHT[naam]){ m.alphaTest = 0.02; m.transparent = true; m.depthWrite = false; m.polygonOffset = true; m.polygonOffsetFactor = -3; m.polygonOffsetUnits = -3; }
       if (d){ m.polygonOffset = true; m.polygonOffsetFactor = -2; m.polygonOffsetUnits = -2; } }
-    if (n === 'kleur' || (m.map && !n.startsWith('d:'))) kVuil(T, m, n);
+    if (n === 'kleur' || (m.map && !n.startsWith('d:') && !KAART_ZACHT[n])) kVuil(T, m, n);
     return this.mats[n] = m; },
   alles(T){ Object.keys(KAART_MAAT).forEach(n => this.tex(T, n, {clamp:/^(deur|raam)_/.test(n), band:n === 'lambris'})); this.meubelLaad(T); },
   // meubels: uitgeknipt uit de Kling-vellen, in een paar atlas-pagina's (met alpha voor raak-tests)
@@ -1751,7 +1772,7 @@ KWERELD.kade = (T, R) => {
 /* === WOESTIJNSTAD (level 4): kasbah-poort, bazaar, daken, riad, paleisplein, smalle steeg met bogen, tapijtwinkel, oase, theehuis, fort.
    Draai: veel van boven (daken, balkons, torentjes). Zandkleurige leem, doeken in de zon. === */
 KWERELD.woestijn = (T, R) => {
-  const B = new KBouw(T); B.lucht(); B.weg = 'zand_foto'; B.stoep = 'stoep2';
+  const B = new KBouw(T); B.lucht(); B.weg = 'zand_foto'; B.stoep = 'stoep2'; kZandOpnemen(B);
   const ST = [], dS = (deuren, x, z, extra) => kDeurSpawns(deuren, {x, z}, p => p[1] < z - 2.5).concat(extra || []);
   const binnen = (xa, za, xb, zb, H, vloer, plaf, tint) => { const r = B.ruimte(xa, zb, xb, za, H, 0.3); B.vlakH(vloer, xa, zb, xb, za, 0.005, {stap:1.4, tint}); B.vlakH(plaf || 'plafond', xa, zb, xb, za, H, {plafond:true, stap:1.5}); return r; };
   const zw = (n, x0, z0, x1, z1, H, o) => B.wand(n, x0, z0, x1, z1, 0, H, Object.assign({dik:0.3, tint:LEEM}, o || {}));
@@ -1869,6 +1890,7 @@ KWERELD.woestijn = (T, R) => {
 
   { const lu = B.extra[0]; ST.forEach(S => { if (S.lucht && Math.abs(S.z) > 150){ const m = lu.clone(); m.position.set(S.x, 0, S.z); B.extra.push(m); } }); }
   B.standen.push(...ST);
+  kZandLeggen(B);
   return B.maak();
 };
 
@@ -2300,7 +2322,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v207";
+const VERSIE = "v208";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
