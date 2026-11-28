@@ -2322,7 +2322,7 @@ KWERELD.basis = (T, R, seed) => {
 </script>
 <script>
 /* ================= REGELKNOPPEN ================= */
-const VERSIE = "v210";
+const VERSIE = "v211";
 const BOOG    = 180;   // hoeveel graden breed een panorama is (links-rechts)
 const OOG     = 1.6;   // ooghoogte waarmee het plaatje is "gefotografeerd" (m)
 const STRAAL  = 30;    // afstand van de gebogen wand (m)
@@ -4862,6 +4862,13 @@ AFRAME.registerComponent('zombies', {
     this.lijst.filter(z => z.dood).forEach(z => { z.grp.removeFromParent(); this.darmWeg(z); }); this.lijst = this.lijst.filter(z => !z.dood);   /* v210: lijken weg */
     (this.los || []).forEach(l => l.o.removeFromParent()); this.los = []; (this.vliegt || []).forEach(p => p.g.removeFromParent()); this.vliegt = []; this.spuiters = [];
     if (this.plas) this.plas.count = 0; if (this.schroei) this.schroei.count = 0;
+    { const st = this.el.components.stad, W = st && st.kaartNu() && st.kaartW; (W && W.meubels || []).forEach(m => { m.visible = true; m.userData.kapot = false; }); }   /* v211: alles opnieuw */
+    this.meubelsWeg && this.meubelsWeg(); this.gatenWeg && this.gatenWeg();
+    (this.blokken || []).forEach(b => b.g.removeFromParent()); this.blokken = []; (this.losseKappen || []).forEach(b => b.hang.removeFromParent()); this.losseKappen = [];
+    (this.wrakken || []).forEach(d => d.m.removeFromParent()); this.wrakken = [];
+    (this.wagens || []).forEach(w => { if (w.kapot){ w.g.removeFromParent(); this.motorStop(w); w.weg = true; } });
+    (this.helis || []).forEach(h => { if (h.kapot){ h.g.removeFromParent(); this.heliStil(h); (h.lijnen || []).forEach(l => l.removeFromParent()); h.weg = true; } }); this.helis = (this.helis || []).filter(h => !h.weg);
+    (this.tonnen || []).forEach(t => t.g.removeFromParent()); this.tonnen = []; this.tonK = null;
     (this.wagens || []).forEach(w => { if (w.kapot && w.brand < -20){ w.g.removeFromParent(); w.weg = true; } });
     this.wagens = (this.wagens || []).filter(w => !w.weg);
   },
